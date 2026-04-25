@@ -1,0 +1,166 @@
+digraph UseCaseDiagram {
+    // ── Global Settings ──────────────────────────────────
+    rankdir=LR;
+    fontname="Arial";
+    fontsize=14;
+    label="\n\nBloodConnect — Use Case Diagram";
+    labelloc=t;
+    labelfontsize=20;
+    labelfontname="Arial Bold";
+    bgcolor="#FAFAF8";
+    pad=0.5;
+    nodesep=0.4;
+    ranksep=1.2;
+
+    // ── Actor Style ──────────────────────────────────────
+    node [fontname="Arial", fontsize=11];
+
+    // ── Actors (Left Side) ───────────────────────────────
+    Guest [
+        label=<<TABLE BORDER="0" CELLSPACING="0">
+            <TR><TD><IMG SRC="data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='40' height='60'&gt;&lt;circle cx='20' cy='10' r='8' fill='none' stroke='%23922B21' stroke-width='2'/&gt;&lt;line x1='20' y1='18' x2='20' y2='40' stroke='%23922B21' stroke-width='2'/&gt;&lt;line x1='5' y1='28' x2='35' y2='28' stroke='%23922B21' stroke-width='2'/&gt;&lt;line x1='20' y1='40' x2='8' y2='55' stroke='%23922B21' stroke-width='2'/&gt;&lt;line x1='20' y1='40' x2='32' y2='55' stroke='%23922B21' stroke-width='2'/&gt;&lt;/svg&gt;"/></TD></TR>
+            <TR><TD><FONT POINT-SIZE="12"><B>Guest</B></FONT></TD></TR>
+        </TABLE>>,
+        shape=none, margin=0
+    ];
+
+    User [
+        label=<<TABLE BORDER="0" CELLSPACING="0">
+            <TR><TD><IMG SRC="data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='40' height='60'&gt;&lt;circle cx='20' cy='10' r='8' fill='none' stroke='%23922B21' stroke-width='2'/&gt;&lt;line x1='20' y1='18' x2='20' y2='40' stroke='%23922B21' stroke-width='2'/&gt;&lt;line x1='5' y1='28' x2='35' y2='28' stroke='%23922B21' stroke-width='2'/&gt;&lt;line x1='20' y1='40' x2='8' y2='55' stroke='%23922B21' stroke-width='2'/&gt;&lt;line x1='20' y1='40' x2='32' y2='55' stroke='%23922B21' stroke-width='2'/&gt;&lt;/svg&gt;"/></TD></TR>
+            <TR><TD><FONT POINT-SIZE="12"><B>User</B></FONT></TD></TR>
+        </TABLE>>,
+        shape=none, margin=0
+    ];
+
+    Donor [
+        label=<<TABLE BORDER="0" CELLSPACING="0">
+            <TR><TD><IMG SRC="data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='40' height='60'&gt;&lt;circle cx='20' cy='10' r='8' fill='none' stroke='%23922B21' stroke-width='2'/&gt;&lt;line x1='20' y1='18' x2='20' y2='40' stroke='%23922B21' stroke-width='2'/&gt;&lt;line x1='5' y1='28' x2='35' y2='28' stroke='%23922B21' stroke-width='2'/&gt;&lt;line x1='20' y1='40' x2='8' y2='55' stroke='%23922B21' stroke-width='2'/&gt;&lt;line x1='20' y1='40' x2='32' y2='55' stroke='%23922B21' stroke-width='2'/&gt;&lt;/svg&gt;"/></TD></TR>
+            <TR><TD><FONT POINT-SIZE="12"><B>Donor</B></FONT></TD></TR>
+        </TABLE>>,
+        shape=none, margin=0
+    ];
+
+    // ── Actor (Right Side) ───────────────────────────────
+    System [
+        label=<<TABLE BORDER="0" CELLSPACING="0">
+            <TR><TD><IMG SRC="data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='40' height='60'&gt;&lt;circle cx='20' cy='10' r='8' fill='none' stroke='%232E86C1' stroke-width='2'/&gt;&lt;line x1='20' y1='18' x2='20' y2='40' stroke='%232E86C1' stroke-width='2'/&gt;&lt;line x1='5' y1='28' x2='35' y2='28' stroke='%232E86C1' stroke-width='2'/&gt;&lt;line x1='20' y1='40' x2='8' y2='55' stroke='%232E86C1' stroke-width='2'/&gt;&lt;line x1='20' y1='40' x2='32' y2='55' stroke='%232E86C1' stroke-width='2'/&gt;&lt;/svg&gt;"/></TD></TR>
+            <TR><TD><FONT POINT-SIZE="12"><B>System</B></FONT></TD></TR>
+        </TABLE>>,
+        shape=none, margin=0
+    ];
+
+    // ── System Boundary ──────────────────────────────────
+    subgraph cluster_system {
+        label=<<FONT POINT-SIZE="16"><B>BloodConnect System</B></FONT>>;
+        labeljust=c;
+        style=dashed;
+        color="#C0392B";
+        bgcolor="#FFFFFF";
+        fontname="Arial";
+        penwidth=2;
+
+        // ── Use Case Nodes (Ellipses) ────────────────────
+        node [
+            shape=ellipse,
+            style=filled,
+            fillcolor="#FFF9F0",
+            color="#C0392B",
+            fontname="Arial",
+            fontsize=11,
+            penwidth=1.5,
+            margin="0.15,0.08"
+        ];
+
+        UC1  [label="Register"];
+        UC2  [label="Login"];
+        UC3  [label="Verify OTP"];
+        UC4  [label="Forgot Password"];
+        UC5  [label="Reset Password"];
+        UC6  [label="View Home Page"];
+        UC7  [label="View About Page"];
+        UC8  [label="Request Blood"];
+        UC9  [label="Register as Donor"];
+        UC10 [label="Find Donors"];
+        UC11 [label="Search Blood Banks"];
+        UC12 [label="View Profile"];
+        UC13 [label="Edit Profile"];
+        UC14 [label="View My Donations"];
+        UC15 [label="Manage Notification\nSettings"];
+        UC16 [label="Manage Privacy\nSettings"];
+        UC17 [label="View Active Sessions"];
+        UC18 [label="Logout Session"];
+        UC19 [label="Logout All\nOther Sessions"];
+        UC20 [label="Deactivate Account"];
+        UC21 [label="Delete Account"];
+    }
+
+    // ── Actor Ranks ──────────────────────────────────────
+    { rank=same; Guest; User; Donor; }
+    { rank=same; System; }
+
+    // ── Guest → Use Cases (Association) ──────────────────
+    edge [color="#555555", penwidth=1.2, arrowhead=none];
+
+    Guest -> UC1;
+    Guest -> UC2;
+    Guest -> UC4;
+    Guest -> UC6;
+    Guest -> UC7;
+
+    // ── User → Use Cases (Association) ───────────────────
+    User -> UC8;
+    User -> UC10;
+    User -> UC11;
+    User -> UC12;
+    User -> UC13;
+    User -> UC15;
+    User -> UC16;
+    User -> UC17;
+    User -> UC20;
+    User -> UC21;
+
+    // ── Donor → Use Cases (Association) ──────────────────
+    Donor -> UC9;
+    Donor -> UC10;
+    Donor -> UC11;
+    Donor -> UC12;
+    Donor -> UC13;
+    Donor -> UC14;
+    Donor -> UC15;
+    Donor -> UC16;
+    Donor -> UC17;
+    Donor -> UC20;
+    Donor -> UC21;
+
+    // ── System → Use Cases (Association) ─────────────────
+    System -> UC3;
+    System -> UC5;
+
+    // ── «include» Relationships ──────────────────────────
+    edge [
+        style=dashed,
+        color="#2E86C1",
+        fontcolor="#2E86C1",
+        fontsize=10,
+        fontname="Arial Italic",
+        arrowhead=open,
+        penwidth=1.2
+    ];
+
+    UC1 -> UC3 [label="  «include»  "];
+    UC4 -> UC5 [label="  «include»  "];
+
+    // ── «extend» Relationships ───────────────────────────
+    edge [
+        style=dashed,
+        color="#1D9E75",
+        fontcolor="#1D9E75",
+        fontsize=10,
+        fontname="Arial Italic",
+        arrowhead=open,
+        penwidth=1.2
+    ];
+
+    UC18 -> UC17 [label="  «extend»  "];
+    UC19 -> UC17 [label="  «extend»  "];
+}

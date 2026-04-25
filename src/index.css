@@ -1,0 +1,221 @@
+@import url("https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Outfit:wght@300;400;500;600;700;800&display=swap");
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────
+   1. CUSTOM THEME VARIABLES
+───────────────────────────────────────── */
+@theme {
+
+  /* Brand Color Palette */
+  --color-primary:    #0d7c66;   /* Pharma Green */
+  --color-primary-dark: #095c4c;
+  --color-secondary:  #f4a726;   /* Warm Amber */
+  --color-secondary-dark: #c7810a;
+  --color-secondary-light: #e6f7f4;
+  --color-danger:     #e63b5c;   /* Alert Red */
+  --color-danger-light: #fdeef1;
+  --color-dark:       #0f2e29;   /* Deep Forest */
+  --color-light:      #f8fffe;   /* Frost White */
+
+  /* Fonts */
+  --font-sans: "Outfit", sans-serif;
+  --font-serif: "Lora", serif;
+
+  /* Extra Font Size */
+  --text-xxs: 0.65rem;
+
+  /* Custom Spacing */
+  --spacing-18: 4.5rem;
+  --spacing-22: 5.5rem;
+
+  /* Border Radius */
+  --radius-xl: 1.25rem;
+
+  /* Breakpoints */
+  --breakpoint-xs: 480px;
+}
+
+
+/* ─────────────────────────────────────────
+   2. BASE STYLES
+───────────────────────────────────────── */
+@layer base {
+
+  *{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    scroll-behavior:smooth;
+  }
+
+  body{
+    @apply font-sans bg-light text-dark;
+  }
+
+  h1,h2,h3,h4{
+    @apply font-sans;
+  }
+
+  a{
+    @apply no-underline;
+  }
+
+  .testimonial, .tagline {
+    font-family: var(--font-serif);
+    font-style: italic;
+  }
+
+  img{
+    @apply max-w-full;
+  }
+
+  button{
+    @apply cursor-pointer;
+  }
+}
+
+
+/* ─────────────────────────────────────────
+   3. CUSTOM COMPONENTS
+───────────────────────────────────────── */
+@layer components {
+
+  /* Main Button (Donate / Request) */
+  .btn-primary{
+    @apply text-white px-6 py-2 font-semibold rounded-xs transition-all duration-300;
+    background-color: var(--color-primary);
+  }
+
+  .btn-primary:hover{
+    background-color: var(--color-primary-dark);
+  }
+
+  /* Secondary Button */
+  .btn-secondary{
+    @apply text-dark px-6 py-2 rounded-xs transition-all duration-300;
+    background-color: transparent;
+  }
+
+  .btn-secondary:hover{
+    background-color: var(--color-secondary-light);
+  }
+
+  /* Accent Button */
+  .btn-accent{
+    @apply text-white px-6 py-2 font-semibold rounded-xs transition-all duration-300;
+    background-color: var(--color-secondary);
+  }
+
+  .btn-accent:hover{
+    background-color: var(--color-secondary-dark);
+  }
+
+  /* Ghost Button */
+  .btn-ghost{
+    @apply text-dark px-6 py-2 rounded-xs border transition-all duration-300;
+    background-color: transparent;
+    border-color: var(--color-dark);
+  }
+
+  .btn-ghost:hover{
+    background-color: var(--color-secondary-light);
+    border-color: var(--color-primary);
+  }
+
+  /* Danger Button */
+  .btn-danger{
+    @apply px-6 py-2 font-semibold rounded-xs transition-all duration-300;
+    background-color: var(--color-danger-light);
+    color: var(--color-danger);
+  }
+
+  .btn-danger:hover{
+    background-color: var(--color-danger);
+    color: white;
+  }
+
+  /* Outline Button */
+  .btn-outline{
+    @apply px-6 py-2 rounded-xs transition-all duration-300;
+    background-color: transparent;
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .btn-outline:hover{
+    background-color: var(--color-primary);
+    color: white;
+  }
+
+  /* Section layout */
+  .section{
+    @apply py-16 px-4 md:px-10;
+  }
+
+  .section-title{
+    @apply text-3xl md:text-4xl font-bold text-center mb-6;
+  }
+
+  .section-subtitle{
+    @apply text-gray-500 text-center max-w-xl mx-auto mb-10;
+  }
+
+  /* Card for donor info */
+  .donor-card{
+    @apply bg-white rounded-xs shadow-md p-6
+           hover:shadow-xl transition-all duration-300;
+  }
+
+  /* Blood group badge */
+  .blood-badge{
+    @apply bg-primary text-white text-sm font-semibold
+           px-3 py-1 rounded-full;
+  }
+
+  /* Input field */
+  .input-field{
+    @apply w-full border border-gray-300 rounded-xs px-4 py-2
+           focus:outline-none focus:ring-2 focus:ring-primary;
+  }
+
+  /* Container */
+  .container-custom{
+    @apply max-w-7xl mx-auto px-4;
+  }
+
+}
+
+
+/* ─────────────────────────────────────────
+   4. CUSTOM UTILITIES
+───────────────────────────────────────── */
+@layer utilities {
+
+  .text-shadow{
+    text-shadow:2px 2px 4px rgba(0,0,0,0.4);
+  }
+
+  .glass{
+    backdrop-filter: blur(10px);
+    background: rgba(255,255,255,0.6);
+  }
+
+  .no-scrollbar::-webkit-scrollbar{
+    display:none;
+  }
+
+  .center-flex{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+}
+
+/* ─────────────────────────────────────────
+   5. KEYFRAME ANIMATIONS
+───────────────────────────────────────── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}

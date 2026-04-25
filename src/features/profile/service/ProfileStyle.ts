@@ -1,0 +1,318 @@
+import type React from "react";
+
+export const profileStyles: Record<string, React.CSSProperties> = {
+  // ── layout ───────────────────────────────────────────
+  page: {
+    minHeight:   "100vh",
+    background:  "#FAFAF8",
+    fontFamily:  "'DM Sans', sans-serif",
+  },
+  container: {
+    maxWidth: "900px",
+    margin:   "0 auto",
+    padding:  "32px 24px 80px",
+  },
+
+  // ── page header ──────────────────────────────────────
+  pageHeader: {
+    marginBottom: "32px",
+  },
+  pageTitle: {
+    fontFamily:  "'Playfair Display', serif",
+    fontSize:    "1.8rem",
+    fontWeight:  700,
+    color:       "#1A1A1A",
+    margin:      "0 0 4px",
+  },
+  pageSubtitle: {
+    fontSize: "14px",
+    color:    "#888",
+    margin:   0,
+  },
+
+  // ── section card ─────────────────────────────────────
+  card: {
+    background:   "#ffffff",
+    border:       "1px solid #E8E2DA",
+    borderRadius: "16px",
+    padding:      "28px",
+    marginBottom: "20px",
+  },
+  cardHeader: {
+    display:       "flex",
+    alignItems:    "center",
+    justifyContent:"space-between",
+    marginBottom:  "20px",
+    paddingBottom: "16px",
+    borderBottom:  "1px solid #F0EDE8",
+  },
+  cardTitle: {
+    fontSize:      "11px",
+    fontWeight:    500,
+    letterSpacing: "1px",
+    textTransform: "uppercase" as const,
+    color:         "#C0392B",
+    margin:        0,
+  },
+
+  // ── avatar ───────────────────────────────────────────
+  avatarSection: {
+    display:    "flex",
+    alignItems: "center",
+    gap:        "24px",
+    flexWrap:   "wrap" as const,
+    marginBottom: "24px",
+    paddingBottom: "24px",
+    borderBottom: "1px solid #F0EDE8",
+  },
+  avatarWrapper: {
+    position:     "relative" as const,
+    width:        "88px",
+    height:       "88px",
+    flexShrink:   0,
+  },
+  avatar: {
+    width:        "88px",
+    height:       "88px",
+    borderRadius: "50%",
+    objectFit:    "cover" as const,
+    border:       "3px solid #E8E2DA",
+  },
+  avatarPlaceholder: {
+    width:          "88px",
+    height:         "88px",
+    borderRadius:   "50%",
+    background:     "linear-gradient(135deg, #922B21, #C0392B)",
+    display:        "flex",
+    alignItems:     "center",
+    justifyContent: "center",
+    fontSize:       "32px",
+    color:          "white",
+    fontWeight:     700,
+    fontFamily:     "'Playfair Display', serif",
+    border:         "3px solid #E8E2DA",
+    flexShrink:     0,
+  },
+  avatarUploadBtn: {
+    position:       "absolute" as const,
+    bottom:         0,
+    right:          0,
+    width:          "28px",
+    height:         "28px",
+    borderRadius:   "50%",
+    background:     "#C0392B",
+    border:         "2px solid white",
+    display:        "flex",
+    alignItems:     "center",
+    justifyContent: "center",
+    cursor:         "pointer",
+    fontSize:       "12px",
+    color:          "white",
+  },
+  avatarInfo: {
+    flex: 1,
+  },
+  avatarName: {
+    fontFamily:  "'Playfair Display', serif",
+    fontSize:    "20px",
+    fontWeight:  700,
+    color:       "#1A1A1A",
+    margin:      "0 0 4px",
+  },
+  avatarMeta: {
+    fontSize: "13px",
+    color:    "#888",
+    margin:   "0 0 10px",
+  },
+
+  // ── badges ───────────────────────────────────────────
+  badgeRow: {
+    display: "flex",
+    gap:     "8px",
+    flexWrap: "wrap" as const,
+  },
+  badge: {
+    display:       "inline-flex",
+    alignItems:    "center",
+    gap:           "4px",
+    padding:       "3px 10px",
+    borderRadius:  "20px",
+    fontSize:      "11px",
+    fontWeight:    500,
+  },
+
+  // ── form fields ──────────────────────────────────────
+  grid2: {
+    display:             "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap:                 "16px",
+  },
+  grid3: {
+    display:             "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap:                 "16px",
+  },
+  fieldWrap: {
+    display:       "flex",
+    flexDirection: "column" as const,
+    gap:           "5px",
+    minWidth:      0,
+    marginBottom:  "16px",
+  },
+  label: {
+    fontSize:      "12px",
+    fontWeight:    500,
+    color:         "#777",
+    letterSpacing: "0.3px",
+  },
+  input: {
+    width:      "100%",
+    height:     "40px",
+    padding:    "0 12px",
+    background: "#F7F5F2",
+    border:     "1px solid #E8E2DA",
+    borderRadius:"8px",
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize:   "14px",
+    color:      "#1A1A1A",
+    outline:    "none",
+    boxSizing:  "border-box" as const,
+    transition: "border-color 0.15s, background 0.15s",
+  },
+  inputFocused: {
+    borderColor: "#C0392B",
+    background:  "#FFFFFF",
+    boxShadow:   "0 0 0 3px rgba(192,57,43,0.08)",
+  },
+  inputDisabled: {
+    background: "#F0EDE8",
+    color:      "#AAA",
+    cursor:     "not-allowed",
+  },
+  inputError: {
+    borderColor: "#E74C3C",
+    background:  "#FFF5F5",
+  },
+  errorText: {
+    fontSize: "11px",
+    color:    "#C0392B",
+  },
+  hint: {
+    fontSize: "11px",
+    color:    "#999",
+  },
+
+  // ── availability toggle ──────────────────────────────
+  availRow: {
+    display:        "flex",
+    alignItems:     "center",
+    justifyContent: "space-between",
+    padding:        "14px 16px",
+    background:     "#F7F5F2",
+    border:         "1px solid #E8E2DA",
+    borderRadius:   "10px",
+    marginBottom:   "16px",
+  },
+  availLabel: {
+    fontSize:   "14px",
+    color:      "#1A1A1A",
+    fontWeight: 500,
+  },
+  availSub: {
+    fontSize: "12px",
+    color:    "#999",
+    margin:   "2px 0 0",
+  },
+
+  // ── blood type selector ──────────────────────────────
+  bloodGrid: {
+    display:             "grid",
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap:                 "8px",
+    marginBottom:        "16px",
+  },
+  bloodBtn: {
+    height:      "38px",
+    border:      "1px solid",
+    borderRadius:"8px",
+    fontSize:    "14px",
+    fontWeight:  500,
+    cursor:      "pointer",
+    fontFamily:  "'DM Sans', sans-serif",
+    transition:  "all 0.15s",
+  },
+
+  // ── social field ─────────────────────────────────────
+  socialField: {
+    display:      "flex",
+    alignItems:   "center",
+    border:       "1px solid #E8E2DA",
+    borderRadius: "8px",
+    overflow:     "hidden",
+    background:   "#F7F5F2",
+  },
+  socialPrefix: {
+    padding:     "0 12px",
+    height:      "40px",
+    display:     "flex",
+    alignItems:  "center",
+    fontSize:    "12px",
+    color:       "#888",
+    borderRight: "1px solid #E8E2DA",
+    background:  "white",
+    whiteSpace:  "nowrap" as const,
+    flexShrink:  0,
+  },
+  socialInput: {
+    border:      "none",
+    borderRadius:"0",
+    height:      "40px",
+    background:  "transparent",
+    flex:        1,
+    padding:     "0 12px",
+    fontFamily:  "'DM Sans', sans-serif",
+    fontSize:    "14px",
+    color:       "#1A1A1A",
+    outline:     "none",
+    width:       "100%",
+  },
+
+  // ── action buttons ───────────────────────────────────
+  btnPrimary: {
+    height:      "40px",
+    padding:     "0 24px",
+    background:  "#C0392B",
+    color:       "white",
+    border:      "none",
+    borderRadius:"8px",
+    fontFamily:  "'DM Sans', sans-serif",
+    fontSize:    "14px",
+    fontWeight:  500,
+    cursor:      "pointer",
+    transition:  "background 0.15s",
+  },
+  btnOutline: {
+    height:      "40px",
+    padding:     "0 20px",
+    background:  "transparent",
+    color:       "#888",
+    border:      "1px solid #E8E2DA",
+    borderRadius:"8px",
+    fontFamily:  "'DM Sans', sans-serif",
+    fontSize:    "14px",
+    fontWeight:  500,
+    cursor:      "pointer",
+  },
+  btnDanger: {
+    height:      "40px",
+    padding:     "0 20px",
+    background:  "transparent",
+    color:       "#E74C3C",
+    border:      "1px solid #FADBD8",
+    borderRadius:"8px",
+    fontFamily:  "'DM Sans', sans-serif",
+    fontSize:    "14px",
+    fontWeight:  500,
+    cursor:      "pointer",
+  },
+};
