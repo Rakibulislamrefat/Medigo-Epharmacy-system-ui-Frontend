@@ -57,7 +57,7 @@ const ChatWindow = ({
   return (
     <div
       className="flex flex-col bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden
-        w-[calc(100vw-32px)] sm:w-[380px] h-[520px] sm:h-[560px]"
+        w-[calc(100vw-32px)] sm:w-[380px] h-[calc(100vh-140px)] max-h-[560px]"
       style={{ boxShadow: "0 24px 64px rgba(13,124,102,0.18)" }}
     >
       <div className="bg-[#0f2e29] px-4 py-3.5 flex items-center justify-between shrink-0">
