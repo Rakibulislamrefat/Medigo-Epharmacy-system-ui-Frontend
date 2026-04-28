@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useLocation } from "../../../hooks/useLocation";
 import { loginApi } from "../service/loginService";
@@ -10,6 +10,7 @@ import { Icons } from "../../../shared/icons/Icons";
 import SectionHeading from "../../../shared/section-heading/SectionHeading";
 
 export default function LoginPage() {
+  const navigate = useNavigate();
   const [identifier, setIdentifier] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [showPass, setShowPass] = useState<boolean>(false);
@@ -17,6 +18,20 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const dispatch = useDispatch();
   const { getLocation } = useLocation();
+
+  const withTimeout = async <T,>(
+    promise: Promise<T>,
+    ms: number,
+    fallback: T,
+  ): Promise<T> => {
+    let timeoutId: number | undefined;
+    const timeoutPromise = new Promise<T>((resolve) => {
+      timeoutId = window.setTimeout(() => resolve(fallback), ms);
+    });
+    const result = await Promise.race([promise, timeoutPromise]);
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+    return result;
+  };
 
   const validate = (): Record<string, string> => {
     const errs: Record<string, string> = {};
@@ -34,9 +49,10 @@ export default function LoginPage() {
 
     setErrors({});
     setLoading(true);
+    const toastId = toast.loading("Signing in...");
 
     try {
-      const locationData = await getLocation();
+      const locationData = await withTimeout(getLocation(), 1500, null);
       const res = await loginApi({
         identifier,
         password,
@@ -59,14 +75,15 @@ export default function LoginPage() {
           },
         },
       });
-      toast.success(res?.message);
+      toast.success(res?.message, { id: toastId });
       dispatch(setUser({ user: res.data?.user, token: res.data?.accessToken }));
+      navigate("/", { replace: true });
     } catch (err: unknown) {
       const error = err as {
         response?: { data?: { message?: string }; status?: number };
       };
       const msg = error?.response?.data?.message || "Login failed";
-      toast.error(msg);
+      toast.error(msg, { id: toastId });
       if (error?.response?.status === 401 || error?.response?.status === 423) {
         setErrors({ identifier: msg });
       }
@@ -258,9 +275,13 @@ export default function LoginPage() {
 
           <p className="text-center text-sm text-slate-600 mt-5">
             Don&apos;t have an account?{" "}
-            <Link to="/register" className="text-primary font-semibold hover:underline">
+            <button
+              type="button"
+              onClick={() => navigate("/register")}
+              className="text-primary font-semibold hover:underline"
+            >
               Create account
-            </Link>
+            </button>
           </p>
         </div>
       </div>

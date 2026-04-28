@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useRegister } from "../service/UseRegister";
 import { useLocation } from "../../../hooks/useLocation";
 import type { RegisterFormData } from "../service/register.type";
@@ -473,14 +473,22 @@ export default function RegisterPage() {
 
             <p className="text-center text-sm text-slate-600 mt-5">
               Already have an account?{" "}
-              <Link to="/login" className="text-primary font-semibold hover:underline">
+              <button
+                type="button"
+                onClick={() => navigate("/login")}
+                className="text-primary font-semibold hover:underline"
+              >
                 Sign in
-              </Link>
+              </button>
             </p>
             <p className="text-center text-xs text-slate-500 mt-2">
-              <Link to="/" className="hover:text-primary">
+              <button
+                type="button"
+                onClick={() => navigate("/")}
+                className="hover:text-primary"
+              >
                 Back to home
-              </Link>
+              </button>
             </p>
           </div>
         </div>

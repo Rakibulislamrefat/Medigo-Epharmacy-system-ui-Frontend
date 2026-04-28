@@ -99,30 +99,67 @@ export default function RequestOrderPage() {
   };
 
   const detectAddress = async () => {
-    const result = await getLocation();
-    if (!result) return;
-    const details = result.details;
-    const city =
-      details.city ||
-      details.town ||
-      details.village ||
-      details.quarter ||
-      "";
-    const addressParts = [
-      details.road,
-      details.suburb,
-      details.quarter,
-      details.state_district,
-      details.state,
-      details.postcode,
-    ].filter(Boolean);
-    setForm((prev) => ({
-      ...prev,
-      deliveryAddress: addressParts.join(", "),
-      city,
-      country: details.country || "",
-    }));
-    toast.success("Address detected");
+    const loadingToastId = toast.loading("Detecting your location...");
+    try {
+      const result = await getLocation();
+      if (!result) {
+        toast.error("Failed to detect location. Please check your browser settings and try again.", {
+          id: loadingToastId,
+        });
+        return;
+      }
+
+      const details = result.details;
+      const city =
+        details.city ||
+        details.town ||
+        details.village ||
+        details.quarter ||
+        "";
+      const addressParts = [
+        details.road,
+        details.suburb,
+        details.quarter,
+        details.state_district,
+        details.state,
+        details.postcode,
+      ].filter(Boolean);
+
+      const nextAddress = addressParts.join(", ");
+      const nextCountry = details.country || "";
+
+      const fallbackAddress =
+        nextAddress ||
+        (result.displayName && result.displayName !== "Unknown location"
+          ? result.displayName
+          : `Lat ${result.latitude.toFixed(6)}, Lng ${result.longitude.toFixed(6)}`);
+
+      if (!fallbackAddress && !city && !nextCountry) {
+        toast.error("We couldn't resolve your address. Please enter it manually.", {
+          id: loadingToastId,
+        });
+        return;
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        deliveryAddress: fallbackAddress,
+        city,
+        country: nextCountry,
+      }));
+
+      toast.success(
+        nextAddress
+          ? "Address detected successfully."
+          : "Location detected. Please review and complete your address.",
+        { id: loadingToastId },
+      );
+    } catch (error) {
+      console.error("Error detecting address:", error);
+      toast.error("An error occurred while detecting your location. Please try again later.", {
+        id: loadingToastId,
+      });
+    }
   };
 
   const validate = () => {
@@ -619,4 +656,3 @@ export default function RequestOrderPage() {
     </SectionContainer>
   );
 }
-
