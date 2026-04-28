@@ -4,18 +4,16 @@ import ChatWindow from "./ChatWindow";
 import { useAssistant } from "./useAssistant";
 
 interface AIAssistantProps {
-  /** Optional: call this to open the cart drawer from your app */
   openCart?: () => void;
 }
 
 const AIAssistant = ({ openCart }: AIAssistantProps) => {
   const [isOpen, setIsOpen]           = useState(false);
-  const [unreadCount, setUnreadCount] = useState(1); // start at 1 to grab attention
+  const [unreadCount, setUnreadCount] = useState(1);
   const prevMessageCount              = useRef(1);
 
   const { messages, isTyping, error, sendMessage, clearMessages } = useAssistant();
 
-  // Track new assistant messages when window is closed → increment badge
   useEffect(() => {
     const newCount = messages.length;
     if (!isOpen && newCount > prevMessageCount.current) {
@@ -36,10 +34,7 @@ const AIAssistant = ({ openCart }: AIAssistantProps) => {
   };
 
   return (
-    /* Fixed floating container — bottom right */
     <div className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end gap-3">
-
-      {/* Chat window — animate in/out */}
       <div
         className={`transition-all duration-300 origin-bottom-right
           ${isOpen
@@ -57,8 +52,6 @@ const AIAssistant = ({ openCart }: AIAssistantProps) => {
           openCart={openCart}
         />
       </div>
-
-      {/* FAB trigger button */}
       <AssistantButton
         isOpen={isOpen}
         unreadCount={unreadCount}

@@ -30,10 +30,6 @@ interface RouterOptions {
   closeAssistant?: () => void;
 }
 
-/**
- * Executes the action returned by the AI response.
- * Maps intent + action → real app behaviour.
- */
 export const executeAction = (
   response: AIResponse,
   options: RouterOptions
@@ -57,9 +53,6 @@ export const executeAction = (
   }
 };
 
-/**
- * Fallback responses for common intents when API fails or response is malformed.
- */
 export const FALLBACK_RESPONSES: Record<string, Partial<AIResponse>> = {
   product_search: {
     route: "/shop",

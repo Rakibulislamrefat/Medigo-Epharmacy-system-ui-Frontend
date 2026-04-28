@@ -204,7 +204,6 @@ export const useAssistant = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Keep full conversation history for multi-turn context
   const historyRef = useRef<ConversationMessage[]>([]);
 
   const sendMessage = useCallback(async (userText: string) => {
@@ -212,7 +211,6 @@ export const useAssistant = () => {
 
     setError(null);
 
-    // 1. Add user message to UI immediately
     const userMessage: Message = {
       id: generateId(),
       role: "user",
@@ -221,10 +219,8 @@ export const useAssistant = () => {
     };
     setMessages((prev) => [...prev, userMessage]);
 
-    // 2. Add to history
     historyRef.current.push({ role: "user", content: userText });
 
-    // 3. Show typing indicator
     setIsTyping(true);
 
     try {

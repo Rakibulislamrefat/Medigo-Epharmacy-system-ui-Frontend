@@ -14,7 +14,6 @@ const AssistantButton = ({ isOpen, unreadCount, onClick }: AssistantButtonProps)
       transition-all duration-200"
     style={{ boxShadow: "0 8px 32px rgba(13,124,102,0.35)" }}
   >
-    {/* Toggle between bot icon and close icon */}
     {isOpen ? (
       <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-white"
         viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -33,7 +32,6 @@ const AssistantButton = ({ isOpen, unreadCount, onClick }: AssistantButtonProps)
       </svg>
     )}
 
-    {/* Unread badge */}
     {!isOpen && unreadCount > 0 && (
       <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500
         text-white text-[10px] font-bold flex items-center justify-center
@@ -42,7 +40,6 @@ const AssistantButton = ({ isOpen, unreadCount, onClick }: AssistantButtonProps)
       </span>
     )}
 
-    {/* Pulse ring — shown when closed */}
     {!isOpen && (
       <span className="absolute inset-0 rounded-full bg-primary opacity-30 animate-ping" />
     )}

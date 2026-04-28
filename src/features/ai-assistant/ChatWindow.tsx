@@ -29,12 +29,10 @@ const ChatWindow = ({
   const bottomRef                       = useRef<HTMLDivElement>(null);
   const inputRef                        = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  // Focus input when window opens
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
@@ -62,15 +60,12 @@ const ChatWindow = ({
         w-[calc(100vw-32px)] sm:w-[380px] h-[520px] sm:h-[560px]"
       style={{ boxShadow: "0 24px 64px rgba(13,124,102,0.18)" }}
     >
-      {/* ── Header ── */}
       <div className="bg-[#0f2e29] px-4 py-3.5 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          {/* Avatar */}
           <div className="relative">
             <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
               <span className="text-white font-black text-sm">M</span>
             </div>
-            {/* Online dot */}
             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-[#0f2e29]" />
           </div>
           <div>
@@ -80,7 +75,6 @@ const ChatWindow = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Clear button */}
           <button
             onClick={onClear}
             title="Clear chat"
@@ -93,7 +87,6 @@ const ChatWindow = ({
               <path d="M3.51 15a9 9 0 1 0 .49-4.95" />
             </svg>
           </button>
-          {/* Close button */}
           <button
             onClick={onClose}
             className="w-7 h-7 rounded-lg flex items-center justify-center
@@ -108,7 +101,6 @@ const ChatWindow = ({
         </div>
       </div>
 
-      {/* ── Messages ── */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scroll-smooth">
         {messages.map((msg) => (
           <MessageBubble
@@ -128,7 +120,6 @@ const ChatWindow = ({
           </div>
         )}
 
-        {/* Error strip */}
         {error && (
           <p className="text-center text-[11px] text-red-400 bg-red-50 rounded-lg py-2 px-3">
             {error}
@@ -138,12 +129,10 @@ const ChatWindow = ({
         <div ref={bottomRef} />
       </div>
 
-      {/* ── Quick suggestions (shown only at start) ── */}
       {showSuggestions && messages.length <= 1 && (
         <QuickSuggestions onSelect={handleQuickSelect} />
       )}
 
-      {/* ── Input area ── */}
       <div className="px-4 pb-4 pt-2 border-t border-gray-100 shrink-0">
         <div className="flex items-center gap-2 bg-gray-50 rounded-xl border border-gray-200
           focus-within:border-primary focus-within:bg-white transition-all duration-200 px-3 py-2">
