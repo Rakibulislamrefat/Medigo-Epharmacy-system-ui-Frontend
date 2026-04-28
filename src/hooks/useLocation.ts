@@ -23,46 +23,213 @@ export interface LocationResult {
 }
 
 const ipGeocode = async (): Promise<LocationResult | null> => {
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), 8000);
-  try {
-    const res = await fetch("https://ipapi.co/json/", { signal: controller.signal });
-    if (!res.ok) throw new Error("Failed to fetch IP location");
-    const data = (await res.json()) as {
-      latitude?: number | string;
-      longitude?: number | string;
-      city?: string;
-      region?: string;
-      country_name?: string;
-      country_code?: string;
-    };
+  const fetchJsonWithTimeout = async <T,>(url: string, ms: number): Promise<T> => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), ms);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+      return (await res.json()) as T;
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  };
 
-    const latitude = Number(data.latitude);
-    const longitude = Number(data.longitude);
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  const firstFulfilled = async <T,>(promises: Promise<T>[]): Promise<T> =>
+    await new Promise<T>((resolve, reject) => {
+      let rejected = 0;
+      const errors: unknown[] = [];
+      for (const p of promises) {
+        p.then(resolve).catch((e) => {
+          errors.push(e);
+          rejected += 1;
+          if (rejected === promises.length) reject(errors);
+        });
+      }
+    });
+
+  const withTimeout = async <T,>(
+    promise: Promise<T>,
+    ms: number,
+    fallback: T,
+  ): Promise<T> => {
+    let timeoutId: number | undefined;
+    const timeoutPromise = new Promise<T>((resolve) => {
+      timeoutId = window.setTimeout(() => resolve(fallback), ms);
+    });
+    const result = await Promise.race([promise, timeoutPromise]);
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+    return result;
+  };
+
+  try {
+    const providers = [
+      async () => {
+        const data = await fetchJsonWithTimeout<{
+          latitude?: number | string;
+          longitude?: number | string;
+          city?: string;
+          region?: string;
+          country_name?: string;
+          country_code?: string;
+        }>("https://ipapi.co/json/", 3500);
+        return {
+          latitude: Number(data.latitude),
+          longitude: Number(data.longitude),
+          city: data.city,
+          region: data.region,
+          country: data.country_name,
+          country_code: data.country_code?.toLowerCase(),
+        };
+      },
+      async () => {
+        const data = await fetchJsonWithTimeout<{
+          success?: boolean;
+          latitude?: number | string;
+          longitude?: number | string;
+          city?: string;
+          region?: string;
+          country?: string;
+          country_code?: string;
+        }>("https://ipwho.is/", 3500);
+        if (data.success === false) throw new Error("ipwho.is returned success=false");
+        return {
+          latitude: Number(data.latitude),
+          longitude: Number(data.longitude),
+          city: data.city,
+          region: data.region,
+          country: data.country,
+          country_code: data.country_code?.toLowerCase(),
+        };
+      },
+      async () => {
+        const data = await fetchJsonWithTimeout<{
+          geoplugin_city?: string;
+          geoplugin_region?: string;
+          geoplugin_countryName?: string;
+          geoplugin_countryCode?: string;
+          geoplugin_latitude?: string;
+          geoplugin_longitude?: string;
+        }>("https://www.geoplugin.net/json.gp", 3500);
+        return {
+          latitude: Number(data.geoplugin_latitude),
+          longitude: Number(data.geoplugin_longitude),
+          city: data.geoplugin_city,
+          region: data.geoplugin_region,
+          country: data.geoplugin_countryName,
+          country_code: data.geoplugin_countryCode?.toLowerCase(),
+        };
+      },
+      async () => {
+        const data = await fetchJsonWithTimeout<{
+          city?: string;
+          country_name?: string;
+          country_code?: string;
+          state?: string;
+          latitude?: number | string;
+          longitude?: number | string;
+        }>("https://geolocation-db.com/json/", 2500);
+        return {
+          latitude: Number(data.latitude),
+          longitude: Number(data.longitude),
+          city: data.city,
+          region: data.state,
+          country: data.country_name,
+          country_code: data.country_code?.toLowerCase(),
+        };
+      },
+      async () => {
+        const data = await fetchJsonWithTimeout<{
+          latitude?: number | string;
+          longitude?: number | string;
+          city?: string;
+          region?: string;
+          country?: string;
+          country_code?: string;
+        }>("https://api.ip.sb/geoip", 2500);
+        return {
+          latitude: Number(data.latitude),
+          longitude: Number(data.longitude),
+          city: data.city,
+          region: data.region,
+          country: data.country,
+          country_code: data.country_code?.toLowerCase(),
+        };
+      },
+      async () => {
+        const data = await fetchJsonWithTimeout<{
+          latitude?: number | string;
+          longitude?: number | string;
+          city?: string;
+          stateProv?: string;
+          countryName?: string;
+          countryCode?: string;
+        }>("https://freeipapi.com/api/json", 3500);
+        return {
+          latitude: Number(data.latitude),
+          longitude: Number(data.longitude),
+          city: data.city,
+          region: data.stateProv,
+          country: data.countryName,
+          country_code: data.countryCode?.toLowerCase(),
+        };
+      },
+    ] as const;
+
+    let ipData:
+      | {
+          latitude: number;
+          longitude: number;
+          city?: string;
+          region?: string;
+          country?: string;
+          country_code?: string;
+        }
+      | null = null;
+
+    const attempts = providers.map(
+      (provider) =>
+        provider().then((next) => {
+          if (!Number.isFinite(next.latitude) || !Number.isFinite(next.longitude)) {
+            throw new Error("Provider returned invalid coordinates");
+          }
+          return next;
+        }),
+    );
+
+    ipData = await withTimeout(
+      firstFulfilled(attempts),
+      5000,
+      null,
+    );
+
+    if (!ipData) return null;
 
     const ipDetails: LocationDetails = {
-      city: data.city,
-      state: data.region,
-      country: data.country_name,
-      country_code: data.country_code?.toLowerCase(),
+      city: ipData.city,
+      state: ipData.region,
+      country: ipData.country,
+      country_code: ipData.country_code,
     };
 
-    const geo = await reverseGeocode(latitude, longitude);
+    const geo = await reverseGeocode(ipData.latitude, ipData.longitude);
     const details = { ...geo.details, ...ipDetails };
     const displayName =
       geo.displayName ||
-      data.city ||
-      data.region ||
-      data.country_name ||
+      ipData.city ||
+      ipData.region ||
+      ipData.country ||
       "Unknown location";
 
-    return { latitude, longitude, displayName, details };
+    return {
+      latitude: ipData.latitude,
+      longitude: ipData.longitude,
+      displayName,
+      details,
+    };
   } catch (error) {
     console.error("IP location error:", error);
     return null;
-  } finally {
-    window.clearTimeout(timeoutId);
   }
 };
 

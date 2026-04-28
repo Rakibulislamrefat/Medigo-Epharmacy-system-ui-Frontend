@@ -103,7 +103,15 @@ export default function RequestOrderPage() {
     try {
       const result = await getLocation();
       if (!result) {
-        toast.error("Failed to detect location. Please check your browser settings and try again.", {
+        const locale = navigator.language || "";
+        const region = locale.includes("-") ? locale.split("-")[1] : "";
+        if (region) {
+          setForm((prev) => ({
+            ...prev,
+            country: prev.country || region.toUpperCase(),
+          }));
+        }
+        toast("Location service is unavailable right now. Please enter your address manually.", {
           id: loadingToastId,
         });
         return;

@@ -1,8 +1,8 @@
 import { Outlet } from "react-router-dom";
-// import ScrollToTop from "../scoll/ScrollToTop";
 import Footer from "./footer/Footer";
 import Header from "./header/Header";
 import ScrollToTop from "../components/ScrollToTop";
+import AIAssistant from "../../features/ai-assistant";
 
 export default function MainLayout() {
   return (
@@ -14,6 +14,7 @@ export default function MainLayout() {
         <Outlet />
       </main>
       <Footer />
+      <AIAssistant />
     </div>
   );
 }
