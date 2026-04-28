@@ -4,6 +4,8 @@ import { Icons } from "../../../shared/icons/Icons";
 import MainContainer from "../../../shared/main-container/MainContainer";
 import SectionContainer from "../../../shared/section-container/SectionContainer";
 
+import { useNavigate } from "react-router-dom";
+
 type HighlightCardProps = {
   title: string;
   description: string;
@@ -17,32 +19,49 @@ const HighlightCard = ({
   gradientClassName,
   icon,
 }: HighlightCardProps) => {
+  const navigate = useNavigate();
+
+  // Define actions for each card
+  const handleClick = () => {
+    if (title.toLowerCase().includes("call")) {
+      window.open("tel:+1234567890"); // Replace with actual phone number
+    } else if (title.toLowerCase().includes("authentic medicine")) {
+      navigate("/shop");
+    } else if (title.toLowerCase().includes("surgical products")) {
+      navigate("/surgical-products");
+    } else if (title.toLowerCase().includes("upload prescription")) {
+      navigate("/prescription/upload");
+    }
+  };
+
   return (
-    <div
-      className={[
-        "flex items-center justify-between gap-4 rounded-xs border border-gray-100 px-5 py-4",
-        "min-h-[104px]",
-        gradientClassName,
-      ].join(" ")}
-    >
-      <div className="min-w-0">
-        <h3 className="text-xs font-black uppercase tracking-wide text-dark leading-snug">
-          {title}
-        </h3>
-        <p className="mt-1 text-[11px] leading-snug text-slate-600">
-          {description}
-        </p>
-        <div className="mt-3">
-          <CustomButton variant="primary" size="xs" radius="full">
-            Click Here
-          </CustomButton>
+    <>
+      <div
+        className={[
+          "flex items-center justify-between gap-4 rounded-xs border border-gray-100 px-5 py-4",
+          "min-h-[104px]",
+          gradientClassName,
+        ].join(" ")}
+      >
+        <div className="min-w-0">
+          <h3 className="text-xs font-black uppercase tracking-wide text-dark leading-snug">
+            {title}
+          </h3>
+          <p className="mt-1 text-[11px] leading-snug text-slate-600">
+            {description}
+          </p>
+          <div className="mt-3">
+            <CustomButton variant="primary" size="xs" radius="full" onClick={handleClick}>
+              Click Here
+            </CustomButton>
+          </div>
+        </div>
+
+        <div className="shrink-0 w-14 h-14 rounded-full bg-white/70 border border-white/60 center-flex">
+          {icon}
         </div>
       </div>
-
-      <div className="shrink-0 w-14 h-14 rounded-full bg-white/70 border border-white/60 center-flex">
-        {icon}
-      </div>
-    </div>
+    </>
   );
 };
 
