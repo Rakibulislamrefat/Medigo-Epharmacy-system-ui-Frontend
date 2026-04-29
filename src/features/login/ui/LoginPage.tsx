@@ -278,7 +278,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => navigate("/register")}
-              className="text-primary font-semibold hover:underline"
+              className="text-primary font-semibold hover:underline text-base sm:text-lg px-2 py-2 block mx-auto w-full max-w-xs rounded transition"
             >
               Create account
             </button>

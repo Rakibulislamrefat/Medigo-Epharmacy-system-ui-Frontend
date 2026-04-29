@@ -472,7 +472,7 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
                 isMobile && <UserAvatar />
               ) : (
                 <NavLink to="/login">
-                  <Button variant="outline" size="xs" radius="xs">
+                  <Button variant="outline" size="sm" radius="xs" className="text-xs sm:text-sm">
                     Login
                   </Button>
                 </NavLink>
