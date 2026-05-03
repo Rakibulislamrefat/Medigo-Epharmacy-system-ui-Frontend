@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import type { ComponentType } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Icons } from "../icons/Icons";
 import Button from "../button/CustomButton";
@@ -29,48 +28,6 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const categoryRef = useRef<HTMLDivElement>(null);
-
-  const categoryOptions = [
-    "Prescription Medicine",
-    "Surgical Product",
-    "OTC Medicine",
-    "Baby Products",
-    "Women's Care",
-    "Personal Care",
-    "Herbal Supplements",
-    "Dental & Oral Care",
-    "Diabetic Accessories",
-    "Food & Groceries",
-    "Books & Stationary",
-    "Supplements And Vitamins",
-  ];
-
-  const toCategorySlug = (value: string) =>
-    value
-      .toLowerCase()
-      .trim()
-      .replace(/&/g, "and")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
-
-  const categoryQuickLinks: Array<{
-    label: string;
-    href: string;
-    Icon: ComponentType<{ className?: string }>;
-  }> = [
-    { label: "Request Order", href: "/request-order", Icon: Icons.Cart },
-    {
-      label: "Upload Prescription",
-      href: "/prescription/upload",
-      Icon: Icons.Prescription,
-    },
-    { label: "Special Offers", href: "/special-offers", Icon: Icons.Star },
-    { label: "How to Order", href: "/howToOrder", Icon: Icons.Check },
-    { label: "Branch Locations", href: "/branch-locations", Icon: Icons.LocationPin },
-    { label: "Reviews", href: "/review", Icon: Icons.Star },
-    { label: "Contact Us", href: "/contact-us", Icon: Icons.Mail },
-  ];
 
   // Fixed: was state.user, should be state.reduxSlice
   const { user, isAuthenticated } = useSelector((s: RootState) => s.user);
@@ -92,7 +49,6 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
   const [rendered, setRendered] = useState(false);
   const [visible, setVisible] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [categoryOpen, setCategoryOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   // ── Logout ──────────────────────────────────────────
@@ -112,12 +68,8 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
       const clickedOutsideDropdown = !dropdownRef.current?.contains(target);
-      const clickedOutsideCategory = !categoryRef.current?.contains(target);
 
-      if (clickedOutsideDropdown && clickedOutsideCategory) {
-        setDropdownOpen(false);
-        setCategoryOpen(false);
-      }
+      if (clickedOutsideDropdown) setDropdownOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -341,98 +293,7 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
 
         <MainContainer>
           <div className="flex items-center justify-between gap-3 py-4">
-            <div className="flex items-center gap-3">
-              <div className="relative" ref={categoryRef}>
-                <button
-                  type="button"
-                  onClick={() => setCategoryOpen((prev) => !prev)}
-                  className="inline-flex items-center gap-2 rounded-xs border border-primary bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/20 whitespace-nowrap"
-                >
-                  <span>CATEGORIES</span>
-                  <Icons.ArrowForward
-                    className={`!w-4 !h-4 transition-transform duration-200
-                    ${categoryOpen ? "rotate-90" : "rotate-0"}`}
-                  />
-                </button>
-
-                {categoryOpen && (
-                  <div className="absolute left-0 top-full z-50 mt-2 w-[92vw] max-w-sm sm:w-80 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl">
-                    <div className="px-4 py-3 border-b border-gray-100 bg-light">
-                      <p className="text-xs font-black tracking-[0.2em] uppercase text-primary">
-                        Categories
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Quick actions and shop categories
-                      </p>
-                    </div>
-
-                    <div className="p-2">
-                      <div className="px-2 py-2">
-                        <p className="text-xxs font-black tracking-[0.2em] uppercase text-slate-500">
-                          Quick links
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-                        {categoryQuickLinks.map(({ label, href, Icon }) => (
-                          <button
-                            key={href}
-                            type="button"
-                            onClick={() => {
-                              navigate(href);
-                              setCategoryOpen(false);
-                            }}
-                            className="group w-full flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-primary/5 transition-colors"
-                          >
-                            <span className="flex items-center gap-2.5 min-w-0">
-                              <span className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/15 center-flex shrink-0">
-                                <Icon className="!w-4 !h-4 text-primary" />
-                              </span>
-                              <span className="text-sm font-semibold text-dark truncate">
-                                {label}
-                              </span>
-                            </span>
-                            <Icons.ArrowForward className="!w-4 !h-4 text-primary/50 group-hover:text-primary transition-colors shrink-0" />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="border-t border-gray-100">
-                      <div className="px-4 py-3">
-                        <p className="text-xxs font-black tracking-[0.2em] uppercase text-slate-500">
-                          Shop by category
-                        </p>
-                      </div>
-                      <div className="max-h-72 overflow-y-auto pb-2 px-2">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-                        {categoryOptions.map((item) => (
-                          <button
-                            key={item}
-                            type="button"
-                            onClick={() => {
-                              navigate(`/category/${toCategorySlug(item)}`);
-                              setCategoryOpen(false);
-                            }}
-                            className="group w-full text-left px-3 py-2.5 text-sm text-dark hover:bg-primary/5 transition-colors rounded-lg"
-                          >
-                            <span className="flex items-center justify-between gap-3">
-                              <span className="flex items-center gap-2.5 min-w-0">
-                                <span className="w-8 h-8 rounded-lg bg-white border border-gray-100 center-flex shrink-0 group-hover:border-primary/20 group-hover:bg-primary/5 transition-colors">
-                                  <Icons.ArrowForward className="!w-4 !h-4 text-primary" />
-                                </span>
-                                <span className="truncate">{item}</span>
-                              </span>
-                              <Icons.ArrowForward className="!w-4 !h-4 text-primary/40 group-hover:text-primary transition-colors shrink-0" />
-                            </span>
-                          </button>
-                        ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+              <div />
 
             <nav className="hidden lg:flex items-center gap-6 flex-1 justify-center">
               {visibleNavLinks.map((link) => (
