@@ -293,7 +293,7 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
 
         <MainContainer>
           <div className="flex items-center justify-between gap-3 py-4">
-              <div />
+            <div className="hidden lg:block min-w-[220px]" />
 
             <nav className="hidden lg:flex items-center gap-6 flex-1 justify-center">
               {visibleNavLinks.map((link) => (
@@ -310,7 +310,7 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
               ))}
             </nav>
 
-            <div className="hidden lg:flex items-center gap-3">
+            <div className="hidden lg:flex items-center gap-3 min-w-[220px] justify-end">
               {isAuthenticated && user ? (
                 !isMobile && <UserAvatar />
               ) : (
