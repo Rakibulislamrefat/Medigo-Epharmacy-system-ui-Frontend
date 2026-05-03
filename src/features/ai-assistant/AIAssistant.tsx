@@ -34,7 +34,7 @@ const AIAssistant = ({ openCart }: AIAssistantProps) => {
   };
 
   return (
-    <div className="fixed bottom-24 right-4 sm:bottom-6 sm:right-6 z-[9999] flex flex-col items-end gap-3">
+    <div className="fixed bottom-24 right-4 sm:bottom-6 sm:right-6 z-[9999] flex flex-col items-end gap-3 pointer-events-none">
       <div
         className={`transition-all duration-300 origin-bottom-right
           ${isOpen
@@ -52,11 +52,13 @@ const AIAssistant = ({ openCart }: AIAssistantProps) => {
           openCart={openCart}
         />
       </div>
-      <AssistantButton
-        isOpen={isOpen}
-        unreadCount={unreadCount}
-        onClick={isOpen ? handleClose : handleOpen}
-      />
+      <div className="pointer-events-auto">
+        <AssistantButton
+          isOpen={isOpen}
+          unreadCount={unreadCount}
+          onClick={isOpen ? handleClose : handleOpen}
+        />
+      </div>
     </div>
   );
 };
