@@ -5,6 +5,7 @@ import LoginPage from "../../../features/login/ui/LoginPage";
 import AboutPage from "../../../features/about/ui/About";
 import GuestRoute from "./GuestRoute";
 import ProtectedRoute from "./ProtectedRoute";
+import AdminRoute from "./AdminRoute";
 import RegisterPage from "../../../features/register/ui/RegisterPage";
 import ForgotPasswordPage from "../../../features/forgotPassword/ui/ForgotPassword";
 import ResetPasswordPage from "../../../features/restPassword/ui/ResetPasswordPage";
@@ -24,6 +25,13 @@ import TermsConditionPage from "../../../features/termsCondition/ui/TermsConditi
 import PrivacyPolicyPage from "../../../features/privacy/ui/PrivacyPolicyPage";
 import CategoryPage from "../../../features/category/ui/CategoryPage";
 import DoctorConsultancyPage from "../../../features/doctorConsultancy/ui/DoctorConsultancyPage";
+import AdminLayout from "../../layout/AdminLayout";
+import AdminDashboardPage from "../../../features/admin/ui/AdminDashboardPage";
+import AdminUsersPage from "../../../features/admin/ui/AdminUsersPage";
+import AdminMedicinesPage from "../../../features/admin/ui/AdminMedicinesPage";
+import AdminOrdersPage from "../../../features/admin/ui/AdminOrdersPage";
+import AdminDoctorsPage from "../../../features/admin/ui/AdminDoctorsPage";
+import AdminConsultanciesPage from "../../../features/admin/ui/AdminConsultanciesPage";
 
 export const router = createBrowserRouter([
   {
@@ -173,6 +181,22 @@ export const router = createBrowserRouter([
           </GuestRoute>
         ),
       },
+    ],
+  },
+  {
+    path: "/admin",
+    element: (
+      <AdminRoute>
+        <AdminLayout />
+      </AdminRoute>
+    ),
+    children: [
+      { index: true, element: <AdminDashboardPage /> },
+      { path: "users", element: <AdminUsersPage /> },
+      { path: "medicines", element: <AdminMedicinesPage /> },
+      { path: "orders", element: <AdminOrdersPage /> },
+      { path: "doctors", element: <AdminDoctorsPage /> },
+      { path: "consultancies", element: <AdminConsultanciesPage /> },
     ],
   },
 ]);
