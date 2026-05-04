@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getAdminOrders, updateAdminOrderStatus } from "../service/adminApi";
+import { getAdminOrders, updateAdminOrder } from "../service/adminApi";
 import toast from "react-hot-toast";
 
 const formatDate = (v?: string) => {
@@ -44,7 +44,7 @@ export default function AdminOrdersPage() {
   const items = paged?.items ?? [];
   const meta = paged?.meta ?? { page: 1, limit, total: 0, totalPages: 1 };
 
-  const [draftStatus, setDraftStatus] = useState<Record<string, string>>({});
+  const [draft, setDraft] = useState<Record<string, { status: string; paymentStatus: string }>>({});
 
   const statusOptions = useMemo(
     () => ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled", "refunded"],
@@ -54,8 +54,8 @@ export default function AdminOrdersPage() {
   const limitOptions = useMemo(() => [10, 20, 50], []);
 
   const mutation = useMutation({
-    mutationFn: async (args: { id: string; status: string }) =>
-      updateAdminOrderStatus(args.id, args.status),
+    mutationFn: async (args: { id: string; status: string; paymentStatus: string }) =>
+      updateAdminOrder(args.id, { status: args.status, paymentStatus: args.paymentStatus }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin", "orders"] });
     },
@@ -168,9 +168,15 @@ export default function AdminOrdersPage() {
                     </td>
                     <td className="px-5 py-3">
                       <select
-                        value={draftStatus[o._id] ?? o.status ?? "pending"}
+                        value={draft[o._id]?.status ?? o.status ?? "pending"}
                         onChange={(e) =>
-                          setDraftStatus((p) => ({ ...p, [o._id]: e.target.value }))
+                          setDraft((p) => ({
+                            ...p,
+                            [o._id]: {
+                              status: e.target.value,
+                              paymentStatus: p[o._id]?.paymentStatus ?? o.paymentStatus ?? "unpaid",
+                            },
+                          }))
                         }
                         className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm"
                       >
@@ -181,8 +187,26 @@ export default function AdminOrdersPage() {
                         ))}
                       </select>
                     </td>
-                    <td className="px-5 py-3 text-slate-600">
-                      {o.paymentStatus ?? ""}
+                    <td className="px-5 py-3">
+                      <select
+                        value={draft[o._id]?.paymentStatus ?? o.paymentStatus ?? "unpaid"}
+                        onChange={(e) =>
+                          setDraft((p) => ({
+                            ...p,
+                            [o._id]: {
+                              status: p[o._id]?.status ?? o.status ?? "pending",
+                              paymentStatus: e.target.value,
+                            },
+                          }))
+                        }
+                        className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                      >
+                        {paymentOptions.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td className="px-5 py-3 text-slate-600">
                       {o.grandTotal != null ? `${o.grandTotal}` : ""}
@@ -195,12 +219,13 @@ export default function AdminOrdersPage() {
                         type="button"
                         disabled={mutation.isPending}
                         onClick={async () => {
-                          const status = draftStatus[o._id] ?? o.status ?? "pending";
+                          const status = draft[o._id]?.status ?? o.status ?? "pending";
+                          const paymentStatus = draft[o._id]?.paymentStatus ?? o.paymentStatus ?? "unpaid";
                           const t = toast.loading("Updating...");
                           try {
-                            await mutation.mutateAsync({ id: o._id, status });
+                            await mutation.mutateAsync({ id: o._id, status, paymentStatus });
                             toast.success("Updated", { id: t });
-                            setDraftStatus((p) => {
+                            setDraft((p) => {
                               const { [o._id]: _, ...rest } = p;
                               return rest;
                             });

@@ -47,7 +47,7 @@ export type AdminOrder = {
 
 export type AdminDoctor = {
   _id: string;
-  user?: string | null;
+  user?: { _id: string; name: string; email?: string; phone?: string } | null;
   fullName: string;
   specialization?: string;
   status?: string;
@@ -56,8 +56,8 @@ export type AdminDoctor = {
 
 export type AdminConsultancy = {
   _id: string;
-  user?: string;
-  doctor?: string;
+  user?: { _id: string; name: string; email?: string; phone?: string };
+  doctor?: { _id: string; fullName: string; specialization?: string };
   status?: string;
   mode?: string;
   scheduledAt?: string;

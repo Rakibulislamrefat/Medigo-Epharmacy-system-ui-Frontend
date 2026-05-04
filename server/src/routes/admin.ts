@@ -691,6 +691,7 @@ router.get("/doctors", async (_req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
+      .populate("user", "name email phone")
       .select({ user: 1, fullName: 1, specialization: 1, status: 1, createdAt: 1 })
       .lean(),
     Doctor.countDocuments(filter),
@@ -738,6 +739,7 @@ router.post("/doctors", async (req, res) => {
   try {
     const created = await Doctor.create(doc);
     const out = await Doctor.findById(created._id)
+      .populate("user", "name email phone")
       .select({ user: 1, fullName: 1, specialization: 1, status: 1, createdAt: 1 })
       .lean();
     res.status(201).json({ data: out });
@@ -778,6 +780,7 @@ router.patch("/doctors/:id", async (req, res) => {
 
   try {
     const updated = await Doctor.findByIdAndUpdate(id, patch, { new: true })
+      .populate("user", "name email phone")
       .select({ user: 1, fullName: 1, specialization: 1, status: 1, createdAt: 1 })
       .lean();
     if (!updated) {
@@ -830,6 +833,8 @@ router.get("/consultancies", async (_req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
+      .populate("user", "name email phone")
+      .populate("doctor", "fullName specialization")
       .select({ user: 1, doctor: 1, status: 1, mode: 1, scheduledAt: 1, createdAt: 1 })
       .lean(),
     Consultancy.countDocuments(filter),
@@ -899,6 +904,8 @@ router.post("/consultancies", async (req, res) => {
     scheduledAt,
   });
   const out = await Consultancy.findById(created._id)
+    .populate("user", "name email phone")
+    .populate("doctor", "fullName specialization")
     .select({ user: 1, doctor: 1, status: 1, mode: 1, scheduledAt: 1, createdAt: 1 })
     .lean();
   res.status(201).json({ data: out });
@@ -943,6 +950,8 @@ router.patch("/consultancies/:id", async (req, res) => {
   }
 
   const updated = await Consultancy.findByIdAndUpdate(id, patch, { new: true })
+    .populate("user", "name email phone")
+    .populate("doctor", "fullName specialization")
     .select({ user: 1, doctor: 1, status: 1, mode: 1, scheduledAt: 1, createdAt: 1 })
     .lean();
 

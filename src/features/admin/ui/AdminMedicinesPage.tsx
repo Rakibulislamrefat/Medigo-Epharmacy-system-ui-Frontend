@@ -18,11 +18,11 @@ const formatDate = (v?: string) => {
 
 const parseList = (value: string) =>
   value
-    .split(/[\n,]+/g)
+    .split(/\n+/g)
     .map((v) => v.trim())
     .filter(Boolean);
 
-const joinList = (items?: string[]) => (items?.length ? items.join(", ") : "");
+const joinList = (items?: string[]) => (items?.length ? items.join("\n") : "");
 
 const toNumberOrUndefined = (v: string) => {
   const t = v.trim();
@@ -383,31 +383,31 @@ export default function AdminMedicinesPage() {
               value={createForm.indications}
               onChange={(e) => setCreateForm((p) => ({ ...p, indications: e.target.value }))}
               className="min-h-20 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-              placeholder="Indications (comma or new line separated)"
+              placeholder="Indications (one per line)"
             />
             <textarea
               value={createForm.warnings}
               onChange={(e) => setCreateForm((p) => ({ ...p, warnings: e.target.value }))}
               className="min-h-20 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-              placeholder="Warnings (comma or new line separated)"
+              placeholder="Warnings (one per line)"
             />
             <input
               value={createForm.categories}
               onChange={(e) => setCreateForm((p) => ({ ...p, categories: e.target.value }))}
               className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-              placeholder="Categories (comma separated)"
+              placeholder="Categories (one per line)"
             />
             <input
               value={createForm.tags}
               onChange={(e) => setCreateForm((p) => ({ ...p, tags: e.target.value }))}
               className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-              placeholder="Tags (comma separated)"
+              placeholder="Tags (one per line)"
             />
             <textarea
               value={createForm.images}
               onChange={(e) => setCreateForm((p) => ({ ...p, images: e.target.value }))}
               className="min-h-16 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm sm:col-span-2"
-              placeholder="Image URLs (comma or new line separated)"
+              placeholder="Image URLs (one per line)"
             />
           </div>
         )}
@@ -753,31 +753,31 @@ export default function AdminMedicinesPage() {
                     value={editForm.indications}
                     onChange={(e) => setEditForm((p) => ({ ...p, indications: e.target.value }))}
                     className="min-h-20 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-                    placeholder="Indications (comma or new line separated)"
+                    placeholder="Indications (one per line)"
                   />
                   <textarea
                     value={editForm.warnings}
                     onChange={(e) => setEditForm((p) => ({ ...p, warnings: e.target.value }))}
                     className="min-h-20 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-                    placeholder="Warnings (comma or new line separated)"
+                    placeholder="Warnings (one per line)"
                   />
                   <input
                     value={editForm.categories}
                     onChange={(e) => setEditForm((p) => ({ ...p, categories: e.target.value }))}
                     className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                    placeholder="Categories (comma separated)"
+                    placeholder="Categories (one per line)"
                   />
                   <input
                     value={editForm.tags}
                     onChange={(e) => setEditForm((p) => ({ ...p, tags: e.target.value }))}
                     className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                    placeholder="Tags (comma separated)"
+                    placeholder="Tags (one per line)"
                   />
                   <textarea
                     value={editForm.images}
                     onChange={(e) => setEditForm((p) => ({ ...p, images: e.target.value }))}
                     className="min-h-16 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm sm:col-span-2"
-                    placeholder="Image URLs (comma or new line separated)"
+                    placeholder="Image URLs (one per line)"
                   />
                 </div>
               )}

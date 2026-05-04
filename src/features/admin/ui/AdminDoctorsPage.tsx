@@ -246,7 +246,9 @@ export default function AdminDoctorsPage() {
               <tbody className="divide-y divide-gray-100">
                 {items.map((d) => (
                   <tr key={d._id} className="text-sm text-dark">
-                    <td className="px-5 py-3 text-slate-600">{d.user ?? ""}</td>
+                    <td className="px-5 py-3 text-slate-600">
+                      {d.user ? `${d.user.name} (${d.user.email})` : "—"}
+                    </td>
                     <td className="px-5 py-3 font-semibold">{d.fullName}</td>
                     <td className="px-5 py-3 text-slate-600">
                       {d.specialization ?? ""}
@@ -263,7 +265,7 @@ export default function AdminDoctorsPage() {
                           onClick={() => {
                             setEditingId(d._id);
                             setEditForm({
-                              userId: d.user ?? "",
+                              userId: d.user?._id ?? "",
                               fullName: d.fullName ?? "",
                               specialization: d.specialization ?? "",
                               status: d.status ?? "active",

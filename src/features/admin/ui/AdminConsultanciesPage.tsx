@@ -81,7 +81,7 @@ export default function AdminConsultanciesPage() {
         doctorId: createForm.doctorId.trim(),
         status: createForm.status,
         mode: createForm.mode,
-        scheduledAt: createForm.scheduledAt ? new Date(createForm.scheduledAt).toISOString() : null,
+        scheduledAt: createForm.scheduledAt ? new Date(createForm.scheduledAt + "Z").toISOString() : null,
       }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin", "consultancies"] });
@@ -93,7 +93,7 @@ export default function AdminConsultanciesPage() {
       updateAdminConsultancy(args.id, {
         status: editForm.status,
         mode: editForm.mode,
-        scheduledAt: editForm.scheduledAt ? new Date(editForm.scheduledAt).toISOString() : null,
+        scheduledAt: editForm.scheduledAt ? new Date(editForm.scheduledAt + "Z").toISOString() : null,
       }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin", "consultancies"] });
@@ -300,8 +300,12 @@ export default function AdminConsultanciesPage() {
               <tbody className="divide-y divide-gray-100">
                 {items.map((c) => (
                   <tr key={c._id} className="text-sm text-dark">
-                    <td className="px-5 py-3 text-slate-600">{c.user ?? ""}</td>
-                    <td className="px-5 py-3 text-slate-600">{c.doctor ?? ""}</td>
+                    <td className="px-5 py-3 text-slate-600">
+                      {c.user ? `${c.user.name} (${c.user.email})` : "—"}
+                    </td>
+                    <td className="px-5 py-3 text-slate-600">
+                      {c.doctor ? `${c.doctor.fullName}` : "—"}
+                    </td>
                     <td className="px-5 py-3 text-slate-600">{c.status ?? ""}</td>
                     <td className="px-5 py-3 text-slate-600">{c.mode ?? ""}</td>
                     <td className="px-5 py-3 text-slate-600">
