@@ -321,6 +321,14 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
                 </NavLink>
               )}
 
+              {isAuthenticated && user?.role === "admin" && (
+                <NavLink to="/admin">
+                  <Button variant="outline" size="sm" radius="xs">
+                    Admin
+                  </Button>
+                </NavLink>
+              )}
+
               <NavLink to="/request-order">
                 <Button variant="primary" size="sm" radius="xs">
                   Request Order
@@ -463,6 +471,29 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
                   <Icons.ArrowForward className="!w-3.5 !h-3.5 text-primary/60" />
                 </NavLink>
               ))}
+
+              {isAuthenticated && user?.role === "admin" && (
+                <NavLink
+                  to="/admin"
+                  onClick={closeMenu}
+                  style={{
+                    transitionDelay: visible ? `${visibleNavLinks.length * 40}ms` : "0ms",
+                  }}
+                  className={({ isActive }) =>
+                    `flex items-center justify-between px-3 py-3 rounded-xs mb-1
+                    text-sm font-medium transition-all duration-300
+                    ${visible ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4"}
+                    ${
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-dark hover:bg-gray-50 hover:text-primary"
+                    }`
+                  }
+                >
+                  <span>Admin</span>
+                  <Icons.ArrowForward className="!w-3.5 !h-3.5 text-primary/60" />
+                </NavLink>
+              )}
             </nav>
 
             {/* Drawer CTA */}
