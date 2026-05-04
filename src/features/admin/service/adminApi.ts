@@ -87,3 +87,48 @@ export const getAdminConsultancies = async (): Promise<AdminConsultancy[]> => {
   const res = await api.get("/admin/consultancies");
   return unwrap<AdminConsultancy[]>(res.data);
 };
+
+export const updateAdminUser = async (
+  userId: string,
+  patch: { role?: string; status?: string },
+): Promise<AdminUser> => {
+  const res = await api.patch(`/admin/users/${userId}`, patch);
+  return unwrap<AdminUser>(res.data);
+};
+
+export const createAdminMedicine = async (payload: {
+  name: string;
+  slug?: string;
+  price: number;
+  stockQty?: number;
+  status?: string;
+}): Promise<AdminMedicine> => {
+  const res = await api.post("/admin/medicines", payload);
+  return unwrap<AdminMedicine>(res.data);
+};
+
+export const updateAdminMedicine = async (
+  medicineId: string,
+  patch: {
+    name?: string;
+    slug?: string;
+    price?: number;
+    stockQty?: number;
+    status?: string;
+  },
+): Promise<AdminMedicine> => {
+  const res = await api.patch(`/admin/medicines/${medicineId}`, patch);
+  return unwrap<AdminMedicine>(res.data);
+};
+
+export const deleteAdminMedicine = async (medicineId: string): Promise<void> => {
+  await api.delete(`/admin/medicines/${medicineId}`);
+};
+
+export const updateAdminOrderStatus = async (
+  orderId: string,
+  status: string,
+): Promise<AdminOrder> => {
+  const res = await api.patch(`/admin/orders/${orderId}/status`, { status });
+  return unwrap<AdminOrder>(res.data);
+};

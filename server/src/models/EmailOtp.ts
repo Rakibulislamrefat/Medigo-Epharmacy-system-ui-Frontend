@@ -2,7 +2,7 @@ import { Schema, model } from "mongoose";
 
 const EmailOtpSchema = new Schema(
   {
-    email: { type: String, required: true, lowercase: true, trim: true, index: true },
+    email: { type: String, required: true, lowercase: true, trim: true },
     otp: { type: String, required: true },
     expiresAt: { type: Date, required: true },
   },

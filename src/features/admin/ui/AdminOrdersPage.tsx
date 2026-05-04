@@ -1,5 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
-import { getAdminOrders } from "../service/adminApi";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getAdminOrders, updateAdminOrderStatus } from "../service/adminApi";
+import toast from "react-hot-toast";
 
 const formatDate = (v?: string) => {
   if (!v) return "";
@@ -10,10 +12,26 @@ const formatDate = (v?: string) => {
 };
 
 export default function AdminOrdersPage() {
+  const qc = useQueryClient();
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin", "orders"],
     queryFn: getAdminOrders,
     retry: 1,
+  });
+
+  const [draftStatus, setDraftStatus] = useState<Record<string, string>>({});
+
+  const statusOptions = useMemo(
+    () => ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled", "refunded"],
+    [],
+  );
+
+  const mutation = useMutation({
+    mutationFn: async (args: { id: string; status: string }) =>
+      updateAdminOrderStatus(args.id, args.status),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+    },
   });
 
   return (
@@ -51,6 +69,7 @@ export default function AdminOrdersPage() {
                   <th className="px-5 py-3">Payment</th>
                   <th className="px-5 py-3">Total</th>
                   <th className="px-5 py-3">Created</th>
+                  <th className="px-5 py-3">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -59,7 +78,21 @@ export default function AdminOrdersPage() {
                     <td className="px-5 py-3 font-semibold">
                       {o.orderNumber ?? o._id}
                     </td>
-                    <td className="px-5 py-3 text-slate-600">{o.status ?? ""}</td>
+                    <td className="px-5 py-3">
+                      <select
+                        value={draftStatus[o._id] ?? o.status ?? "pending"}
+                        onChange={(e) =>
+                          setDraftStatus((p) => ({ ...p, [o._id]: e.target.value }))
+                        }
+                        className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                      >
+                        {statusOptions.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="px-5 py-3 text-slate-600">
                       {o.paymentStatus ?? ""}
                     </td>
@@ -68,6 +101,32 @@ export default function AdminOrdersPage() {
                     </td>
                     <td className="px-5 py-3 text-slate-600">
                       {formatDate(o.createdAt)}
+                    </td>
+                    <td className="px-5 py-3">
+                      <button
+                        type="button"
+                        disabled={mutation.isPending}
+                        onClick={async () => {
+                          const status = draftStatus[o._id] ?? o.status ?? "pending";
+                          const t = toast.loading("Updating...");
+                          try {
+                            await mutation.mutateAsync({ id: o._id, status });
+                            toast.success("Updated", { id: t });
+                            setDraftStatus((p) => {
+                              const { [o._id]: _, ...rest } = p;
+                              return rest;
+                            });
+                          } catch (err: unknown) {
+                            const msg =
+                              (err as { response?: { data?: { message?: string } } })?.response
+                                ?.data?.message ?? "Update failed";
+                            toast.error(msg, { id: t });
+                          }
+                        }}
+                        className="h-9 px-4 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-60"
+                      >
+                        Save
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -79,4 +138,3 @@ export default function AdminOrdersPage() {
     </div>
   );
 }
-
