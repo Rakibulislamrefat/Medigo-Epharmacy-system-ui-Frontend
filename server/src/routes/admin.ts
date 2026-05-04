@@ -10,6 +10,12 @@ const router = Router();
 const isNonEmptyString = (v: unknown): v is string =>
   typeof v === "string" && v.trim().length > 0;
 
+const getQueryString = (value: unknown): string | undefined => {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value) && typeof value[0] === "string") return value[0];
+  return undefined;
+};
+
 const slugify = (value: string) =>
   value
     .toLowerCase()
@@ -44,6 +50,8 @@ const parseBoolean = (value: unknown): boolean | undefined => {
   }
   return undefined;
 };
+
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 router.get("/metrics", async (_req, res) => {
   const [users, medicines, orders, doctors, consultancies] = await Promise.all([
@@ -113,34 +121,81 @@ router.patch("/users/:id", async (req, res) => {
 });
 
 router.get("/medicines", async (_req, res) => {
-  const medicines = await Medicine.find({})
-    .sort({ createdAt: -1 })
-    .select({
-      name: 1,
-      slug: 1,
-      genericName: 1,
-      brandName: 1,
-      dosageForm: 1,
-      strength: 1,
-      description: 1,
-      indications: 1,
-      warnings: 1,
-      otc: 1,
-      requiresPrescription: 1,
-      categories: 1,
-      tags: 1,
-      images: 1,
-      sku: 1,
-      manufacturer: 1,
-      price: 1,
-      salePrice: 1,
-      currency: 1,
-      stockQty: 1,
-      status: 1,
-      createdAt: 1,
-    })
-    .lean();
-  res.json({ data: medicines });
+  const req = _req as unknown as {
+    query?: Record<string, unknown>;
+  };
+
+  const qRaw = getQueryString(req.query?.q);
+  const statusRaw = getQueryString(req.query?.status);
+  const pageRaw = getQueryString(req.query?.page);
+  const limitRaw = getQueryString(req.query?.limit);
+
+  const q = isNonEmptyString(qRaw) ? qRaw.trim().slice(0, 80) : "";
+  const status = isNonEmptyString(statusRaw) ? statusRaw.trim() : "";
+  const page = Math.max(1, Number(pageRaw ?? 1) || 1);
+  const limit = Math.min(50, Math.max(5, Number(limitRaw ?? 10) || 10));
+  const skip = (page - 1) * limit;
+
+  const filter: Record<string, unknown> = {};
+  if (status && ["active", "inactive"].includes(status)) filter.status = status;
+  if (q) {
+    const rx = new RegExp(escapeRegex(q), "i");
+    filter.$or = [
+      { name: rx },
+      { slug: rx },
+      { genericName: rx },
+      { brandName: rx },
+      { manufacturer: rx },
+      { sku: rx },
+      { categories: rx },
+      { tags: rx },
+    ];
+  }
+
+  const [items, total] = await Promise.all([
+    Medicine.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select({
+        name: 1,
+        slug: 1,
+        genericName: 1,
+        brandName: 1,
+        dosageForm: 1,
+        strength: 1,
+        description: 1,
+        indications: 1,
+        warnings: 1,
+        otc: 1,
+        requiresPrescription: 1,
+        categories: 1,
+        tags: 1,
+        images: 1,
+        sku: 1,
+        manufacturer: 1,
+        price: 1,
+        salePrice: 1,
+        currency: 1,
+        stockQty: 1,
+        status: 1,
+        createdAt: 1,
+      })
+      .lean(),
+    Medicine.countDocuments(filter),
+  ]);
+
+  res.json({
+    data: items,
+    meta: {
+      q,
+      status: status && ["active", "inactive"].includes(status) ? status : "",
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+  });
 });
 
 router.post("/medicines", async (req, res) => {

@@ -69,6 +69,20 @@ export type AdminMetrics = {
   consultancies: number;
 };
 
+export type AdminListMeta = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  q?: string;
+  status?: string;
+};
+
+export type AdminPaged<T> = {
+  items: T[];
+  meta: AdminListMeta;
+};
+
 const unwrap = <T,>(data: unknown): T => {
   const r = data as { data?: unknown };
   return (r?.data as T) ?? (data as T);
@@ -84,9 +98,18 @@ export const getAdminUsers = async (): Promise<AdminUser[]> => {
   return unwrap<AdminUser[]>(res.data);
 };
 
-export const getAdminMedicines = async (): Promise<AdminMedicine[]> => {
-  const res = await api.get("/admin/medicines");
-  return unwrap<AdminMedicine[]>(res.data);
+export const getAdminMedicines = async (params?: {
+  q?: string;
+  page?: number;
+  limit?: number;
+  status?: string;
+}): Promise<AdminPaged<AdminMedicine>> => {
+  const res = await api.get("/admin/medicines", { params });
+  const r = res.data as { data?: AdminMedicine[]; meta?: AdminListMeta };
+  return {
+    items: r?.data ?? [],
+    meta: r?.meta ?? { page: 1, limit: 10, total: 0, totalPages: 1 },
+  };
 };
 
 export const getAdminOrders = async (): Promise<AdminOrder[]> => {
