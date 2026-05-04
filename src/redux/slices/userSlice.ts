@@ -31,7 +31,7 @@ export interface IReduxUser {
     instagram: string | null;
     twitter: string | null;
   };
-  role: "donor" | "user" | "admin" | "hospital";
+  role: "donor" | "user" | "admin" | "hospital" | "pharmacist" | "doctor";
   isVerified: boolean;
   isDonorVerified?: boolean;
   isActive: boolean;

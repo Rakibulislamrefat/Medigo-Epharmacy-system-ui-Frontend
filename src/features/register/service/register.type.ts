@@ -17,7 +17,7 @@ export interface RegisterLocation {
 }
 
 export interface RegisterFormData {
-  role: "user" | "donor";
+  role: "user" | "admin" | "pharmacist" | "doctor";
   isAvailable: boolean;
   avatar: File | null;
   name: string;
@@ -40,37 +40,35 @@ export interface RegisterFormData {
   };
 }
 
+export interface RegisterAddress {
+  label: string;
+  name: string;
+  phone: string;
+  line1: string;
+  line2: string;
+  city: string;
+  state: string;
+  postcode: string;
+  country: string;
+  country_code: string;
+  coordinates: {
+    lat: number | null;
+    lng: number | null;
+  };
+  isDefault: boolean;
+}
+
 export interface RegisterPayload {
-  avatar?: string | null;
-  role: "user" | "donor";
-  isAvailable?: boolean;
   name: string;
   email: string;
   phone: string;
   password: string;
-  bloodType?: string;
-  gender?: string;
-  age?: number | null;
-  weight?: number | null;
-  dateOfBirth?: string | null;
-  totalDonations?: number;
-  lastDonationDate?: string | null;
-  location: RegisterLocation;
-  socialLinks?: {
-    facebook: string | null;
-    instagram: string | null;
-    twitter: string | null;
-  };
+  role: "user" | "admin" | "pharmacist" | "doctor";
+  addresses: RegisterAddress[];
 }
 
 export interface RegisterResponse {
-  success: boolean;
-  message: string;
-  data: {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-    bloodType: string;
-  };
+  success?: boolean;
+  message?: string;
+  data?: unknown;
 }
