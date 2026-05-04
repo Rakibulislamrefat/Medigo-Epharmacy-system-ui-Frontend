@@ -5,14 +5,17 @@ import { type IReduxUser } from "../../../redux/slices/userSlice";
 export interface LoginPayload {
   identifier: string;
   password: string;
-  location: object;
 }
 
 export interface AuthResponse {
-  data:{user: IReduxUser;
-  accessToken: string;
-  message: string;}
-  message: string;
+  message?: string;
+  data?: {
+    user?: IReduxUser;
+    accessToken?: string;
+    message?: string;
+  };
+  user?: IReduxUser;
+  accessToken?: string;
 }
 
 // ── API Calls ──────────────────────────────────────────────

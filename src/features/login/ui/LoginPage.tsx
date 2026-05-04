@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { useLocation } from "../../../hooks/useLocation";
 import { loginApi } from "../service/loginService";
 import { useDispatch } from "react-redux";
 import { setUser } from "../../../redux/slices/userSlice";
@@ -17,21 +16,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const dispatch = useDispatch();
-  const { getLocation } = useLocation();
-
-  const withTimeout = async <T,>(
-    promise: Promise<T>,
-    ms: number,
-    fallback: T,
-  ): Promise<T> => {
-    let timeoutId: number | undefined;
-    const timeoutPromise = new Promise<T>((resolve) => {
-      timeoutId = window.setTimeout(() => resolve(fallback), ms);
-    });
-    const result = await Promise.race([promise, timeoutPromise]);
-    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
-    return result;
-  };
 
   const validate = (): Record<string, string> => {
     const errs: Record<string, string> = {};
@@ -52,31 +36,18 @@ export default function LoginPage() {
     const toastId = toast.loading("Signing in...");
 
     try {
-      const locationData = await withTimeout(getLocation(), 1500, null);
-      const res = await loginApi({
-        identifier,
-        password,
-        location: {
-          city:
-            locationData?.details?.city ||
-            locationData?.details?.town ||
-            locationData?.details?.village ||
-            locationData?.details?.quarter ||
-            "",
-          country: locationData?.details?.country || "",
-          country_code: locationData?.details?.country_code || "",
-          county: locationData?.details?.county || "",
-          postcode: locationData?.details?.postcode || "",
-          state: locationData?.details?.state || "",
-          state_district: locationData?.details?.state_district || "",
-          coordinates: {
-            lat: locationData?.latitude,
-            lng: locationData?.longitude,
-          },
-        },
-      });
-      toast.success(res?.message, { id: toastId });
-      dispatch(setUser({ user: res.data?.user, token: res.data?.accessToken }));
+      const res = await loginApi({ identifier, password });
+      const message = res?.message ?? res?.data?.message ?? "Signed in";
+      const user = res?.data?.user ?? res?.user;
+      const token = res?.data?.accessToken ?? res?.accessToken;
+
+      if (!user || !token) {
+        toast.error("Login response is missing user/token", { id: toastId });
+        return;
+      }
+
+      toast.success(message, { id: toastId });
+      dispatch(setUser({ user, token }));
       navigate("/", { replace: true });
     } catch (err: unknown) {
       const error = err as {

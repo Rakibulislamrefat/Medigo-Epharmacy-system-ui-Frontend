@@ -4,7 +4,6 @@ import { useRegister } from "../service/UseRegister";
 import { useLocation } from "../../../hooks/useLocation";
 import type { RegisterFormData } from "../service/register.type";
 import toast from "react-hot-toast";
-import { sendOtpApi } from "../service/otpService";
 import SectionHeading from "../../../shared/section-heading/SectionHeading";
 import { Icons } from "../../../shared/icons/Icons";
 import CustomButton from "../../../shared/button/CustomButton";
@@ -158,12 +157,6 @@ export default function RegisterPage() {
 
       const data = await register(finalForm);
       void data;
-
-      try {
-        await sendOtpApi(finalForm.email.trim());
-      } catch {
-        toast.error("OTP send failed. You can resend from the verification page.");
-      }
 
       toast.success("Account created! Verify your email.", { id: loadingToast });
       navigate(`/verify-otp?email=${encodeURIComponent(finalForm.email.trim())}`);
