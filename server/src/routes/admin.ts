@@ -68,11 +68,50 @@ router.get("/metrics", async (_req, res) => {
 });
 
 router.get("/users", async (_req, res) => {
-  const users = await User.find({})
-    .sort({ createdAt: -1 })
-    .select({ name: 1, email: 1, phone: 1, role: 1, status: 1, createdAt: 1 })
-    .lean();
-  res.json({ data: users });
+  const req = _req as unknown as { query?: Record<string, unknown> };
+  const qRaw = getQueryString(req.query?.q);
+  const roleRaw = getQueryString(req.query?.role);
+  const statusRaw = getQueryString(req.query?.status);
+  const pageRaw = getQueryString(req.query?.page);
+  const limitRaw = getQueryString(req.query?.limit);
+
+  const q = isNonEmptyString(qRaw) ? qRaw.trim().slice(0, 80) : "";
+  const role = isNonEmptyString(roleRaw) ? roleRaw.trim() : "";
+  const status = isNonEmptyString(statusRaw) ? statusRaw.trim() : "";
+  const page = Math.max(1, Number(pageRaw ?? 1) || 1);
+  const limit = Math.min(50, Math.max(5, Number(limitRaw ?? 10) || 10));
+  const skip = (page - 1) * limit;
+
+  const filter: Record<string, unknown> = {};
+  if (role && ["user", "admin", "pharmacist", "doctor"].includes(role)) filter.role = role;
+  if (status && ["active", "blocked", "pending"].includes(status)) filter.status = status;
+  if (q) {
+    const rx = new RegExp(escapeRegex(q), "i");
+    filter.$or = [{ name: rx }, { email: rx }, { phone: rx }];
+  }
+
+  const [items, total] = await Promise.all([
+    User.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select({ name: 1, email: 1, phone: 1, role: 1, status: 1, createdAt: 1 })
+      .lean(),
+    User.countDocuments(filter),
+  ]);
+
+  res.json({
+    data: items,
+    meta: {
+      q,
+      role: role && ["user", "admin", "pharmacist", "doctor"].includes(role) ? role : "",
+      status: status && ["active", "blocked", "pending"].includes(status) ? status : "",
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+  });
 });
 
 router.patch("/users/:id", async (req, res) => {
@@ -503,11 +542,54 @@ router.delete("/medicines/:id", async (req, res) => {
 });
 
 router.get("/orders", async (_req, res) => {
-  const orders = await Order.find({})
-    .sort({ createdAt: -1 })
-    .select({ orderNumber: 1, status: 1, paymentStatus: 1, grandTotal: 1, createdAt: 1 })
-    .lean();
-  res.json({ data: orders });
+  const req = _req as unknown as { query?: Record<string, unknown> };
+  const qRaw = getQueryString(req.query?.q);
+  const statusRaw = getQueryString(req.query?.status);
+  const paymentRaw = getQueryString(req.query?.paymentStatus);
+  const pageRaw = getQueryString(req.query?.page);
+  const limitRaw = getQueryString(req.query?.limit);
+
+  const q = isNonEmptyString(qRaw) ? qRaw.trim().slice(0, 80) : "";
+  const status = isNonEmptyString(statusRaw) ? statusRaw.trim() : "";
+  const paymentStatus = isNonEmptyString(paymentRaw) ? paymentRaw.trim() : "";
+  const page = Math.max(1, Number(pageRaw ?? 1) || 1);
+  const limit = Math.min(50, Math.max(5, Number(limitRaw ?? 10) || 10));
+  const skip = (page - 1) * limit;
+
+  const filter: Record<string, unknown> = {};
+  if (status && ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled", "refunded"].includes(status)) {
+    filter.status = status;
+  }
+  if (paymentStatus && ["unpaid", "paid", "failed", "refunded"].includes(paymentStatus)) {
+    filter.paymentStatus = paymentStatus;
+  }
+  if (q) {
+    const rx = new RegExp(escapeRegex(q), "i");
+    filter.$or = [{ orderNumber: rx }, { _id: rx }];
+  }
+
+  const [items, total] = await Promise.all([
+    Order.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select({ orderNumber: 1, status: 1, paymentStatus: 1, grandTotal: 1, createdAt: 1 })
+      .lean(),
+    Order.countDocuments(filter),
+  ]);
+
+  res.json({
+    data: items,
+    meta: {
+      q,
+      status: status && ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled", "refunded"].includes(status) ? status : "",
+      paymentStatus: paymentStatus && ["unpaid", "paid", "failed", "refunded"].includes(paymentStatus) ? paymentStatus : "",
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+  });
 });
 
 router.patch("/orders/:id/status", async (req, res) => {
@@ -541,20 +623,345 @@ router.patch("/orders/:id/status", async (req, res) => {
   res.json({ data: updated });
 });
 
-router.get("/doctors", async (_req, res) => {
-  const doctors = await Doctor.find({})
-    .sort({ createdAt: -1 })
-    .select({ fullName: 1, specialization: 1, status: 1, createdAt: 1 })
+router.patch("/orders/:id", async (req, res) => {
+  const { id } = req.params;
+  const body = req.body as { status?: unknown; paymentStatus?: unknown };
+
+  const patch: Record<string, unknown> = {};
+
+  if (isNonEmptyString(body.status)) {
+    const status = body.status.trim();
+    const allowed = ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled", "refunded"];
+    if (!allowed.includes(status)) {
+      res.status(400).json({ message: "Invalid order status" });
+      return;
+    }
+    patch.status = status;
+  }
+
+  if (isNonEmptyString(body.paymentStatus)) {
+    const paymentStatus = body.paymentStatus.trim();
+    const allowed = ["unpaid", "paid", "failed", "refunded"];
+    if (!allowed.includes(paymentStatus)) {
+      res.status(400).json({ message: "Invalid payment status" });
+      return;
+    }
+    patch.paymentStatus = paymentStatus;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    res.status(400).json({ message: "Nothing to update" });
+    return;
+  }
+
+  const updated = await Order.findByIdAndUpdate(id, patch, { new: true })
+    .select({ orderNumber: 1, status: 1, paymentStatus: 1, grandTotal: 1, createdAt: 1 })
     .lean();
-  res.json({ data: doctors });
+
+  if (!updated) {
+    res.status(404).json({ message: "Order not found" });
+    return;
+  }
+
+  res.json({ data: updated });
+});
+
+router.get("/doctors", async (_req, res) => {
+  const req = _req as unknown as { query?: Record<string, unknown> };
+  const qRaw = getQueryString(req.query?.q);
+  const statusRaw = getQueryString(req.query?.status);
+  const pageRaw = getQueryString(req.query?.page);
+  const limitRaw = getQueryString(req.query?.limit);
+
+  const q = isNonEmptyString(qRaw) ? qRaw.trim().slice(0, 80) : "";
+  const status = isNonEmptyString(statusRaw) ? statusRaw.trim() : "";
+  const page = Math.max(1, Number(pageRaw ?? 1) || 1);
+  const limit = Math.min(50, Math.max(5, Number(limitRaw ?? 10) || 10));
+  const skip = (page - 1) * limit;
+
+  const filter: Record<string, unknown> = {};
+  if (status && ["active", "inactive"].includes(status)) filter.status = status;
+  if (q) {
+    const rx = new RegExp(escapeRegex(q), "i");
+    filter.$or = [{ fullName: rx }, { specialization: rx }];
+  }
+
+  const [items, total] = await Promise.all([
+    Doctor.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select({ user: 1, fullName: 1, specialization: 1, status: 1, createdAt: 1 })
+      .lean(),
+    Doctor.countDocuments(filter),
+  ]);
+
+  res.json({
+    data: items,
+    meta: {
+      q,
+      status: status && ["active", "inactive"].includes(status) ? status : "",
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+  });
+});
+
+router.post("/doctors", async (req, res) => {
+  const body = req.body as { userId?: unknown; fullName?: unknown; specialization?: unknown; status?: unknown };
+  if (!isNonEmptyString(body.fullName)) {
+    res.status(400).json({ message: "fullName is required" });
+    return;
+  }
+
+  const doc: Record<string, unknown> = {
+    fullName: body.fullName.trim(),
+    specialization: isNonEmptyString(body.specialization) ? body.specialization.trim() : "",
+    status: isNonEmptyString(body.status) ? body.status.trim() : "active",
+  };
+  if (doc.status && !["active", "inactive"].includes(String(doc.status))) {
+    res.status(400).json({ message: "Invalid status" });
+    return;
+  }
+
+  if (isNonEmptyString(body.userId)) {
+    const user = await User.findById(body.userId.trim()).select({ _id: 1 }).lean();
+    if (!user) {
+      res.status(400).json({ message: "Invalid userId" });
+      return;
+    }
+    doc.user = user._id;
+  }
+
+  try {
+    const created = await Doctor.create(doc);
+    const out = await Doctor.findById(created._id)
+      .select({ user: 1, fullName: 1, specialization: 1, status: 1, createdAt: 1 })
+      .lean();
+    res.status(201).json({ data: out });
+  } catch (e: unknown) {
+    const msg = (e as { code?: number })?.code === 11000 ? "Doctor user already exists" : "Failed to create doctor";
+    res.status(400).json({ message: msg });
+  }
+});
+
+router.patch("/doctors/:id", async (req, res) => {
+  const { id } = req.params;
+  const body = req.body as { userId?: unknown; fullName?: unknown; specialization?: unknown; status?: unknown };
+
+  const patch: Record<string, unknown> = {};
+  if (isNonEmptyString(body.fullName)) patch.fullName = body.fullName.trim();
+  if (isNonEmptyString(body.specialization)) patch.specialization = body.specialization.trim();
+  if (isNonEmptyString(body.status)) {
+    const status = body.status.trim();
+    if (!["active", "inactive"].includes(status)) {
+      res.status(400).json({ message: "Invalid status" });
+      return;
+    }
+    patch.status = status;
+  }
+  if (isNonEmptyString(body.userId)) {
+    const user = await User.findById(body.userId.trim()).select({ _id: 1 }).lean();
+    if (!user) {
+      res.status(400).json({ message: "Invalid userId" });
+      return;
+    }
+    patch.user = user._id;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    res.status(400).json({ message: "Nothing to update" });
+    return;
+  }
+
+  try {
+    const updated = await Doctor.findByIdAndUpdate(id, patch, { new: true })
+      .select({ user: 1, fullName: 1, specialization: 1, status: 1, createdAt: 1 })
+      .lean();
+    if (!updated) {
+      res.status(404).json({ message: "Doctor not found" });
+      return;
+    }
+    res.json({ data: updated });
+  } catch (e: unknown) {
+    const msg = (e as { code?: number })?.code === 11000 ? "Doctor user already exists" : "Failed to update doctor";
+    res.status(400).json({ message: msg });
+  }
+});
+
+router.delete("/doctors/:id", async (req, res) => {
+  const { id } = req.params;
+  const deleted = await Doctor.findByIdAndDelete(id).lean();
+  if (!deleted) {
+    res.status(404).json({ message: "Doctor not found" });
+    return;
+  }
+  res.json({ data: { ok: true } });
 });
 
 router.get("/consultancies", async (_req, res) => {
-  const consultancies = await Consultancy.find({})
-    .sort({ createdAt: -1 })
-    .select({ status: 1, mode: 1, scheduledAt: 1, createdAt: 1 })
+  const req = _req as unknown as { query?: Record<string, unknown> };
+  const statusRaw = getQueryString(req.query?.status);
+  const modeRaw = getQueryString(req.query?.mode);
+  const doctorIdRaw = getQueryString(req.query?.doctorId);
+  const userIdRaw = getQueryString(req.query?.userId);
+  const pageRaw = getQueryString(req.query?.page);
+  const limitRaw = getQueryString(req.query?.limit);
+
+  const status = isNonEmptyString(statusRaw) ? statusRaw.trim() : "";
+  const mode = isNonEmptyString(modeRaw) ? modeRaw.trim() : "";
+  const doctorId = isNonEmptyString(doctorIdRaw) ? doctorIdRaw.trim() : "";
+  const userId = isNonEmptyString(userIdRaw) ? userIdRaw.trim() : "";
+
+  const page = Math.max(1, Number(pageRaw ?? 1) || 1);
+  const limit = Math.min(50, Math.max(5, Number(limitRaw ?? 10) || 10));
+  const skip = (page - 1) * limit;
+
+  const filter: Record<string, unknown> = {};
+  if (status && ["requested", "confirmed", "completed", "cancelled"].includes(status)) filter.status = status;
+  if (mode && ["chat", "video", "audio", "in_person"].includes(mode)) filter.mode = mode;
+  if (doctorId) filter.doctor = doctorId;
+  if (userId) filter.user = userId;
+
+  const [items, total] = await Promise.all([
+    Consultancy.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select({ user: 1, doctor: 1, status: 1, mode: 1, scheduledAt: 1, createdAt: 1 })
+      .lean(),
+    Consultancy.countDocuments(filter),
+  ]);
+
+  res.json({
+    data: items,
+    meta: {
+      status: status && ["requested", "confirmed", "completed", "cancelled"].includes(status) ? status : "",
+      mode: mode && ["chat", "video", "audio", "in_person"].includes(mode) ? mode : "",
+      doctorId: doctorId || "",
+      userId: userId || "",
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+  });
+});
+
+router.post("/consultancies", async (req, res) => {
+  const body = req.body as { userId?: unknown; doctorId?: unknown; status?: unknown; mode?: unknown; scheduledAt?: unknown };
+
+  if (!isNonEmptyString(body.userId) || !isNonEmptyString(body.doctorId)) {
+    res.status(400).json({ message: "userId and doctorId are required" });
+    return;
+  }
+
+  const user = await User.findById(body.userId.trim()).select({ _id: 1 }).lean();
+  if (!user) {
+    res.status(400).json({ message: "Invalid userId" });
+    return;
+  }
+
+  const doctor = await Doctor.findById(body.doctorId.trim()).select({ _id: 1 }).lean();
+  if (!doctor) {
+    res.status(400).json({ message: "Invalid doctorId" });
+    return;
+  }
+
+  const status = isNonEmptyString(body.status) ? body.status.trim() : "requested";
+  if (!["requested", "confirmed", "completed", "cancelled"].includes(status)) {
+    res.status(400).json({ message: "Invalid status" });
+    return;
+  }
+
+  const mode = isNonEmptyString(body.mode) ? body.mode.trim() : "chat";
+  if (!["chat", "video", "audio", "in_person"].includes(mode)) {
+    res.status(400).json({ message: "Invalid mode" });
+    return;
+  }
+
+  const scheduledAt =
+    body.scheduledAt == null || body.scheduledAt === ""
+      ? null
+      : new Date(String(body.scheduledAt));
+  if (scheduledAt != null && Number.isNaN(scheduledAt.getTime())) {
+    res.status(400).json({ message: "Invalid scheduledAt" });
+    return;
+  }
+
+  const created = await Consultancy.create({
+    user: user._id,
+    doctor: doctor._id,
+    status,
+    mode,
+    scheduledAt,
+  });
+  const out = await Consultancy.findById(created._id)
+    .select({ user: 1, doctor: 1, status: 1, mode: 1, scheduledAt: 1, createdAt: 1 })
     .lean();
-  res.json({ data: consultancies });
+  res.status(201).json({ data: out });
+});
+
+router.patch("/consultancies/:id", async (req, res) => {
+  const { id } = req.params;
+  const body = req.body as { status?: unknown; mode?: unknown; scheduledAt?: unknown };
+
+  const patch: Record<string, unknown> = {};
+  if (isNonEmptyString(body.status)) {
+    const status = body.status.trim();
+    if (!["requested", "confirmed", "completed", "cancelled"].includes(status)) {
+      res.status(400).json({ message: "Invalid status" });
+      return;
+    }
+    patch.status = status;
+  }
+  if (isNonEmptyString(body.mode)) {
+    const mode = body.mode.trim();
+    if (!["chat", "video", "audio", "in_person"].includes(mode)) {
+      res.status(400).json({ message: "Invalid mode" });
+      return;
+    }
+    patch.mode = mode;
+  }
+  if (body.scheduledAt !== undefined) {
+    const scheduledAt =
+      body.scheduledAt == null || body.scheduledAt === ""
+        ? null
+        : new Date(String(body.scheduledAt));
+    if (scheduledAt != null && Number.isNaN(scheduledAt.getTime())) {
+      res.status(400).json({ message: "Invalid scheduledAt" });
+      return;
+    }
+    patch.scheduledAt = scheduledAt;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    res.status(400).json({ message: "Nothing to update" });
+    return;
+  }
+
+  const updated = await Consultancy.findByIdAndUpdate(id, patch, { new: true })
+    .select({ user: 1, doctor: 1, status: 1, mode: 1, scheduledAt: 1, createdAt: 1 })
+    .lean();
+
+  if (!updated) {
+    res.status(404).json({ message: "Consultancy not found" });
+    return;
+  }
+
+  res.json({ data: updated });
+});
+
+router.delete("/consultancies/:id", async (req, res) => {
+  const { id } = req.params;
+  const deleted = await Consultancy.findByIdAndDelete(id).lean();
+  if (!deleted) {
+    res.status(404).json({ message: "Consultancy not found" });
+    return;
+  }
+  res.json({ data: { ok: true } });
 });
 
 export default router;

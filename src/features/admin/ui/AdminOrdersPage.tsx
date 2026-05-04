@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getAdminOrders, updateAdminOrderStatus } from "../service/adminApi";
 import toast from "react-hot-toast";
@@ -13,11 +13,36 @@ const formatDate = (v?: string) => {
 
 export default function AdminOrdersPage() {
   const qc = useQueryClient();
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["admin", "orders"],
-    queryFn: getAdminOrders,
+  const [searchText, setSearchText] = useState("");
+  const [q, setQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      setQ(searchText.trim());
+      setPage(1);
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [searchText]);
+
+  const { data: paged, isLoading, error } = useQuery({
+    queryKey: ["admin", "orders", { q, statusFilter, paymentFilter, page, limit }],
+    queryFn: () =>
+      getAdminOrders({
+        q: q || undefined,
+        status: statusFilter || undefined,
+        paymentStatus: paymentFilter || undefined,
+        page,
+        limit,
+      }),
     retry: 1,
   });
+
+  const items = paged?.items ?? [];
+  const meta = paged?.meta ?? { page: 1, limit, total: 0, totalPages: 1 };
 
   const [draftStatus, setDraftStatus] = useState<Record<string, string>>({});
 
@@ -25,6 +50,8 @@ export default function AdminOrdersPage() {
     () => ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled", "refunded"],
     [],
   );
+  const paymentOptions = useMemo(() => ["unpaid", "paid", "failed", "refunded"], []);
+  const limitOptions = useMemo(() => [10, 20, 50], []);
 
   const mutation = useMutation({
     mutationFn: async (args: { id: string; status: string }) =>
@@ -45,19 +72,80 @@ export default function AdminOrdersPage() {
         <div className="rounded-xl border border-gray-100 bg-white p-5 animate-pulse h-48" />
       )}
 
-      {!isLoading && (error || !data) && (
+      {!isLoading && (error || !paged) && (
         <div className="rounded-xl border border-red-100 bg-red-50 p-5 text-sm text-red-600">
           Failed to load orders.
         </div>
       )}
 
-      {!isLoading && data && (
+      {!isLoading && paged && (
         <div className="rounded-xl border border-gray-100 bg-white overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <p className="text-sm font-semibold text-dark">All orders</p>
             <span className="text-xs font-black bg-primary/10 text-primary px-3 py-1 rounded-full">
-              {data.length}
+              {meta.total}
             </span>
+          </div>
+
+          <div className="px-5 py-4 border-b border-gray-100">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                <input
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  className="h-10 w-full sm:w-[320px] rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                  placeholder="Search orders (order number)"
+                />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-10 w-full sm:w-[180px] rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                >
+                  <option value="">All status</option>
+                  {statusOptions.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={paymentFilter}
+                  onChange={(e) => {
+                    setPaymentFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-10 w-full sm:w-[180px] rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                >
+                  <option value="">All payments</option>
+                  {paymentOptions.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-500">Rows</span>
+                <select
+                  value={limit}
+                  onChange={(e) => {
+                    setLimit(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                >
+                  {limitOptions.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -73,7 +161,7 @@ export default function AdminOrdersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {data.map((o) => (
+                {items.map((o) => (
                   <tr key={o._id} className="text-sm text-dark">
                     <td className="px-5 py-3 font-semibold">
                       {o.orderNumber ?? o._id}
@@ -132,6 +220,40 @@ export default function AdminOrdersPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          <div className="px-5 py-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="text-sm text-slate-600">
+              {meta.total === 0
+                ? "No results"
+                : (() => {
+                    const start = (page - 1) * limit + 1;
+                    const end = Math.min(meta.total, page * limit);
+                    return `Showing ${start}-${end} of ${meta.total}`;
+                  })()}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="h-10 px-4 rounded-lg border border-gray-200 bg-white text-sm font-semibold disabled:opacity-60"
+              >
+                Prev
+              </button>
+              <span className="text-sm font-semibold text-slate-700">
+                Page {page} / {meta.totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={page >= meta.totalPages}
+                onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
+                className="h-10 px-4 rounded-lg border border-gray-200 bg-white text-sm font-semibold disabled:opacity-60"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
       )}
