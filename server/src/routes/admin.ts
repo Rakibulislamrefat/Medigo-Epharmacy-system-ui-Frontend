@@ -18,6 +18,33 @@ const slugify = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
+const parseStringArray = (value: unknown): string[] | undefined => {
+  if (Array.isArray(value)) {
+    const out = value
+      .map((v) => (typeof v === "string" ? v.trim() : ""))
+      .filter(Boolean);
+    return out;
+  }
+  if (typeof value === "string") {
+    const out = value
+      .split(/[\n,]+/g)
+      .map((v) => v.trim())
+      .filter(Boolean);
+    return out;
+  }
+  return undefined;
+};
+
+const parseBoolean = (value: unknown): boolean | undefined => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const v = value.trim().toLowerCase();
+    if (v === "true") return true;
+    if (v === "false") return false;
+  }
+  return undefined;
+};
+
 router.get("/metrics", async (_req, res) => {
   const [users, medicines, orders, doctors, consultancies] = await Promise.all([
     User.countDocuments({}),
@@ -88,7 +115,30 @@ router.patch("/users/:id", async (req, res) => {
 router.get("/medicines", async (_req, res) => {
   const medicines = await Medicine.find({})
     .sort({ createdAt: -1 })
-    .select({ name: 1, slug: 1, price: 1, stockQty: 1, status: 1, createdAt: 1 })
+    .select({
+      name: 1,
+      slug: 1,
+      genericName: 1,
+      brandName: 1,
+      dosageForm: 1,
+      strength: 1,
+      description: 1,
+      indications: 1,
+      warnings: 1,
+      otc: 1,
+      requiresPrescription: 1,
+      categories: 1,
+      tags: 1,
+      images: 1,
+      sku: 1,
+      manufacturer: 1,
+      price: 1,
+      salePrice: 1,
+      currency: 1,
+      stockQty: 1,
+      status: 1,
+      createdAt: 1,
+    })
     .lean();
   res.json({ data: medicines });
 });
@@ -97,7 +147,23 @@ router.post("/medicines", async (req, res) => {
   const body = req.body as {
     name?: unknown;
     slug?: unknown;
+    genericName?: unknown;
+    brandName?: unknown;
+    dosageForm?: unknown;
+    strength?: unknown;
+    description?: unknown;
+    indications?: unknown;
+    warnings?: unknown;
+    otc?: unknown;
+    requiresPrescription?: unknown;
+    categories?: unknown;
+    tags?: unknown;
+    images?: unknown;
+    sku?: unknown;
+    manufacturer?: unknown;
     price?: unknown;
+    salePrice?: unknown;
+    currency?: unknown;
     stockQty?: unknown;
     status?: unknown;
   };
@@ -114,11 +180,35 @@ router.post("/medicines", async (req, res) => {
     return;
   }
 
+  const dosageForm = isNonEmptyString(body.dosageForm)
+    ? body.dosageForm.trim()
+    : "other";
+  const allowedDosage = ["tablet", "capsule", "syrup", "injection", "cream", "drops", "other"];
+  if (!allowedDosage.includes(dosageForm)) {
+    res.status(400).json({ message: "Invalid dosageForm" });
+    return;
+  }
+
   const price = typeof body.price === "number" ? body.price : Number(body.price);
   if (!Number.isFinite(price) || price < 0) {
     res.status(400).json({ message: "Invalid price" });
     return;
   }
+
+  const salePrice =
+    body.salePrice === null || body.salePrice === ""
+      ? null
+      : body.salePrice == null
+        ? null
+        : typeof body.salePrice === "number"
+          ? body.salePrice
+          : Number(body.salePrice);
+  if (salePrice != null && (!Number.isFinite(salePrice) || salePrice < 0)) {
+    res.status(400).json({ message: "Invalid salePrice" });
+    return;
+  }
+
+  const currency = isNonEmptyString(body.currency) ? body.currency.trim() : "BDT";
 
   const stockQty =
     body.stockQty == null ? 0 : typeof body.stockQty === "number" ? body.stockQty : Number(body.stockQty);
@@ -133,10 +223,64 @@ router.post("/medicines", async (req, res) => {
     return;
   }
 
+  const otc = parseBoolean(body.otc) ?? true;
+  const requiresPrescription = parseBoolean(body.requiresPrescription) ?? false;
+
+  const indications = parseStringArray(body.indications) ?? [];
+  const warnings = parseStringArray(body.warnings) ?? [];
+  const categories = parseStringArray(body.categories) ?? [];
+  const tags = parseStringArray(body.tags) ?? [];
+  const images = parseStringArray(body.images) ?? [];
+
   try {
-    const created = await Medicine.create({ name, slug, price, stockQty, status });
+    const created = await Medicine.create({
+      name,
+      slug,
+      genericName: isNonEmptyString(body.genericName) ? body.genericName.trim() : "",
+      brandName: isNonEmptyString(body.brandName) ? body.brandName.trim() : "",
+      dosageForm,
+      strength: isNonEmptyString(body.strength) ? body.strength.trim() : "",
+      description: isNonEmptyString(body.description) ? body.description.trim() : "",
+      indications,
+      warnings,
+      otc,
+      requiresPrescription,
+      categories,
+      tags,
+      images,
+      sku: isNonEmptyString(body.sku) ? body.sku.trim() : "",
+      manufacturer: isNonEmptyString(body.manufacturer) ? body.manufacturer.trim() : "",
+      price,
+      salePrice,
+      currency,
+      stockQty,
+      status,
+    });
     const doc = await Medicine.findById(created._id)
-      .select({ name: 1, slug: 1, price: 1, stockQty: 1, status: 1, createdAt: 1 })
+      .select({
+        name: 1,
+        slug: 1,
+        genericName: 1,
+        brandName: 1,
+        dosageForm: 1,
+        strength: 1,
+        description: 1,
+        indications: 1,
+        warnings: 1,
+        otc: 1,
+        requiresPrescription: 1,
+        categories: 1,
+        tags: 1,
+        images: 1,
+        sku: 1,
+        manufacturer: 1,
+        price: 1,
+        salePrice: 1,
+        currency: 1,
+        stockQty: 1,
+        status: 1,
+        createdAt: 1,
+      })
       .lean();
     res.status(201).json({ data: doc });
   } catch (e: unknown) {
@@ -150,7 +294,23 @@ router.patch("/medicines/:id", async (req, res) => {
   const body = req.body as {
     name?: unknown;
     slug?: unknown;
+    genericName?: unknown;
+    brandName?: unknown;
+    dosageForm?: unknown;
+    strength?: unknown;
+    description?: unknown;
+    indications?: unknown;
+    warnings?: unknown;
+    otc?: unknown;
+    requiresPrescription?: unknown;
+    categories?: unknown;
+    tags?: unknown;
+    images?: unknown;
+    sku?: unknown;
+    manufacturer?: unknown;
     price?: unknown;
+    salePrice?: unknown;
+    currency?: unknown;
     stockQty?: unknown;
     status?: unknown;
   };
@@ -159,6 +319,40 @@ router.patch("/medicines/:id", async (req, res) => {
 
   if (isNonEmptyString(body.name)) patch.name = body.name.trim();
   if (isNonEmptyString(body.slug)) patch.slug = slugify(body.slug);
+  if (isNonEmptyString(body.genericName)) patch.genericName = body.genericName.trim();
+  if (isNonEmptyString(body.brandName)) patch.brandName = body.brandName.trim();
+  if (isNonEmptyString(body.strength)) patch.strength = body.strength.trim();
+  if (isNonEmptyString(body.description)) patch.description = body.description.trim();
+  if (isNonEmptyString(body.sku)) patch.sku = body.sku.trim();
+  if (isNonEmptyString(body.manufacturer)) patch.manufacturer = body.manufacturer.trim();
+  if (isNonEmptyString(body.currency)) patch.currency = body.currency.trim();
+
+  if (isNonEmptyString(body.dosageForm)) {
+    const dosageForm = body.dosageForm.trim();
+    const allowedDosage = ["tablet", "capsule", "syrup", "injection", "cream", "drops", "other"];
+    if (!allowedDosage.includes(dosageForm)) {
+      res.status(400).json({ message: "Invalid dosageForm" });
+      return;
+    }
+    patch.dosageForm = dosageForm;
+  }
+
+  const otc = parseBoolean(body.otc);
+  if (otc != null) patch.otc = otc;
+  const requiresPrescription = parseBoolean(body.requiresPrescription);
+  if (requiresPrescription != null) patch.requiresPrescription = requiresPrescription;
+
+  const indications = parseStringArray(body.indications);
+  if (indications) patch.indications = indications;
+  const warnings = parseStringArray(body.warnings);
+  if (warnings) patch.warnings = warnings;
+  const categories = parseStringArray(body.categories);
+  if (categories) patch.categories = categories;
+  const tags = parseStringArray(body.tags);
+  if (tags) patch.tags = tags;
+  const images = parseStringArray(body.images);
+  if (images) patch.images = images;
+
   if (body.price != null) {
     const price = typeof body.price === "number" ? body.price : Number(body.price);
     if (!Number.isFinite(price) || price < 0) {
@@ -167,6 +361,21 @@ router.patch("/medicines/:id", async (req, res) => {
     }
     patch.price = price;
   }
+
+  if (body.salePrice !== undefined) {
+    const salePrice =
+      body.salePrice === null || body.salePrice === ""
+        ? null
+        : typeof body.salePrice === "number"
+          ? body.salePrice
+          : Number(body.salePrice);
+    if (salePrice != null && (!Number.isFinite(salePrice) || salePrice < 0)) {
+      res.status(400).json({ message: "Invalid salePrice" });
+      return;
+    }
+    patch.salePrice = salePrice;
+  }
+
   if (body.stockQty != null) {
     const stockQty =
       typeof body.stockQty === "number" ? body.stockQty : Number(body.stockQty);
@@ -192,7 +401,30 @@ router.patch("/medicines/:id", async (req, res) => {
 
   try {
     const updated = await Medicine.findByIdAndUpdate(id, patch, { new: true })
-      .select({ name: 1, slug: 1, price: 1, stockQty: 1, status: 1, createdAt: 1 })
+      .select({
+        name: 1,
+        slug: 1,
+        genericName: 1,
+        brandName: 1,
+        dosageForm: 1,
+        strength: 1,
+        description: 1,
+        indications: 1,
+        warnings: 1,
+        otc: 1,
+        requiresPrescription: 1,
+        categories: 1,
+        tags: 1,
+        images: 1,
+        sku: 1,
+        manufacturer: 1,
+        price: 1,
+        salePrice: 1,
+        currency: 1,
+        stockQty: 1,
+        status: 1,
+        createdAt: 1,
+      })
       .lean();
     if (!updated) {
       res.status(404).json({ message: "Medicine not found" });

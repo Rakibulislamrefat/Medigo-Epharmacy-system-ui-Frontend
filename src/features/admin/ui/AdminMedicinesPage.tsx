@@ -16,6 +16,21 @@ const formatDate = (v?: string) => {
     : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 };
 
+const parseList = (value: string) =>
+  value
+    .split(/[\n,]+/g)
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+const joinList = (items?: string[]) => (items?.length ? items.join(", ") : "");
+
+const toNumberOrUndefined = (v: string) => {
+  const t = v.trim();
+  if (!t) return undefined;
+  const n = Number(t);
+  return Number.isNaN(n) ? undefined : n;
+};
+
 export default function AdminMedicinesPage() {
   const qc = useQueryClient();
   const { data, isLoading, error } = useQuery({
@@ -27,7 +42,23 @@ export default function AdminMedicinesPage() {
   const [createForm, setCreateForm] = useState({
     name: "",
     slug: "",
+    genericName: "",
+    brandName: "",
+    dosageForm: "other",
+    strength: "",
+    description: "",
+    indications: "",
+    warnings: "",
+    otc: true,
+    requiresPrescription: false,
+    categories: "",
+    tags: "",
+    images: "",
+    sku: "",
+    manufacturer: "",
     price: "",
+    salePrice: "",
+    currency: "BDT",
     stockQty: "",
     status: "active",
   });
@@ -36,19 +67,57 @@ export default function AdminMedicinesPage() {
   const [editForm, setEditForm] = useState({
     name: "",
     slug: "",
+    genericName: "",
+    brandName: "",
+    dosageForm: "other",
+    strength: "",
+    description: "",
+    indications: "",
+    warnings: "",
+    otc: true,
+    requiresPrescription: false,
+    categories: "",
+    tags: "",
+    images: "",
+    sku: "",
+    manufacturer: "",
     price: "",
+    salePrice: "",
+    currency: "BDT",
     stockQty: "",
     status: "active",
   });
 
   const statusOptions = useMemo(() => ["active", "inactive"], []);
+  const dosageFormOptions = useMemo(
+    () => ["tablet", "capsule", "syrup", "injection", "cream", "drops", "other"],
+    [],
+  );
+  const [showCreateAdvanced, setShowCreateAdvanced] = useState(false);
+  const [showEditAdvanced, setShowEditAdvanced] = useState(false);
 
   const createMutation = useMutation({
     mutationFn: async () =>
       createAdminMedicine({
         name: createForm.name.trim(),
         slug: createForm.slug.trim() ? createForm.slug.trim() : undefined,
+        genericName: createForm.genericName.trim() || undefined,
+        brandName: createForm.brandName.trim() || undefined,
+        dosageForm: createForm.dosageForm,
+        strength: createForm.strength.trim() || undefined,
+        description: createForm.description.trim() || undefined,
+        indications: createForm.indications.trim() ? parseList(createForm.indications) : undefined,
+        warnings: createForm.warnings.trim() ? parseList(createForm.warnings) : undefined,
+        otc: createForm.otc,
+        requiresPrescription: createForm.requiresPrescription,
+        categories: createForm.categories.trim() ? parseList(createForm.categories) : undefined,
+        tags: createForm.tags.trim() ? parseList(createForm.tags) : undefined,
+        images: createForm.images.trim() ? parseList(createForm.images) : undefined,
+        sku: createForm.sku.trim() || undefined,
+        manufacturer: createForm.manufacturer.trim() || undefined,
         price: Number(createForm.price),
+        salePrice: toNumberOrUndefined(createForm.salePrice) ?? null,
+        currency: createForm.currency.trim() || "BDT",
         stockQty: createForm.stockQty ? Number(createForm.stockQty) : undefined,
         status: createForm.status,
       }),
@@ -62,7 +131,23 @@ export default function AdminMedicinesPage() {
       updateAdminMedicine(args.id, {
         name: editForm.name.trim(),
         slug: editForm.slug.trim() ? editForm.slug.trim() : undefined,
+        genericName: editForm.genericName.trim() || undefined,
+        brandName: editForm.brandName.trim() || undefined,
+        dosageForm: editForm.dosageForm,
+        strength: editForm.strength.trim() || undefined,
+        description: editForm.description.trim() || undefined,
+        indications: editForm.indications.trim() ? parseList(editForm.indications) : undefined,
+        warnings: editForm.warnings.trim() ? parseList(editForm.warnings) : undefined,
+        otc: editForm.otc,
+        requiresPrescription: editForm.requiresPrescription,
+        categories: editForm.categories.trim() ? parseList(editForm.categories) : undefined,
+        tags: editForm.tags.trim() ? parseList(editForm.tags) : undefined,
+        images: editForm.images.trim() ? parseList(editForm.images) : undefined,
+        sku: editForm.sku.trim() || undefined,
+        manufacturer: editForm.manufacturer.trim() || undefined,
         price: Number(editForm.price),
+        salePrice: toNumberOrUndefined(editForm.salePrice) ?? null,
+        currency: editForm.currency.trim() || "BDT",
         stockQty: editForm.stockQty ? Number(editForm.stockQty) : undefined,
         status: editForm.status,
       }),
@@ -88,6 +173,13 @@ export default function AdminMedicinesPage() {
       <div className="rounded-xl border border-gray-100 bg-white p-5">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-semibold text-dark">Create medicine</p>
+          <button
+            type="button"
+            onClick={() => setShowCreateAdvanced((v) => !v)}
+            className="text-xs font-semibold text-primary hover:underline"
+          >
+            {showCreateAdvanced ? "Hide fields" : "More fields"}
+          </button>
         </div>
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <input
@@ -102,6 +194,17 @@ export default function AdminMedicinesPage() {
             className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
             placeholder="Slug (optional)"
           />
+          <select
+            value={createForm.dosageForm}
+            onChange={(e) => setCreateForm((p) => ({ ...p, dosageForm: e.target.value }))}
+            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+          >
+            {dosageFormOptions.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
           <input
             value={createForm.price}
             onChange={(e) => setCreateForm((p) => ({ ...p, price: e.target.value }))}
@@ -144,7 +247,29 @@ export default function AdminMedicinesPage() {
                 try {
                   await createMutation.mutateAsync();
                   toast.success("Created", { id: t });
-                  setCreateForm({ name: "", slug: "", price: "", stockQty: "", status: "active" });
+                  setCreateForm({
+                    name: "",
+                    slug: "",
+                    genericName: "",
+                    brandName: "",
+                    dosageForm: "other",
+                    strength: "",
+                    description: "",
+                    indications: "",
+                    warnings: "",
+                    otc: true,
+                    requiresPrescription: false,
+                    categories: "",
+                    tags: "",
+                    images: "",
+                    sku: "",
+                    manufacturer: "",
+                    price: "",
+                    salePrice: "",
+                    currency: "BDT",
+                    stockQty: "",
+                    status: "active",
+                  });
                 } catch (err: unknown) {
                   const msg =
                     (err as { response?: { data?: { message?: string } } })?.response?.data
@@ -158,6 +283,110 @@ export default function AdminMedicinesPage() {
             </button>
           </div>
         </div>
+
+        {showCreateAdvanced && (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input
+              value={createForm.genericName}
+              onChange={(e) => setCreateForm((p) => ({ ...p, genericName: e.target.value }))}
+              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+              placeholder="Generic name"
+            />
+            <input
+              value={createForm.brandName}
+              onChange={(e) => setCreateForm((p) => ({ ...p, brandName: e.target.value }))}
+              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+              placeholder="Brand name"
+            />
+            <input
+              value={createForm.strength}
+              onChange={(e) => setCreateForm((p) => ({ ...p, strength: e.target.value }))}
+              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+              placeholder="Strength (e.g., 500mg)"
+            />
+            <input
+              value={createForm.sku}
+              onChange={(e) => setCreateForm((p) => ({ ...p, sku: e.target.value }))}
+              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+              placeholder="SKU"
+            />
+            <input
+              value={createForm.manufacturer}
+              onChange={(e) => setCreateForm((p) => ({ ...p, manufacturer: e.target.value }))}
+              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+              placeholder="Manufacturer"
+            />
+            <input
+              value={createForm.salePrice}
+              onChange={(e) => setCreateForm((p) => ({ ...p, salePrice: e.target.value }))}
+              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+              placeholder="Sale price (optional)"
+              inputMode="decimal"
+            />
+            <input
+              value={createForm.currency}
+              onChange={(e) => setCreateForm((p) => ({ ...p, currency: e.target.value }))}
+              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+              placeholder="Currency (BDT)"
+            />
+            <div className="flex items-center gap-4">
+              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={createForm.otc}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, otc: e.target.checked }))}
+                />
+                OTC
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={createForm.requiresPrescription}
+                  onChange={(e) =>
+                    setCreateForm((p) => ({ ...p, requiresPrescription: e.target.checked }))
+                  }
+                />
+                Requires Rx
+              </label>
+            </div>
+            <textarea
+              value={createForm.description}
+              onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
+              className="min-h-24 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm sm:col-span-2"
+              placeholder="Description"
+            />
+            <textarea
+              value={createForm.indications}
+              onChange={(e) => setCreateForm((p) => ({ ...p, indications: e.target.value }))}
+              className="min-h-20 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+              placeholder="Indications (comma or new line separated)"
+            />
+            <textarea
+              value={createForm.warnings}
+              onChange={(e) => setCreateForm((p) => ({ ...p, warnings: e.target.value }))}
+              className="min-h-20 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+              placeholder="Warnings (comma or new line separated)"
+            />
+            <input
+              value={createForm.categories}
+              onChange={(e) => setCreateForm((p) => ({ ...p, categories: e.target.value }))}
+              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+              placeholder="Categories (comma separated)"
+            />
+            <input
+              value={createForm.tags}
+              onChange={(e) => setCreateForm((p) => ({ ...p, tags: e.target.value }))}
+              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+              placeholder="Tags (comma separated)"
+            />
+            <textarea
+              value={createForm.images}
+              onChange={(e) => setCreateForm((p) => ({ ...p, images: e.target.value }))}
+              className="min-h-16 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm sm:col-span-2"
+              placeholder="Image URLs (comma or new line separated)"
+            />
+          </div>
+        )}
       </div>
 
       {isLoading && (
@@ -214,10 +443,27 @@ export default function AdminMedicinesPage() {
                           disabled={createMutation.isPending || updateMutation.isPending || deleteMutation.isPending}
                           onClick={() => {
                             setEditingId(m._id);
+                          setShowEditAdvanced(false);
                             setEditForm({
                               name: m.name ?? "",
                               slug: m.slug ?? "",
+                            genericName: m.genericName ?? "",
+                            brandName: m.brandName ?? "",
+                            dosageForm: m.dosageForm ?? "other",
+                            strength: m.strength ?? "",
+                            description: m.description ?? "",
+                            indications: joinList(m.indications),
+                            warnings: joinList(m.warnings),
+                            otc: m.otc ?? true,
+                            requiresPrescription: m.requiresPrescription ?? false,
+                            categories: joinList(m.categories),
+                            tags: joinList(m.tags),
+                            images: joinList(m.images),
+                            sku: m.sku ?? "",
+                            manufacturer: m.manufacturer ?? "",
                               price: m.price != null ? String(m.price) : "",
+                            salePrice: m.salePrice != null ? String(m.salePrice) : "",
+                            currency: m.currency ?? "BDT",
                               stockQty: m.stockQty != null ? String(m.stockQty) : "",
                               status: m.status ?? "active",
                             });
@@ -262,13 +508,22 @@ export default function AdminMedicinesPage() {
           <div className="w-full max-w-2xl rounded-2xl bg-white border border-gray-100 shadow-2xl overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <p className="text-sm font-semibold text-dark">Edit medicine</p>
-              <button
-                type="button"
-                onClick={() => setEditingId(null)}
-                className="h-9 w-9 rounded-lg hover:bg-gray-50"
-              >
-                ×
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowEditAdvanced((v) => !v)}
+                  className="text-xs font-semibold text-primary hover:underline"
+                >
+                  {showEditAdvanced ? "Hide fields" : "More fields"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingId(null)}
+                  className="h-9 w-9 rounded-lg hover:bg-gray-50"
+                >
+                  ×
+                </button>
+              </div>
             </div>
             <div className="p-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -284,6 +539,17 @@ export default function AdminMedicinesPage() {
                   className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
                   placeholder="Slug"
                 />
+                <select
+                  value={editForm.dosageForm}
+                  onChange={(e) => setEditForm((p) => ({ ...p, dosageForm: e.target.value }))}
+                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                >
+                  {dosageFormOptions.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
                 <input
                   value={editForm.price}
                   onChange={(e) => setEditForm((p) => ({ ...p, price: e.target.value }))}
@@ -292,11 +558,24 @@ export default function AdminMedicinesPage() {
                   inputMode="decimal"
                 />
                 <input
+                  value={editForm.salePrice}
+                  onChange={(e) => setEditForm((p) => ({ ...p, salePrice: e.target.value }))}
+                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                  placeholder="Sale price (optional)"
+                  inputMode="decimal"
+                />
+                <input
                   value={editForm.stockQty}
                   onChange={(e) => setEditForm((p) => ({ ...p, stockQty: e.target.value }))}
                   className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
                   placeholder="Stock"
                   inputMode="numeric"
+                />
+                <input
+                  value={editForm.currency}
+                  onChange={(e) => setEditForm((p) => ({ ...p, currency: e.target.value }))}
+                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                  placeholder="Currency (BDT)"
                 />
                 <select
                   value={editForm.status}
@@ -310,6 +589,97 @@ export default function AdminMedicinesPage() {
                   ))}
                 </select>
               </div>
+
+              {showEditAdvanced && (
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <input
+                    value={editForm.genericName}
+                    onChange={(e) => setEditForm((p) => ({ ...p, genericName: e.target.value }))}
+                    className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                    placeholder="Generic name"
+                  />
+                  <input
+                    value={editForm.brandName}
+                    onChange={(e) => setEditForm((p) => ({ ...p, brandName: e.target.value }))}
+                    className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                    placeholder="Brand name"
+                  />
+                  <input
+                    value={editForm.strength}
+                    onChange={(e) => setEditForm((p) => ({ ...p, strength: e.target.value }))}
+                    className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                    placeholder="Strength (e.g., 500mg)"
+                  />
+                  <input
+                    value={editForm.sku}
+                    onChange={(e) => setEditForm((p) => ({ ...p, sku: e.target.value }))}
+                    className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                    placeholder="SKU"
+                  />
+                  <input
+                    value={editForm.manufacturer}
+                    onChange={(e) => setEditForm((p) => ({ ...p, manufacturer: e.target.value }))}
+                    className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                    placeholder="Manufacturer"
+                  />
+                  <div className="flex items-center gap-4">
+                    <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={editForm.otc}
+                        onChange={(e) => setEditForm((p) => ({ ...p, otc: e.target.checked }))}
+                      />
+                      OTC
+                    </label>
+                    <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={editForm.requiresPrescription}
+                        onChange={(e) =>
+                          setEditForm((p) => ({ ...p, requiresPrescription: e.target.checked }))
+                        }
+                      />
+                      Requires Rx
+                    </label>
+                  </div>
+                  <textarea
+                    value={editForm.description}
+                    onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
+                    className="min-h-24 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm sm:col-span-2"
+                    placeholder="Description"
+                  />
+                  <textarea
+                    value={editForm.indications}
+                    onChange={(e) => setEditForm((p) => ({ ...p, indications: e.target.value }))}
+                    className="min-h-20 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                    placeholder="Indications (comma or new line separated)"
+                  />
+                  <textarea
+                    value={editForm.warnings}
+                    onChange={(e) => setEditForm((p) => ({ ...p, warnings: e.target.value }))}
+                    className="min-h-20 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                    placeholder="Warnings (comma or new line separated)"
+                  />
+                  <input
+                    value={editForm.categories}
+                    onChange={(e) => setEditForm((p) => ({ ...p, categories: e.target.value }))}
+                    className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                    placeholder="Categories (comma separated)"
+                  />
+                  <input
+                    value={editForm.tags}
+                    onChange={(e) => setEditForm((p) => ({ ...p, tags: e.target.value }))}
+                    className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                    placeholder="Tags (comma separated)"
+                  />
+                  <textarea
+                    value={editForm.images}
+                    onChange={(e) => setEditForm((p) => ({ ...p, images: e.target.value }))}
+                    className="min-h-16 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm sm:col-span-2"
+                    placeholder="Image URLs (comma or new line separated)"
+                  />
+                </div>
+              )}
 
               <div className="mt-5 flex items-center justify-end gap-2">
                 <button

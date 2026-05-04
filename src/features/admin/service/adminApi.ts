@@ -14,7 +14,23 @@ export type AdminMedicine = {
   _id: string;
   name: string;
   slug?: string;
+  genericName?: string;
+  brandName?: string;
+  dosageForm?: string;
+  strength?: string;
+  description?: string;
+  indications?: string[];
+  warnings?: string[];
+  otc?: boolean;
+  requiresPrescription?: boolean;
+  categories?: string[];
+  tags?: string[];
+  images?: string[];
+  sku?: string;
+  manufacturer?: string;
   price?: number;
+  salePrice?: number | null;
+  currency?: string;
   stockQty?: number;
   status?: string;
   createdAt?: string;
@@ -99,7 +115,23 @@ export const updateAdminUser = async (
 export const createAdminMedicine = async (payload: {
   name: string;
   slug?: string;
+  genericName?: string;
+  brandName?: string;
+  dosageForm?: string;
+  strength?: string;
+  description?: string;
+  indications?: string[] | string;
+  warnings?: string[] | string;
+  otc?: boolean;
+  requiresPrescription?: boolean;
+  categories?: string[] | string;
+  tags?: string[] | string;
+  images?: string[] | string;
+  sku?: string;
+  manufacturer?: string;
   price: number;
+  salePrice?: number | null;
+  currency?: string;
   stockQty?: number;
   status?: string;
 }): Promise<AdminMedicine> => {
@@ -112,7 +144,23 @@ export const updateAdminMedicine = async (
   patch: {
     name?: string;
     slug?: string;
+    genericName?: string;
+    brandName?: string;
+    dosageForm?: string;
+    strength?: string;
+    description?: string;
+    indications?: string[] | string;
+    warnings?: string[] | string;
+    otc?: boolean;
+    requiresPrescription?: boolean;
+    categories?: string[] | string;
+    tags?: string[] | string;
+    images?: string[] | string;
+    sku?: string;
+    manufacturer?: string;
     price?: number;
+    salePrice?: number | null;
+    currency?: string;
     stockQty?: number;
     status?: string;
   },
