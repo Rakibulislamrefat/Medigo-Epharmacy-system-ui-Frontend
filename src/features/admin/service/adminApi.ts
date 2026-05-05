@@ -109,10 +109,19 @@ export const getAdminUsers = async (params?: {
   status?: string;
 }): Promise<AdminPaged<AdminUser>> => {
   const res = await api.get("/admin/users", { params });
-  const r = res.data as { data?: AdminUser[]; meta?: AdminListMeta };
+  const raw = res.data as unknown;
+  const data = (raw as { data?: unknown })?.data;
+  const meta = (raw as { meta?: AdminListMeta })?.meta;
+
+  const items = Array.isArray(data)
+    ? (data as AdminUser[])
+    : Array.isArray((data as { items?: unknown })?.items)
+    ? ((data as { items?: AdminUser[] }).items as AdminUser[])
+    : [];
+
   return {
-    items: r?.data ?? [],
-    meta: r?.meta ?? { page: 1, limit: params?.limit ?? 10, total: 0, totalPages: 1 },
+    items,
+    meta: meta ?? { page: 1, limit: params?.limit ?? 10, total: 0, totalPages: 1 },
   };
 };
 
@@ -123,10 +132,21 @@ export const getAdminMedicines = async (params?: {
   status?: string;
 }): Promise<AdminPaged<AdminMedicine>> => {
   const res = await api.get("/admin/medicines", { params });
-  const r = res.data as { data?: AdminMedicine[]; meta?: AdminListMeta };
+  const raw = res.data as unknown;
+  const data = (raw as { data?: unknown })?.data;
+  const meta = (raw as { meta?: AdminListMeta })?.meta;
+
+  const items = Array.isArray(raw)
+    ? (raw as AdminMedicine[])
+    : Array.isArray(data)
+    ? (data as AdminMedicine[])
+    : Array.isArray((data as { items?: unknown })?.items)
+    ? ((data as { items?: AdminMedicine[] }).items as AdminMedicine[])
+    : [];
+
   return {
-    items: r?.data ?? [],
-    meta: r?.meta ?? { page: 1, limit: 10, total: 0, totalPages: 1 },
+    items,
+    meta: meta ?? { page: 1, limit: 10, total: 0, totalPages: 1 },
   };
 };
 

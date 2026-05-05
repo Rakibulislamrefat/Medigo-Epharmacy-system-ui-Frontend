@@ -25,6 +25,7 @@ import TermsConditionPage from "../../../features/termsCondition/ui/TermsConditi
 import PrivacyPolicyPage from "../../../features/privacy/ui/PrivacyPolicyPage";
 import CategoryPage from "../../../features/category/ui/CategoryPage";
 import DoctorConsultancyPage from "../../../features/doctorConsultancy/ui/DoctorConsultancyPage";
+import UsersPage from "../../../features/users/ui/UsersPage";
 import AdminLayout from "../../layout/AdminLayout";
 import AdminDashboardPage from "../../../features/admin/ui/AdminDashboardPage";
 import AdminUsersPage from "../../../features/admin/ui/AdminUsersPage";
@@ -68,6 +69,14 @@ export const router = createBrowserRouter([
       {
         path: "/doctor-consultancy",
         element: <DoctorConsultancyPage />,
+      },
+      {
+        path: "/users",
+        element: <UsersPage />,
+      },
+      {
+        path: "/community",
+        element: <UsersPage />,
       },
       {
         path: "/contact",

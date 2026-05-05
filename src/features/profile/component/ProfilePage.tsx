@@ -7,7 +7,6 @@ import { profileStyles } from "../service/ProfileStyle";
 import ProfileCard from "../ui/ProfileCard";
 import ProfileField from "../ui/ProfileField";
 import ProfileAvatar from "../ui/ProfileAvatar";
-import BloodTypeSelector from "../ui/BloodTypeSelector";
 import AvailabilityToggle from "../ui/AvailabilityToggle";
 import SocialField from "../ui/SocialField";
 import toast from "react-hot-toast";
@@ -314,16 +313,6 @@ export default function ProfilePage() {
       syncProfile(updatedProfile);
     });
 
-  const saveHealth = () =>
-    save("health", async () => {
-      const updatedProfile = await updateProfileApi({
-        bloodType: form.bloodType ? (form.bloodType as IReduxUser["bloodType"]) : null,
-        age: form.age ? Number(form.age) : null,
-        weight: form.weight ? Number(form.weight) : null,
-      });
-      syncProfile(updatedProfile);
-    });
-
   const saveLocation = () =>
     save("location", async () => {
       const updatedProfile = await updateProfileApi({
@@ -552,42 +541,6 @@ export default function ProfilePage() {
               type="date"
               value={form.dateOfBirth}
               onChange={(v) => set("dateOfBirth", v)}
-            />
-          </div>
-        </ProfileCard>
-
-        {/* ── 3. health info ── */}
-        <ProfileCard
-          title="Health information"
-          action={
-            <SaveButton onClick={saveHealth} loading={isSaving("health")} />
-          }
-        >
-          <BloodTypeSelector
-            value={form.bloodType}
-            onChange={(v) => set("bloodType", v)}
-            error={errors.bloodType}
-          />
-          <div style={s.grid2}>
-            <ProfileField
-              label="Age"
-              name="age"
-              type="number"
-              value={form.age}
-              onChange={(v) => set("age", v)}
-              placeholder="25"
-              hint="Must be 18–65"
-              error={errors.age}
-            />
-            <ProfileField
-              label="Weight (kg)"
-              name="weight"
-              type="number"
-              value={form.weight}
-              onChange={(v) => set("weight", v)}
-              placeholder="65"
-              hint="Minimum 50 kg"
-              error={errors.weight}
             />
           </div>
         </ProfileCard>

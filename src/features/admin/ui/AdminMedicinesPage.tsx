@@ -59,8 +59,9 @@ export default function AdminMedicinesPage() {
     retry: 1,
   });
 
-  const items = paged?.items ?? [];
+  const items = Array.isArray(paged?.items) ? paged.items : [];
   const meta = paged?.meta ?? { page: 1, limit, total: 0, totalPages: 1 };
+  const invalidPayload = Boolean(paged && !Array.isArray(paged.items));
 
   const [createForm, setCreateForm] = useState({
     name: "",
@@ -424,7 +425,14 @@ export default function AdminMedicinesPage() {
       )}
 
       {!isLoading && paged && (
-        <div className="rounded-xl border border-gray-100 bg-white overflow-hidden">
+        <>
+          {invalidPayload && (
+            <div className="rounded-xl border border-amber-100 bg-amber-50 p-5 text-sm text-amber-700">
+              Received an unexpected medicines payload from the server. Please refresh or contact support.
+            </div>
+          )}
+
+          <div className="rounded-xl border border-gray-100 bg-white overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <p className="text-sm font-semibold text-dark">All medicines</p>
             <span className="text-xs font-black bg-primary/10 text-primary px-3 py-1 rounded-full">
@@ -601,7 +609,7 @@ export default function AdminMedicinesPage() {
               </button>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {editingId && (
@@ -822,7 +830,7 @@ export default function AdminMedicinesPage() {
               </div>
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
