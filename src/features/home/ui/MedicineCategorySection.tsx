@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import MainContainer from "../../../shared/main-container/MainContainer";
 import SectionContainer from "../../../shared/section-container/SectionContainer";
 import MedicineCategoryTabs from "./MedicineCategoryTabs";
@@ -7,6 +8,7 @@ import type {
   MedicineCategory,
   MedicineCategorySectionProps,
 } from "../service/MedicineCategory.types";
+import { getMedicinesByCategory } from "../service/medicineCategoryApi";
 
 const MedicineCategorySection = ({
   categories,
@@ -14,8 +16,15 @@ const MedicineCategorySection = ({
   onViewAll,
   onAddToBag,
 }: MedicineCategorySectionProps) => {
+  const { data: apiCategories } = useQuery({
+    queryKey: ["home", "medicineCategories"],
+    queryFn: getMedicinesByCategory,
+    retry: 1,
+  });
+
   const data: MedicineCategory[] = useMemo(() => {
     if (categories?.length) return categories;
+    if (apiCategories?.length) return apiCategories;
     return [
       {
         key: "prescription",
@@ -290,18 +299,20 @@ const MedicineCategorySection = ({
         ],
       },
     ];
-  }, [categories]);
+  }, [categories, apiCategories]);
 
-  const initialKey = useMemo(() => {
-    const first = data[0]?.key;
-    if (!first) return "";
-    if (!defaultCategoryKey) return first;
-    return data.some((c) => c.key === defaultCategoryKey)
-      ? defaultCategoryKey
-      : first;
+  const [activeKey, setActiveKey] = useState("");
+
+  useEffect(() => {
+    if (!data.length) return;
+    const first = data[0].key;
+    if (defaultCategoryKey && data.some((c) => c.key === defaultCategoryKey)) {
+      setActiveKey(defaultCategoryKey);
+      return;
+    }
+    setActiveKey((current) => (current && data.some((c) => c.key === current) ? current : first));
   }, [data, defaultCategoryKey]);
 
-  const [activeKey, setActiveKey] = useState(initialKey);
   const activeCategory = data.find((c) => c.key === activeKey) ?? data[0];
 
   if (!activeCategory) return null;

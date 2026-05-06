@@ -10,7 +10,7 @@ import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Search, Plus, Pill, Edit2, Trash2, X, ChevronLeft, ChevronRight, 
-  Settings2, Activity, Filter, Box
+  Settings2, Activity, Filter, Box, Upload, Image as ImageIcon
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -28,6 +28,14 @@ const toNumberOrUndefined = (v: string) => {
   const n = Number(t);
   return Number.isNaN(n) ? undefined : n;
 };
+
+const generateSlug = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 
 export default function AdminMedicinesPage() {
   const qc = useQueryClient();
@@ -67,6 +75,7 @@ export default function AdminMedicinesPage() {
     requiresPrescription: false, categories: "", tags: "",
     images: "", sku: "", manufacturer: "", price: "",
     salePrice: "", currency: "BDT", stockQty: "", status: "active",
+    imageFile: null as File | null,
   };
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -84,10 +93,11 @@ export default function AdminMedicinesPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const createMutation = useMutation({
-    mutationFn: async () =>
-      createAdminMedicine({
+    mutationFn: async () => {
+      const slug = createForm.slug.trim() || generateSlug(createForm.name.trim());
+      return createAdminMedicine({
         name: createForm.name.trim(),
-        slug: createForm.slug.trim() ? createForm.slug.trim() : undefined,
+        slug: slug,
         genericName: createForm.genericName.trim() || undefined,
         brandName: createForm.brandName.trim() || undefined,
         dosageForm: createForm.dosageForm,
@@ -107,7 +117,9 @@ export default function AdminMedicinesPage() {
         currency: createForm.currency.trim() || "BDT",
         stockQty: createForm.stockQty ? Number(createForm.stockQty) : undefined,
         status: createForm.status,
-      }),
+        imageFile: createForm.imageFile || undefined,
+      });
+    },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin", "medicines"] });
       setIsCreateModalOpen(false);
@@ -116,10 +128,11 @@ export default function AdminMedicinesPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (args: { id: string }) =>
-      updateAdminMedicine(args.id, {
+    mutationFn: async ({ id }: { id: string }) => {
+      const slug = editForm.slug.trim() || generateSlug(editForm.name.trim());
+      return updateAdminMedicine(id, {
         name: editForm.name.trim(),
-        slug: editForm.slug.trim() ? editForm.slug.trim() : undefined,
+        slug: slug,
         genericName: editForm.genericName.trim() || undefined,
         brandName: editForm.brandName.trim() || undefined,
         dosageForm: editForm.dosageForm,
@@ -139,7 +152,9 @@ export default function AdminMedicinesPage() {
         currency: editForm.currency.trim() || "BDT",
         stockQty: editForm.stockQty ? Number(editForm.stockQty) : undefined,
         status: editForm.status,
-      }),
+        imageFile: editForm.imageFile || undefined,
+      });
+    },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin", "medicines"] });
       setEditingId(null);
@@ -157,6 +172,10 @@ export default function AdminMedicinesPage() {
     const form = isEdit ? editForm : createForm;
     if (!form.name.trim()) return toast.error("Name is required");
     if (!form.price || Number.isNaN(Number(form.price))) return toast.error("Valid price is required");
+    
+    // Generate slug if not provided
+    const slug = form.slug.trim() || generateSlug(form.name.trim());
+    if (!slug) return toast.error("Slug is required");
     
     const t = toast.loading(isEdit ? "Saving..." : "Creating...");
     try {
@@ -316,6 +335,38 @@ export default function AdminMedicinesPage() {
                     <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 select-none">{category}</span>
                   </label>
                 ))}
+              </div>
+            </div>
+            <div className="space-y-1 sm:col-span-2">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Upload Image</label>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-dashed border-slate-300 hover:border-primary transition-colors cursor-pointer bg-slate-50/50 hover:bg-slate-50">
+                  <Upload className="w-5 h-5 text-slate-400" />
+                  <span className="text-sm font-medium text-slate-600">Choose Image</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        // Validate file size (5MB limit)
+                        if (file.size > 5 * 1024 * 1024) {
+                          toast.error("File size must be less than 5MB");
+                          return;
+                        }
+                        setForm(p => ({...p, imageFile: file}));
+                        toast.success("Image selected successfully!");
+                      }
+                    }}
+                    className="hidden"
+                  />
+                </label>
+                {form.imageFile && (
+                  <div className="flex items-center gap-2 text-sm text-primary">
+                    <ImageIcon className="w-4 h-4" />
+                    {form.imageFile.name} ({(form.imageFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </div>
+                )}
               </div>
             </div>
             <div className="space-y-1 sm:col-span-2">
@@ -481,6 +532,7 @@ export default function AdminMedicinesPage() {
                                 price: m.price != null ? String(m.price) : "", salePrice: m.salePrice != null ? String(m.salePrice) : "",
                                 currency: m.currency ?? "BDT", stockQty: m.stockQty != null ? String(m.stockQty) : "",
                                 status: m.status ?? "active",
+                                imageFile: null,
                               });
                               setShowAdvanced(false);
                               setEditingId(m._id);

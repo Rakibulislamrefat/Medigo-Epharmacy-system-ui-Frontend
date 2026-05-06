@@ -1,11 +1,28 @@
 import { Router } from "express";
+import multer from "multer";
 import { User } from "../models/User.js";
 import { Medicine } from "../models/Medicine.js";
 import { Order } from "../models/Order.js";
 import { Doctor } from "../models/Doctor.js";
 import { Consultancy } from "../models/Consultancy.js";
+import { uploadToCloudinary } from "../utils/cloudinary.js";
 
 const router = Router();
+
+// Configure multer for memory storage
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  },
+});
 
 const isNonEmptyString = (v: unknown): v is string =>
   typeof v === "string" && v.trim().length > 0;
@@ -237,7 +254,7 @@ router.get("/medicines", async (_req, res) => {
   });
 });
 
-router.post("/medicines", async (req, res) => {
+router.post("/medicines", upload.single("image"), async (req, res) => {
   const body = req.body as {
     name?: unknown;
     slug?: unknown;
@@ -324,7 +341,19 @@ router.post("/medicines", async (req, res) => {
   const warnings = parseStringArray(body.warnings) ?? [];
   const categories = parseStringArray(body.categories) ?? [];
   const tags = parseStringArray(body.tags) ?? [];
-  const images = parseStringArray(body.images) ?? [];
+  let images = parseStringArray(body.images) ?? [];
+
+  // Handle image upload
+  if (req.file) {
+    try {
+      const imageUrl = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+      images = [imageUrl, ...images]; // Add uploaded image at the beginning
+    } catch (error) {
+      console.error("Image upload error:", error);
+      res.status(500).json({ message: "Failed to upload image" });
+      return;
+    }
+  }
 
   try {
     const created = await Medicine.create({
@@ -383,7 +412,7 @@ router.post("/medicines", async (req, res) => {
   }
 });
 
-router.patch("/medicines/:id", async (req, res) => {
+router.patch("/medicines/:id", upload.single("image"), async (req, res) => {
   const { id } = req.params;
   const body = req.body as {
     name?: unknown;
@@ -444,7 +473,21 @@ router.patch("/medicines/:id", async (req, res) => {
   if (categories) patch.categories = categories;
   const tags = parseStringArray(body.tags);
   if (tags) patch.tags = tags;
-  const images = parseStringArray(body.images);
+
+  // Handle images - combine existing images with new uploaded image
+  let images = parseStringArray(body.images);
+  if (req.file) {
+    try {
+      const imageUrl = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+      // If images are provided in body, add the new image at the beginning
+      // Otherwise, create new array with just the uploaded image
+      images = images ? [imageUrl, ...images] : [imageUrl];
+    } catch (error) {
+      console.error("Image upload error:", error);
+      res.status(500).json({ message: "Failed to upload image" });
+      return;
+    }
+  }
   if (images) patch.images = images;
 
   if (body.price != null) {

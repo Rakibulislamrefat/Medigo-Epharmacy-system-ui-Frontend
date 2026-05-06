@@ -49,7 +49,7 @@ export default function AdminUsersPage() {
     retry: 1,
   });
 
-  const items = Array.isArray(paged?.items) ? paged.items : [];
+  const items = paged?.items ?? [];
   const meta = paged?.meta ?? { page: 1, limit, total: 0, totalPages: 1 };
 
   const [draft, setDraft] = useState<Record<string, { role: string; status: string }>>({});

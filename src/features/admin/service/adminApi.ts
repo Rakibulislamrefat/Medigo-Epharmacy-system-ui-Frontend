@@ -110,8 +110,9 @@ export const getAdminUsers = async (params?: {
 }): Promise<AdminPaged<AdminUser>> => {
   const res = await api.get("/admin/users", { params });
   const raw = res.data as unknown;
-  const data = (raw as { data?: unknown })?.data;
-  const meta = (raw as { meta?: AdminListMeta })?.meta;
+  const payload = (raw as { data?: unknown })?.data as { data?: unknown; meta?: AdminListMeta } | undefined;
+  const data = payload?.data ?? payload ?? raw;
+  const meta = payload?.meta ?? (raw as { meta?: AdminListMeta })?.meta;
 
   const items = Array.isArray(data)
     ? (data as AdminUser[])
@@ -133,12 +134,11 @@ export const getAdminMedicines = async (params?: {
 }): Promise<AdminPaged<AdminMedicine>> => {
   const res = await api.get("/admin/medicines", { params });
   const raw = res.data as unknown;
-  const data = (raw as { data?: unknown })?.data;
-  const meta = (raw as { meta?: AdminListMeta })?.meta;
+  const payload = (raw as { data?: unknown })?.data as { data?: unknown; meta?: AdminListMeta } | undefined;
+  const data = payload?.data ?? payload ?? raw;
+  const meta = payload?.meta ?? (raw as { meta?: AdminListMeta })?.meta;
 
-  const items = Array.isArray(raw)
-    ? (raw as AdminMedicine[])
-    : Array.isArray(data)
+  const items = Array.isArray(data)
     ? (data as AdminMedicine[])
     : Array.isArray((data as { items?: unknown })?.items)
     ? ((data as { items?: AdminMedicine[] }).items as AdminMedicine[])
@@ -146,7 +146,7 @@ export const getAdminMedicines = async (params?: {
 
   return {
     items,
-    meta: meta ?? { page: 1, limit: 10, total: 0, totalPages: 1 },
+    meta: meta ?? { page: 1, limit: params?.limit ?? 10, total: 0, totalPages: 1 },
   };
 };
 
@@ -225,8 +225,39 @@ export const createAdminMedicine = async (payload: {
   currency?: string;
   stockQty?: number;
   status?: string;
+  imageFile?: File;
 }): Promise<AdminMedicine> => {
-  const res = await api.post("/admin/medicines", payload);
+  // If image file is provided, use FormData
+  if (payload.imageFile) {
+    const formData = new FormData();
+
+    // Add all text fields
+    Object.entries(payload).forEach(([key, value]) => {
+      if (key === 'imageFile') return; // Skip imageFile, handle separately
+
+      if (value !== null && value !== undefined) {
+        if (Array.isArray(value)) {
+          formData.append(key, JSON.stringify(value));
+        } else {
+          formData.append(key, String(value));
+        }
+      }
+    });
+
+    // Add image file
+    formData.append('image', payload.imageFile);
+
+    const res = await api.post("/admin/medicines", formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return unwrap<AdminMedicine>(res.data);
+  }
+
+  // Original JSON approach for backward compatibility
+  const { imageFile, ...jsonPayload } = payload;
+  const res = await api.post("/admin/medicines", jsonPayload);
   return unwrap<AdminMedicine>(res.data);
 };
 
@@ -254,9 +285,40 @@ export const updateAdminMedicine = async (
     currency?: string;
     stockQty?: number;
     status?: string;
+    imageFile?: File;
   },
 ): Promise<AdminMedicine> => {
-  const res = await api.patch(`/admin/medicines/${medicineId}`, patch);
+  // If image file is provided, use FormData
+  if (patch.imageFile) {
+    const formData = new FormData();
+
+    // Add all text fields
+    Object.entries(patch).forEach(([key, value]) => {
+      if (key === 'imageFile') return; // Skip imageFile, handle separately
+
+      if (value !== null && value !== undefined) {
+        if (Array.isArray(value)) {
+          formData.append(key, JSON.stringify(value));
+        } else {
+          formData.append(key, String(value));
+        }
+      }
+    });
+
+    // Add image file
+    formData.append('image', patch.imageFile);
+
+    const res = await api.patch(`/admin/medicines/${medicineId}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return unwrap<AdminMedicine>(res.data);
+  }
+
+  // Original JSON approach for backward compatibility
+  const { imageFile, ...jsonPatch } = patch;
+  const res = await api.patch(`/admin/medicines/${medicineId}`, jsonPatch);
   return unwrap<AdminMedicine>(res.data);
 };
 

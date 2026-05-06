@@ -11,7 +11,7 @@ const MedicineCard = ({ product, onAddToBag }: MedicineCardProps) => (
   <div className="w-[190px] bg-white border border-gray-100 rounded-xs overflow-hidden shadow-sm hover:shadow-md transition-shadow">
     <div className="relative h-28 bg-white center-flex">
       <img
-        src={product.imageUrl}
+        src={product.imageUrl || "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=640&auto=format&fit=crop"}
         alt={product.name}
         className="max-h-24 max-w-[160px] object-contain"
         loading="lazy"
