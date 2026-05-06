@@ -1,6 +1,4 @@
 node_modules/
-src/
-public/
-*.md
 .DS_Store
 .git/
+*.md
