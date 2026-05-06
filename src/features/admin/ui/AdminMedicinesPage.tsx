@@ -7,14 +7,12 @@ import {
   updateAdminMedicine,
 } from "../service/adminApi";
 import toast from "react-hot-toast";
-
-const formatDate = (v?: string) => {
-  if (!v) return "";
-  const d = new Date(v);
-  return Number.isNaN(d.getTime())
-    ? v
-    : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-};
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Search, Plus, Pill, Edit2, Trash2, X, ChevronLeft, ChevronRight, 
+  Settings2, Activity, Filter, Box
+} from "lucide-react";
+import clsx from "clsx";
 
 const parseList = (value: string) =>
   value
@@ -61,56 +59,21 @@ export default function AdminMedicinesPage() {
 
   const items = Array.isArray(paged?.items) ? paged.items : [];
   const meta = paged?.meta ?? { page: 1, limit, total: 0, totalPages: 1 };
-  const invalidPayload = Boolean(paged && !Array.isArray(paged.items));
 
-  const [createForm, setCreateForm] = useState({
-    name: "",
-    slug: "",
-    genericName: "",
-    brandName: "",
-    dosageForm: "other",
-    strength: "",
-    description: "",
-    indications: "",
-    warnings: "",
-    otc: true,
-    requiresPrescription: false,
-    categories: "",
-    tags: "",
-    images: "",
-    sku: "",
-    manufacturer: "",
-    price: "",
-    salePrice: "",
-    currency: "BDT",
-    stockQty: "",
-    status: "active",
-  });
+  const initialFormState = {
+    name: "", slug: "", genericName: "", brandName: "",
+    dosageForm: "other", strength: "", description: "",
+    indications: "", warnings: "", otc: true,
+    requiresPrescription: false, categories: "", tags: "",
+    images: "", sku: "", manufacturer: "", price: "",
+    salePrice: "", currency: "BDT", stockQty: "", status: "active",
+  };
+
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createForm, setCreateForm] = useState(initialFormState);
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({
-    name: "",
-    slug: "",
-    genericName: "",
-    brandName: "",
-    dosageForm: "other",
-    strength: "",
-    description: "",
-    indications: "",
-    warnings: "",
-    otc: true,
-    requiresPrescription: false,
-    categories: "",
-    tags: "",
-    images: "",
-    sku: "",
-    manufacturer: "",
-    price: "",
-    salePrice: "",
-    currency: "BDT",
-    stockQty: "",
-    status: "active",
-  });
+  const [editForm, setEditForm] = useState(initialFormState);
 
   const statusOptions = useMemo(() => ["active", "inactive"], []);
   const dosageFormOptions = useMemo(
@@ -118,8 +81,7 @@ export default function AdminMedicinesPage() {
     [],
   );
   const limitOptions = useMemo(() => [10, 20, 50], []);
-  const [showCreateAdvanced, setShowCreateAdvanced] = useState(false);
-  const [showEditAdvanced, setShowEditAdvanced] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const createMutation = useMutation({
     mutationFn: async () =>
@@ -148,6 +110,8 @@ export default function AdminMedicinesPage() {
       }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin", "medicines"] });
+      setIsCreateModalOpen(false);
+      setCreateForm(initialFormState);
     },
   });
 
@@ -178,6 +142,7 @@ export default function AdminMedicinesPage() {
       }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin", "medicines"] });
+      setEditingId(null);
     },
   });
 
@@ -188,650 +153,451 @@ export default function AdminMedicinesPage() {
     },
   });
 
-  return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-black text-dark">Medicines</h1>
-        <p className="text-sm text-slate-500 mt-1">Manage products and stock.</p>
+  const handleSave = async (isEdit: boolean) => {
+    const form = isEdit ? editForm : createForm;
+    if (!form.name.trim()) return toast.error("Name is required");
+    if (!form.price || Number.isNaN(Number(form.price))) return toast.error("Valid price is required");
+    
+    const t = toast.loading(isEdit ? "Saving..." : "Creating...");
+    try {
+      if (isEdit && editingId) {
+        await updateMutation.mutateAsync({ id: editingId });
+      } else {
+        await createMutation.mutateAsync();
+      }
+      toast.success(isEdit ? "Saved" : "Created", { id: t });
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Operation failed";
+      toast.error(msg, { id: t });
+    }
+  };
+
+  const PREDEFINED_CATEGORIES = [
+    "Prescription Medicine",
+    "Surgical Product",
+    "OTC Medicine",
+    "Dental & Oral Care",
+    "Woman Care",
+    "Baby Care",
+    "Personal Care",
+    "Diabetic Care"
+  ];
+
+  const handleCategoryToggle = (category: string, isEdit: boolean) => {
+    const setForm = isEdit ? setEditForm : setCreateForm;
+    setForm(prev => {
+      const currentCategories = parseList(prev.categories);
+      const newCategories = currentCategories.includes(category)
+        ? currentCategories.filter(c => c !== category)
+        : [...currentCategories, category];
+      return { ...prev, categories: newCategories.join("\n") };
+    });
+  };
+
+  const renderFormFields = (
+    form: typeof initialFormState, 
+    setForm: React.Dispatch<React.SetStateAction<typeof initialFormState>>,
+    isEdit: boolean
+  ) => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Medicine Name *</label>
+          <input value={form.name} onChange={e => setForm(p => ({...p, name: e.target.value}))} className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" placeholder="e.g. Paracetamol" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Slug (Optional)</label>
+          <input value={form.slug} onChange={e => setForm(p => ({...p, slug: e.target.value}))} className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" placeholder="paracetamol-500mg" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Dosage Form</label>
+          <select value={form.dosageForm} onChange={e => setForm(p => ({...p, dosageForm: e.target.value}))} className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
+            {dosageFormOptions.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Price *</label>
+          <input value={form.price} onChange={e => setForm(p => ({...p, price: e.target.value}))} inputMode="decimal" className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" placeholder="0.00" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Stock Qty</label>
+          <input value={form.stockQty} onChange={e => setForm(p => ({...p, stockQty: e.target.value}))} inputMode="numeric" className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" placeholder="100" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</label>
+          <select value={form.status} onChange={e => setForm(p => ({...p, status: e.target.value}))} className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
+            {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
       </div>
 
-      <div className="rounded-xl border border-gray-100 bg-white p-5">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-dark">Create medicine</p>
-          <button
-            type="button"
-            onClick={() => setShowCreateAdvanced((v) => !v)}
-            className="text-xs font-semibold text-primary hover:underline"
-          >
-            {showCreateAdvanced ? "Hide fields" : "More fields"}
-          </button>
+      <div>
+        <button type="button" onClick={() => setShowAdvanced(!showAdvanced)} className="flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary/80 transition-colors">
+          <Settings2 className="w-4 h-4" />
+          {showAdvanced ? "Hide Advanced Fields" : "Show Advanced Fields"}
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {showAdvanced && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-hidden pt-2">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Generic Name</label>
+              <input value={form.genericName} onChange={e => setForm(p => ({...p, genericName: e.target.value}))} className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Brand Name</label>
+              <input value={form.brandName} onChange={e => setForm(p => ({...p, brandName: e.target.value}))} className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Strength</label>
+              <input value={form.strength} onChange={e => setForm(p => ({...p, strength: e.target.value}))} placeholder="e.g. 500mg" className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">SKU</label>
+              <input value={form.sku} onChange={e => setForm(p => ({...p, sku: e.target.value}))} className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Manufacturer</label>
+              <input value={form.manufacturer} onChange={e => setForm(p => ({...p, manufacturer: e.target.value}))} className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sale Price (Optional)</label>
+              <input value={form.salePrice} onChange={e => setForm(p => ({...p, salePrice: e.target.value}))} inputMode="decimal" className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+            </div>
+            <div className="space-y-1 sm:col-span-2">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Description</label>
+              <textarea value={form.description} onChange={e => setForm(p => ({...p, description: e.target.value}))} className="w-full min-h-[100px] rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-y" />
+            </div>
+            <div className="flex items-center gap-6 sm:col-span-2 p-4 rounded-xl bg-slate-50 border border-slate-100">
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <div className="relative flex items-center justify-center">
+                  <input type="checkbox" checked={form.otc} onChange={e => setForm(p => ({...p, otc: e.target.checked}))} className="peer sr-only" />
+                  <div className="w-5 h-5 rounded border border-slate-300 peer-checked:bg-primary peer-checked:border-primary transition-colors flex items-center justify-center">
+                    <motion.div initial={false} animate={{ scale: form.otc ? 1 : 0 }} className="w-2.5 h-2.5 bg-white rounded-sm" />
+                  </div>
+                </div>
+                <span className="text-sm font-semibold text-slate-700 group-hover:text-slate-900">Over-the-Counter (OTC)</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <div className="relative flex items-center justify-center">
+                  <input type="checkbox" checked={form.requiresPrescription} onChange={e => setForm(p => ({...p, requiresPrescription: e.target.checked}))} className="peer sr-only" />
+                  <div className="w-5 h-5 rounded border border-slate-300 peer-checked:bg-primary peer-checked:border-primary transition-colors flex items-center justify-center">
+                    <motion.div initial={false} animate={{ scale: form.requiresPrescription ? 1 : 0 }} className="w-2.5 h-2.5 bg-white rounded-sm" />
+                  </div>
+                </div>
+                <span className="text-sm font-semibold text-slate-700 group-hover:text-slate-900">Requires Prescription</span>
+              </label>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Indications (One per line)</label>
+              <textarea value={form.indications} onChange={e => setForm(p => ({...p, indications: e.target.value}))} className="w-full min-h-[100px] rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-y" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Warnings (One per line)</label>
+              <textarea value={form.warnings} onChange={e => setForm(p => ({...p, warnings: e.target.value}))} className="w-full min-h-[100px] rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-y" />
+            </div>
+            <div className="space-y-3 sm:col-span-2">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Categories</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {PREDEFINED_CATEGORIES.map(category => (
+                  <label key={category} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-white cursor-pointer hover:border-primary/50 transition-colors group">
+                    <div className="relative flex items-center justify-center shrink-0">
+                      <input 
+                        type="checkbox" 
+                        checked={parseList(form.categories).includes(category)}
+                        onChange={() => handleCategoryToggle(category, isEdit)} 
+                        className="peer sr-only" 
+                      />
+                      <div className="w-5 h-5 rounded border border-slate-300 peer-checked:bg-primary peer-checked:border-primary transition-colors flex items-center justify-center">
+                        <motion.div initial={false} animate={{ scale: parseList(form.categories).includes(category) ? 1 : 0 }} className="w-2.5 h-2.5 bg-white rounded-sm" />
+                      </div>
+                    </div>
+                    <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 select-none">{category}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1 sm:col-span-2">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Images URLs (One per line)</label>
+              <textarea value={form.images} onChange={e => setForm(p => ({...p, images: e.target.value}))} className="w-full min-h-[100px] rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-y" />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 15 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="space-y-6 pb-20"
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 rounded-3xl border border-white/60 shadow-sm backdrop-blur-md">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
+            <Pill className="w-8 h-8 text-primary" />
+            Medicine Inventory
+          </h1>
+          <p className="text-sm text-slate-500 mt-2 font-medium">Manage all products, pricing, and stock levels effortlessly.</p>
         </div>
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          <input
-            value={createForm.name}
-            onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
-            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-            placeholder="Name"
-          />
-          <input
-            value={createForm.slug}
-            onChange={(e) => setCreateForm((p) => ({ ...p, slug: e.target.value }))}
-            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-            placeholder="Slug (optional)"
-          />
-          <select
-            value={createForm.dosageForm}
-            onChange={(e) => setCreateForm((p) => ({ ...p, dosageForm: e.target.value }))}
-            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-          >
-            {dosageFormOptions.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          <input
-            value={createForm.price}
-            onChange={(e) => setCreateForm((p) => ({ ...p, price: e.target.value }))}
-            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-            placeholder="Price"
-            inputMode="decimal"
-          />
-          <input
-            value={createForm.stockQty}
-            onChange={(e) => setCreateForm((p) => ({ ...p, stockQty: e.target.value }))}
-            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-            placeholder="Stock"
-            inputMode="numeric"
-          />
-          <div className="flex items-center gap-2">
+        <button
+          onClick={() => {
+            setCreateForm(initialFormState);
+            setIsCreateModalOpen(true);
+            setShowAdvanced(false);
+          }}
+          className="group relative inline-flex h-12 items-center justify-center overflow-hidden rounded-xl bg-primary px-6 font-semibold text-white shadow-lg shadow-primary/30 transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/40 active:scale-95"
+        >
+          <span className="mr-2 relative z-10"><Plus className="w-5 h-5" /></span>
+          <span className="relative z-10">Add Medicine</span>
+          <div className="absolute inset-0 h-full w-full bg-gradient-to-tr from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-out" />
+        </button>
+      </div>
+
+      <div className="rounded-3xl border border-slate-200/60 bg-white/70 backdrop-blur-xl shadow-xl shadow-slate-200/40 overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-white/50">
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center w-full sm:w-auto">
+            <div className="relative group w-full sm:w-[360px]">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+              <input
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white/80 pl-11 pr-4 text-sm focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all shadow-sm"
+                placeholder="Search by name, brand, SKU..."
+              />
+            </div>
+            <div className="relative w-full sm:w-[160px]">
+              <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white/80 pl-11 pr-4 text-sm focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all shadow-sm appearance-none"
+              >
+                <option value="">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3 self-end sm:self-auto">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Rows</span>
             <select
-              value={createForm.status}
-              onChange={(e) => setCreateForm((p) => ({ ...p, status: e.target.value }))}
-              className="h-10 flex-1 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-            >
-              {statusOptions.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              disabled={createMutation.isPending}
-              onClick={async () => {
-                if (!createForm.name.trim()) {
-                  toast.error("Name is required");
-                  return;
-                }
-                if (!createForm.price || Number.isNaN(Number(createForm.price))) {
-                  toast.error("Valid price is required");
-                  return;
-                }
-                const t = toast.loading("Creating...");
-                try {
-                  await createMutation.mutateAsync();
-                  toast.success("Created", { id: t });
-                  setCreateForm({
-                    name: "",
-                    slug: "",
-                    genericName: "",
-                    brandName: "",
-                    dosageForm: "other",
-                    strength: "",
-                    description: "",
-                    indications: "",
-                    warnings: "",
-                    otc: true,
-                    requiresPrescription: false,
-                    categories: "",
-                    tags: "",
-                    images: "",
-                    sku: "",
-                    manufacturer: "",
-                    price: "",
-                    salePrice: "",
-                    currency: "BDT",
-                    stockQty: "",
-                    status: "active",
-                  });
-                } catch (err: unknown) {
-                  const msg =
-                    (err as { response?: { data?: { message?: string } } })?.response?.data
-                      ?.message ?? "Create failed";
-                  toast.error(msg, { id: t });
-                }
+              value={limit}
+              onChange={(e) => {
+                setLimit(Number(e.target.value));
+                setPage(1);
               }}
-              className="h-10 px-4 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-60"
+              className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:border-primary outline-none shadow-sm cursor-pointer"
             >
-              Add
+              {limitOptions.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto min-h-[400px]">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center h-64 gap-4">
+              <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+              <p className="text-sm font-semibold text-slate-500 animate-pulse">Loading medicines...</p>
+            </div>
+          ) : error || !paged ? (
+            <div className="flex flex-col items-center justify-center h-64 gap-3 text-red-500">
+              <Activity className="w-10 h-10" />
+              <p className="text-sm font-semibold">Failed to load medicines. Please try again.</p>
+            </div>
+          ) : items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-400">
+              <Box className="w-12 h-12 stroke-[1.5]" />
+              <p className="text-base font-semibold">No medicines found</p>
+              <p className="text-sm text-slate-500">Try adjusting your search or filters.</p>
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50/50">
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Medicine Details</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Price & Stock</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Status</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100/80">
+                <AnimatePresence mode="popLayout">
+                  {items.map((m, idx) => (
+                    <motion.tr 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2, delay: idx * 0.05 }}
+                      key={m._id} 
+                      className="group hover:bg-slate-50/60 transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-800 text-sm group-hover:text-primary transition-colors">{m.name}</span>
+                          <span className="text-xs font-medium text-slate-500 mt-0.5">{m.genericName || m.slug}</span>
+                          <div className="flex gap-2 mt-1.5">
+                            {m.dosageForm && <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">{m.dosageForm}</span>}
+                            {m.requiresPrescription && <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-600">Rx</span>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-800 text-sm">{m.price != null ? `৳${m.price}` : "-"}</span>
+                          <span className={clsx("text-xs font-semibold mt-1", (m.stockQty || 0) < 10 ? "text-rose-500" : "text-emerald-500")}>
+                            {m.stockQty != null ? `${m.stockQty} in stock` : "N/A"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={clsx(
+                          "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide",
+                          m.status === "active" ? "bg-emerald-100/80 text-emerald-700" : "bg-slate-100 text-slate-600"
+                        )}>
+                          <span className={clsx("w-1.5 h-1.5 rounded-full", m.status === "active" ? "bg-emerald-500" : "bg-slate-400")} />
+                          {m.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => {
+                              setEditForm({
+                                name: m.name ?? "", slug: m.slug ?? "", genericName: m.genericName ?? "",
+                                brandName: m.brandName ?? "", dosageForm: m.dosageForm ?? "other",
+                                strength: m.strength ?? "", description: m.description ?? "",
+                                indications: joinList(m.indications), warnings: joinList(m.warnings),
+                                otc: m.otc ?? true, requiresPrescription: m.requiresPrescription ?? false,
+                                categories: joinList(m.categories), tags: joinList(m.tags),
+                                images: joinList(m.images), sku: m.sku ?? "", manufacturer: m.manufacturer ?? "",
+                                price: m.price != null ? String(m.price) : "", salePrice: m.salePrice != null ? String(m.salePrice) : "",
+                                currency: m.currency ?? "BDT", stockQty: m.stockQty != null ? String(m.stockQty) : "",
+                                status: m.status ?? "active",
+                              });
+                              setShowAdvanced(false);
+                              setEditingId(m._id);
+                            }}
+                            className="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 transition-colors tooltip"
+                            title="Edit"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!window.confirm(`Delete ${m.name}?`)) return;
+                              const t = toast.loading("Deleting...");
+                              try {
+                                await deleteMutation.mutateAsync(m._id);
+                                toast.success("Deleted successfully", { id: t });
+                              } catch {
+                                toast.error("Failed to delete", { id: t });
+                              }
+                            }}
+                            className="p-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 transition-colors tooltip"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </AnimatePresence>
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div className="p-4 sm:px-6 sm:py-5 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-sm font-medium text-slate-500">
+            {meta.total === 0 ? "No records found" : `Showing ${(page - 1) * limit + 1} to ${Math.min(meta.total, page * limit)} of ${meta.total} entries`}
+          </p>
+          <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl shadow-sm border border-slate-200">
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              className="p-2 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-transparent text-slate-600 transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div className="px-4 text-sm font-bold text-slate-700">
+              {page} <span className="text-slate-400 font-medium">/ {meta.totalPages}</span>
+            </div>
+            <button
+              disabled={page >= meta.totalPages}
+              onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
+              className="p-2 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-transparent text-slate-600 transition-colors"
+            >
+              <ChevronRight className="w-5 h-5" />
             </button>
           </div>
         </div>
-
-        {showCreateAdvanced && (
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <input
-              value={createForm.genericName}
-              onChange={(e) => setCreateForm((p) => ({ ...p, genericName: e.target.value }))}
-              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-              placeholder="Generic name"
-            />
-            <input
-              value={createForm.brandName}
-              onChange={(e) => setCreateForm((p) => ({ ...p, brandName: e.target.value }))}
-              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-              placeholder="Brand name"
-            />
-            <input
-              value={createForm.strength}
-              onChange={(e) => setCreateForm((p) => ({ ...p, strength: e.target.value }))}
-              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-              placeholder="Strength (e.g., 500mg)"
-            />
-            <input
-              value={createForm.sku}
-              onChange={(e) => setCreateForm((p) => ({ ...p, sku: e.target.value }))}
-              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-              placeholder="SKU"
-            />
-            <input
-              value={createForm.manufacturer}
-              onChange={(e) => setCreateForm((p) => ({ ...p, manufacturer: e.target.value }))}
-              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-              placeholder="Manufacturer"
-            />
-            <input
-              value={createForm.salePrice}
-              onChange={(e) => setCreateForm((p) => ({ ...p, salePrice: e.target.value }))}
-              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-              placeholder="Sale price (optional)"
-              inputMode="decimal"
-            />
-            <input
-              value={createForm.currency}
-              onChange={(e) => setCreateForm((p) => ({ ...p, currency: e.target.value }))}
-              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-              placeholder="Currency (BDT)"
-            />
-            <div className="flex items-center gap-4">
-              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={createForm.otc}
-                  onChange={(e) => setCreateForm((p) => ({ ...p, otc: e.target.checked }))}
-                />
-                OTC
-              </label>
-              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={createForm.requiresPrescription}
-                  onChange={(e) =>
-                    setCreateForm((p) => ({ ...p, requiresPrescription: e.target.checked }))
-                  }
-                />
-                Requires Rx
-              </label>
-            </div>
-            <textarea
-              value={createForm.description}
-              onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
-              className="min-h-24 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm sm:col-span-2"
-              placeholder="Description"
-            />
-            <textarea
-              value={createForm.indications}
-              onChange={(e) => setCreateForm((p) => ({ ...p, indications: e.target.value }))}
-              className="min-h-20 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-              placeholder="Indications (one per line)"
-            />
-            <textarea
-              value={createForm.warnings}
-              onChange={(e) => setCreateForm((p) => ({ ...p, warnings: e.target.value }))}
-              className="min-h-20 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-              placeholder="Warnings (one per line)"
-            />
-            <input
-              value={createForm.categories}
-              onChange={(e) => setCreateForm((p) => ({ ...p, categories: e.target.value }))}
-              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-              placeholder="Categories (one per line)"
-            />
-            <input
-              value={createForm.tags}
-              onChange={(e) => setCreateForm((p) => ({ ...p, tags: e.target.value }))}
-              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-              placeholder="Tags (one per line)"
-            />
-            <textarea
-              value={createForm.images}
-              onChange={(e) => setCreateForm((p) => ({ ...p, images: e.target.value }))}
-              className="min-h-16 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm sm:col-span-2"
-              placeholder="Image URLs (one per line)"
-            />
-          </div>
-        )}
       </div>
 
-      {isLoading && (
-        <div className="rounded-xl border border-gray-100 bg-white p-5 animate-pulse h-48" />
-      )}
-
-      {!isLoading && (error || !paged) && (
-        <div className="rounded-xl border border-red-100 bg-red-50 p-5 text-sm text-red-600">
-          Failed to load medicines.
-        </div>
-      )}
-
-      {!isLoading && paged && (
-        <>
-          {invalidPayload && (
-            <div className="rounded-xl border border-amber-100 bg-amber-50 p-5 text-sm text-amber-700">
-              Received an unexpected medicines payload from the server. Please refresh or contact support.
-            </div>
-          )}
-
-          <div className="rounded-xl border border-gray-100 bg-white overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <p className="text-sm font-semibold text-dark">All medicines</p>
-            <span className="text-xs font-black bg-primary/10 text-primary px-3 py-1 rounded-full">
-              {meta.total}
-            </span>
-          </div>
-
-          <div className="px-5 py-4 border-b border-gray-100">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-                <input
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  className="h-10 w-full sm:w-[320px] rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                  placeholder="Search medicines (name, slug, brand, SKU...)"
-                />
-                <select
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className="h-10 w-full sm:w-[160px] rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                >
-                  <option value="">All status</option>
-                  <option value="active">active</option>
-                  <option value="inactive">inactive</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-slate-500">Rows</span>
-                <select
-                  value={limit}
-                  onChange={(e) => {
-                    setLimit(Number(e.target.value));
-                    setPage(1);
-                  }}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                >
-                  {limitOptions.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-[900px] w-full">
-              <thead className="bg-light">
-                <tr className="text-left text-xs font-black tracking-[0.2em] uppercase text-slate-500">
-                  <th className="px-5 py-3">Name</th>
-                  <th className="px-5 py-3">Slug</th>
-                  <th className="px-5 py-3">Price</th>
-                  <th className="px-5 py-3">Stock</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Created</th>
-                  <th className="px-5 py-3">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {items.map((m) => (
-                  <tr key={m._id} className="text-sm text-dark">
-                    <td className="px-5 py-3 font-semibold">{m.name}</td>
-                    <td className="px-5 py-3 text-slate-600">{m.slug ?? ""}</td>
-                    <td className="px-5 py-3 text-slate-600">
-                      {m.price != null ? `${m.price}` : ""}
-                    </td>
-                    <td className="px-5 py-3 text-slate-600">
-                      {m.stockQty != null ? `${m.stockQty}` : ""}
-                    </td>
-                    <td className="px-5 py-3 text-slate-600">{m.status ?? ""}</td>
-                    <td className="px-5 py-3 text-slate-600">
-                      {formatDate(m.createdAt)}
-                    </td>
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          disabled={createMutation.isPending || updateMutation.isPending || deleteMutation.isPending}
-                          onClick={() => {
-                            setEditingId(m._id);
-                          setShowEditAdvanced(false);
-                            setEditForm({
-                              name: m.name ?? "",
-                              slug: m.slug ?? "",
-                            genericName: m.genericName ?? "",
-                            brandName: m.brandName ?? "",
-                            dosageForm: m.dosageForm ?? "other",
-                            strength: m.strength ?? "",
-                            description: m.description ?? "",
-                            indications: joinList(m.indications),
-                            warnings: joinList(m.warnings),
-                            otc: m.otc ?? true,
-                            requiresPrescription: m.requiresPrescription ?? false,
-                            categories: joinList(m.categories),
-                            tags: joinList(m.tags),
-                            images: joinList(m.images),
-                            sku: m.sku ?? "",
-                            manufacturer: m.manufacturer ?? "",
-                              price: m.price != null ? String(m.price) : "",
-                            salePrice: m.salePrice != null ? String(m.salePrice) : "",
-                            currency: m.currency ?? "BDT",
-                              stockQty: m.stockQty != null ? String(m.stockQty) : "",
-                              status: m.status ?? "active",
-                            });
-                          }}
-                          className="h-9 px-3 rounded-lg border border-gray-200 bg-white text-sm font-semibold hover:bg-gray-50 disabled:opacity-60"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          disabled={deleteMutation.isPending}
-                          onClick={async () => {
-                            const ok = window.confirm("Delete this medicine?");
-                            if (!ok) return;
-                            const t = toast.loading("Deleting...");
-                            try {
-                              await deleteMutation.mutateAsync(m._id);
-                              toast.success("Deleted", { id: t });
-                            } catch (err: unknown) {
-                              const msg =
-                                (err as { response?: { data?: { message?: string } } })?.response?.data
-                                  ?.message ?? "Delete failed";
-                              toast.error(msg, { id: t });
-                            }
-                          }}
-                          className="h-9 px-3 rounded-lg border border-red-200 bg-red-50 text-sm font-semibold text-red-600 hover:bg-red-100 disabled:opacity-60"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="px-5 py-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="text-sm text-slate-600">
-              {meta.total === 0
-                ? "No results"
-                : (() => {
-                    const start = (page - 1) * limit + 1;
-                    const end = Math.min(meta.total, page * limit);
-                    return `Showing ${start}-${end} of ${meta.total}`;
-                  })()}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="h-10 px-4 rounded-lg border border-gray-200 bg-white text-sm font-semibold disabled:opacity-60"
-              >
-                Prev
-              </button>
-              <span className="text-sm font-semibold text-slate-700">
-                Page {page} / {meta.totalPages}
-              </span>
-              <button
-                type="button"
-                disabled={page >= meta.totalPages}
-                onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
-                className="h-10 px-4 rounded-lg border border-gray-200 bg-white text-sm font-semibold disabled:opacity-60"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {editingId && (
-        <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white border border-gray-100 shadow-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-              <p className="text-sm font-semibold text-dark">Edit medicine</p>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowEditAdvanced((v) => !v)}
-                  className="text-xs font-semibold text-primary hover:underline"
-                >
-                  {showEditAdvanced ? "Hide fields" : "More fields"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditingId(null)}
-                  className="h-9 w-9 rounded-lg hover:bg-gray-50"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-            <div className="p-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input
-                  value={editForm.name}
-                  onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                  placeholder="Name"
-                />
-                <input
-                  value={editForm.slug}
-                  onChange={(e) => setEditForm((p) => ({ ...p, slug: e.target.value }))}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                  placeholder="Slug"
-                />
-                <select
-                  value={editForm.dosageForm}
-                  onChange={(e) => setEditForm((p) => ({ ...p, dosageForm: e.target.value }))}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                >
-                  {dosageFormOptions.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  value={editForm.price}
-                  onChange={(e) => setEditForm((p) => ({ ...p, price: e.target.value }))}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                  placeholder="Price"
-                  inputMode="decimal"
-                />
-                <input
-                  value={editForm.salePrice}
-                  onChange={(e) => setEditForm((p) => ({ ...p, salePrice: e.target.value }))}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                  placeholder="Sale price (optional)"
-                  inputMode="decimal"
-                />
-                <input
-                  value={editForm.stockQty}
-                  onChange={(e) => setEditForm((p) => ({ ...p, stockQty: e.target.value }))}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                  placeholder="Stock"
-                  inputMode="numeric"
-                />
-                <input
-                  value={editForm.currency}
-                  onChange={(e) => setEditForm((p) => ({ ...p, currency: e.target.value }))}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                  placeholder="Currency (BDT)"
-                />
-                <select
-                  value={editForm.status}
-                  onChange={(e) => setEditForm((p) => ({ ...p, status: e.target.value }))}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                >
-                  {statusOptions.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {showEditAdvanced && (
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input
-                    value={editForm.genericName}
-                    onChange={(e) => setEditForm((p) => ({ ...p, genericName: e.target.value }))}
-                    className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                    placeholder="Generic name"
-                  />
-                  <input
-                    value={editForm.brandName}
-                    onChange={(e) => setEditForm((p) => ({ ...p, brandName: e.target.value }))}
-                    className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                    placeholder="Brand name"
-                  />
-                  <input
-                    value={editForm.strength}
-                    onChange={(e) => setEditForm((p) => ({ ...p, strength: e.target.value }))}
-                    className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                    placeholder="Strength (e.g., 500mg)"
-                  />
-                  <input
-                    value={editForm.sku}
-                    onChange={(e) => setEditForm((p) => ({ ...p, sku: e.target.value }))}
-                    className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                    placeholder="SKU"
-                  />
-                  <input
-                    value={editForm.manufacturer}
-                    onChange={(e) => setEditForm((p) => ({ ...p, manufacturer: e.target.value }))}
-                    className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                    placeholder="Manufacturer"
-                  />
-                  <div className="flex items-center gap-4">
-                    <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={editForm.otc}
-                        onChange={(e) => setEditForm((p) => ({ ...p, otc: e.target.checked }))}
-                      />
-                      OTC
-                    </label>
-                    <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={editForm.requiresPrescription}
-                        onChange={(e) =>
-                          setEditForm((p) => ({ ...p, requiresPrescription: e.target.checked }))
-                        }
-                      />
-                      Requires Rx
-                    </label>
+      <AnimatePresence>
+        {(isCreateModalOpen || editingId) && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              onClick={() => { setIsCreateModalOpen(false); setEditingId(null); }}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-3xl max-h-[90vh] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-100"
+            >
+              <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                    {editingId ? <Edit2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                   </div>
-                  <textarea
-                    value={editForm.description}
-                    onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
-                    className="min-h-24 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm sm:col-span-2"
-                    placeholder="Description"
-                  />
-                  <textarea
-                    value={editForm.indications}
-                    onChange={(e) => setEditForm((p) => ({ ...p, indications: e.target.value }))}
-                    className="min-h-20 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-                    placeholder="Indications (one per line)"
-                  />
-                  <textarea
-                    value={editForm.warnings}
-                    onChange={(e) => setEditForm((p) => ({ ...p, warnings: e.target.value }))}
-                    className="min-h-20 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-                    placeholder="Warnings (one per line)"
-                  />
-                  <input
-                    value={editForm.categories}
-                    onChange={(e) => setEditForm((p) => ({ ...p, categories: e.target.value }))}
-                    className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                    placeholder="Categories (one per line)"
-                  />
-                  <input
-                    value={editForm.tags}
-                    onChange={(e) => setEditForm((p) => ({ ...p, tags: e.target.value }))}
-                    className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                    placeholder="Tags (one per line)"
-                  />
-                  <textarea
-                    value={editForm.images}
-                    onChange={(e) => setEditForm((p) => ({ ...p, images: e.target.value }))}
-                    className="min-h-16 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm sm:col-span-2"
-                    placeholder="Image URLs (one per line)"
-                  />
-                </div>
-              )}
+                  {editingId ? "Edit Medicine" : "Add New Medicine"}
+                </h2>
+                <button 
+                  onClick={() => { setIsCreateModalOpen(false); setEditingId(null); }}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
+                {editingId ? renderFormFields(editForm, setEditForm, true) : renderFormFields(createForm, setCreateForm, false)}
+              </div>
 
-              <div className="mt-5 flex items-center justify-end gap-2">
+              <div className="px-6 py-5 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
                 <button
-                  type="button"
-                  onClick={() => setEditingId(null)}
-                  className="h-10 px-4 rounded-lg border border-gray-200 bg-white text-sm font-semibold hover:bg-gray-50"
+                  onClick={() => { setIsCreateModalOpen(false); setEditingId(null); }}
+                  className="px-6 h-11 rounded-xl font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm"
                 >
                   Cancel
                 </button>
                 <button
-                  type="button"
-                  disabled={updateMutation.isPending}
-                  onClick={async () => {
-                    if (!editingId) return;
-                    if (!editForm.name.trim()) {
-                      toast.error("Name is required");
-                      return;
-                    }
-                    if (!editForm.price || Number.isNaN(Number(editForm.price))) {
-                      toast.error("Valid price is required");
-                      return;
-                    }
-                    const t = toast.loading("Saving...");
-                    try {
-                      await updateMutation.mutateAsync({ id: editingId });
-                      toast.success("Saved", { id: t });
-                      setEditingId(null);
-                    } catch (err: unknown) {
-                      const msg =
-                        (err as { response?: { data?: { message?: string } } })?.response?.data
-                          ?.message ?? "Save failed";
-                      toast.error(msg, { id: t });
-                    }
-                  }}
-                  className="h-10 px-4 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-60"
+                  disabled={createMutation.isPending || updateMutation.isPending}
+                  onClick={() => handleSave(!!editingId)}
+                  className="px-8 h-11 rounded-xl font-bold text-white bg-primary hover:bg-primary/90 transition-colors shadow-lg shadow-primary/30 flex items-center gap-2 disabled:opacity-70"
                 >
-                  Save
+                  {createMutation.isPending || updateMutation.isPending ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : editingId ? "Save Changes" : "Create Medicine"}
                 </button>
               </div>
-            </div>
+            </motion.div>
           </div>
-        </>
-      )}
-    </div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
