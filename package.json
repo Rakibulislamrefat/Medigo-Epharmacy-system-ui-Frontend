@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "preview": "vite preview",
-    "build": "tsc -b && set \"GENERATE_SOURCEMAP=false\" && vite build",
+    "build": "tsc -b && vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "clear": "rm -rf node_modules package-lock.json"
   },
