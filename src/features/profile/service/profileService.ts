@@ -290,3 +290,17 @@ export const changePasswordApi = async (
   const data = res.data as { message?: string; data?: { message?: string } };
   return data.message ?? data.data?.message ?? "Password updated successfully";
 };
+
+export const uploadAvatarApi = async (file: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append("avatar", file);
+
+  const res = await api.post("/auth/upload-avatar", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  const data = res.data as { data?: { avatarUrl?: string } };
+  return data.data?.avatarUrl ?? "";
+};

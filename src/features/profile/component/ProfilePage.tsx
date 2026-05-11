@@ -14,6 +14,7 @@ import {
   changePasswordApi,
   getProfileApi,
   updateProfileApi,
+  uploadAvatarApi,
   type ProfileApiUser,
 } from "../service/profileService";
 
@@ -185,6 +186,8 @@ export default function ProfilePage() {
     newPassword: "",
     confirmPassword: "",
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   
   const isDonor = form.role === "donor";
   const formatDate = (value: string) =>
@@ -376,6 +379,31 @@ export default function ProfilePage() {
       "",
     );
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image too large (max 5MB)");
+      return;
+    }
+
+    await save(
+      "avatar",
+      async () => {
+        const avatarUrl = await uploadAvatarApi(file);
+        if (avatarUrl) {
+          set("avatar", avatarUrl);
+          if (reduxUser) {
+            dispatch(setAuthUser({ ...reduxUser, avatar: avatarUrl }));
+          }
+        }
+      },
+      "Avatar updated successfully",
+    );
+  };
+
+
   const isSaving = (section: string) => savingSection === section;
 
   if (loadingProfile) {
@@ -415,8 +443,16 @@ export default function ProfilePage() {
             totalReceived={form.totalReceived}
             isAvailable={form.isAvailable}
             isDonorVerified={form.isDonorVerified}
-            onUpload={() => toast("Avatar upload coming soon")}
+            onUpload={() => fileInputRef.current?.click()}
           />
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleAvatarUpload}
+            style={{ display: "none" }}
+            accept="image/*"
+          />
+
 
           {isDonor && (
             <AvailabilityToggle
