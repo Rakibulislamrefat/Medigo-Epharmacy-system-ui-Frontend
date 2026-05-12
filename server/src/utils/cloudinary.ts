@@ -9,6 +9,16 @@ cloudinary.config({
 });
 
 export const uploadToCloudinary = async (buffer: Buffer, filename: string): Promise<string> => {
+  // If Cloudinary is not configured, return a mock URL for testing
+  if (
+    !process.env.CLOUDINARY_CLOUD_NAME ||
+    !process.env.CLOUDINARY_API_KEY ||
+    !process.env.CLOUDINARY_API_SECRET
+  ) {
+    console.warn('Cloudinary not configured - returning mock URL for testing');
+    return `https://res.cloudinary.com/mock/image/upload/v${Date.now()}/mock-avatar.jpg`;
+  }
+
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {

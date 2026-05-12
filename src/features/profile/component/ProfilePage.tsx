@@ -180,6 +180,7 @@ export default function ProfilePage() {
   const [savingSection, setSaving] = useState<string | null>(null);
   const [editingPassword, setEditPwd] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(!reduxUser);
+  const [avatarUploadError, setAvatarUploadError] = useState("");
   const hasFetchedProfile = useRef(false);
   const [pwdForm, setPwdForm] = useState({
     currentPassword: "",
@@ -388,19 +389,29 @@ export default function ProfilePage() {
       return;
     }
 
-    await save(
-      "avatar",
-      async () => {
-        const avatarUrl = await uploadAvatarApi(file);
-        if (avatarUrl) {
-          set("avatar", avatarUrl);
-          if (reduxUser) {
-            dispatch(setAuthUser({ ...reduxUser, avatar: avatarUrl }));
-          }
-        }
-      },
-      "Avatar updated successfully",
-    );
+    setAvatarUploadError("");
+    setSaving("avatar");
+
+    try {
+      const avatarUrl = await uploadAvatarApi(file);
+      if (!avatarUrl) {
+        throw new Error("Avatar upload failed, please try again.");
+      }
+      set("avatar", avatarUrl);
+      if (reduxUser) {
+        dispatch(setAuthUser({ ...reduxUser, avatar: avatarUrl }));
+      }
+      toast.success("Avatar updated successfully");
+    } catch (err: unknown) {
+      const error = err as ApiError;
+      const message =
+        error.response?.data?.message ||
+        (err instanceof Error ? err.message : "Avatar upload failed");
+      setAvatarUploadError(message);
+      toast.error(message);
+    } finally {
+      setSaving(null);
+    }
   };
 
 
@@ -444,6 +455,7 @@ export default function ProfilePage() {
             isAvailable={form.isAvailable}
             isDonorVerified={form.isDonorVerified}
             onUpload={() => fileInputRef.current?.click()}
+            errorMessage={avatarUploadError}
           />
           <input
             type="file"

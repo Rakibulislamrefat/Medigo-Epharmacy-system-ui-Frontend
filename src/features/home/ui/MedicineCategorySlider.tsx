@@ -7,9 +7,10 @@ import MedicineCard from "../container/MedicineCard";
 type MedicineCategorySliderProps = {
   activeCategory: MedicineCategory;
   onAddToBag?: (product: MedicineProduct, category: MedicineCategory) => void;
+  addingProductId?: string | null;
 };
 
-const MedicineCategorySlider = ({ activeCategory, onAddToBag }: MedicineCategorySliderProps) => {
+const MedicineCategorySlider = ({ activeCategory, onAddToBag, addingProductId }: MedicineCategorySliderProps) => {
   return (
     <div className="relative">
       <button
@@ -27,7 +28,7 @@ const MedicineCategorySlider = ({ activeCategory, onAddToBag }: MedicineCategory
         <Icons.Arrow className="!w-5 !h-5 text-slate-700" />
       </button>
 
-      <div className="sm:px-12">
+      <div className="px-1 sm:px-12">
         <Swiper
           modules={[Navigation]}
           slidesPerView="auto"
@@ -42,6 +43,7 @@ const MedicineCategorySlider = ({ activeCategory, onAddToBag }: MedicineCategory
               <MedicineCard
                 product={product}
                 onAddToBag={() => onAddToBag?.(product, activeCategory)}
+                isAdding={addingProductId === product.id}
               />
             </SwiperSlide>
           ))}

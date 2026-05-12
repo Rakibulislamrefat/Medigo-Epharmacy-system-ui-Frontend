@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { profileStyles as s } from "../service/ProfileStyle";
 import ProfileBadge from "./ProfileBadge";
+import CustomButton from "../../../shared/button/CustomButton";
 
 interface ProfileAvatarProps {
   name:            string;
@@ -11,6 +13,7 @@ interface ProfileAvatarProps {
   isAvailable:     boolean;
   isDonorVerified: boolean;
   onUpload:        () => void;
+  errorMessage?:   string;
 }
 
 export default function ProfileAvatar({
@@ -23,6 +26,7 @@ export default function ProfileAvatar({
   isAvailable,
   isDonorVerified,
   onUpload,
+  errorMessage,
 }: ProfileAvatarProps) {
   const isDonor = role === "donor";
   const donationLabel = `${totalDonations} donation${totalDonations !== 1 ? "s" : ""}`;
@@ -30,6 +34,12 @@ export default function ProfileAvatar({
   const metaText = isDonor
     ? `${donationLabel}${totalReceived > 0 ? ` · ${receivedLabel}` : ""}`
     : receivedLabel;
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [avatar]);
+
   const initials = name
     .split(" ")
     .map((n) => n[0])
@@ -37,12 +47,19 @@ export default function ProfileAvatar({
     .join("")
     .toUpperCase();
 
+  const hasAvatar = Boolean(avatar) && !imageFailed;
+
   return (
     <div style={s.avatarSection}>
       {/* avatar */}
       <div style={s.avatarWrapper}>
-        {avatar ? (
-          <img src={avatar} alt={name} style={s.avatar} />
+        {hasAvatar ? (
+          <img
+            src={avatar}
+            alt={name}
+            style={s.avatar}
+            onError={() => setImageFailed(true)}
+          />
         ) : (
           <div style={s.avatarPlaceholder}>{initials}</div>
         )}
@@ -50,10 +67,24 @@ export default function ProfileAvatar({
           type="button"
           onClick={onUpload}
           style={s.avatarUploadBtn}
-          title="Change photo"
+          title={hasAvatar ? "Change photo" : "Upload photo"}
         >
           ✎
         </button>
+      </div>
+      <div style={s.avatarActions}>
+        <CustomButton
+          variant="primary"
+          size="sm"
+          radius="full"
+          onClick={onUpload}
+          className="w-fit"
+        >
+          {hasAvatar ? "Change photo" : "Upload photo"}
+        </CustomButton>
+        <p style={s.avatarHint}>
+          {hasAvatar ? "Upload a new photo or click the pencil to edit." : "Add a profile picture to personalize your profile."}
+        </p>
       </div>
 
       {/* info */}
@@ -63,6 +94,9 @@ export default function ProfileAvatar({
           {bloodType && `${bloodType}${isDonor ? " donor" : ""} · `}
           {metaText}
         </p>
+        {errorMessage ? (
+          <p style={s.avatarError}>{errorMessage}</p>
+        ) : null}
         <div style={s.badgeRow}>
           {isDonor && isDonorVerified && (
             <ProfileBadge label="Verified donor" color="green" icon="✓" />

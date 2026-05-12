@@ -26,6 +26,8 @@ export type AdminMedicine = {
   categories?: string[];
   tags?: string[];
   images?: string[];
+  image?: string;
+  imageUrl?: string;
   sku?: string;
   manufacturer?: string;
   price?: number;
@@ -227,37 +229,24 @@ export const createAdminMedicine = async (payload: {
   status?: string;
   imageFile?: File;
 }): Promise<AdminMedicine> => {
-  // If image file is provided, use FormData
+  const formData = new FormData();
+
+  Object.entries(payload).forEach(([key, value]) => {
+    if (key === "imageFile" || key === "images") return;
+    if (value === null || value === undefined || value === "") return;
+
+    formData.append(key, Array.isArray(value) ? value.join(",") : String(value));
+  });
+
   if (payload.imageFile) {
-    const formData = new FormData();
-
-    // Add all text fields
-    Object.entries(payload).forEach(([key, value]) => {
-      if (key === 'imageFile') return; // Skip imageFile, handle separately
-
-      if (value !== null && value !== undefined) {
-        if (Array.isArray(value)) {
-          formData.append(key, JSON.stringify(value));
-        } else {
-          formData.append(key, String(value));
-        }
-      }
-    });
-
-    // Add image file
-    formData.append('image', payload.imageFile);
-
-    const res = await api.post("/admin/medicines", formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return unwrap<AdminMedicine>(res.data);
+    formData.append("image", payload.imageFile, payload.imageFile.name);
   }
 
-  // Original JSON approach for backward compatibility
-  const { imageFile, ...jsonPayload } = payload;
-  const res = await api.post("/admin/medicines", jsonPayload);
+  const res = await api.post("/products", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
   return unwrap<AdminMedicine>(res.data);
 };
 

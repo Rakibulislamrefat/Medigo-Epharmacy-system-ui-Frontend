@@ -42,3 +42,14 @@ export const requireAdmin: RequestHandler = (req, res, next) => {
   next();
 };
 
+export const requireAdminOrPharmacist: RequestHandler = (req, res, next) => {
+  if (!req.auth) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+  if (!["admin", "pharmacist"].includes(req.auth.role)) {
+    res.status(403).json({ message: "Forbidden" });
+    return;
+  }
+  next();
+};

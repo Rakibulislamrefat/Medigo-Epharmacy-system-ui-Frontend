@@ -93,12 +93,17 @@ export const profileStyles: Record<string, React.CSSProperties> = {
     border:         "3px solid #E8E2DA",
     flexShrink:     0,
   },
+  avatarHint: {
+    marginTop: "12px",
+    fontSize: "12px",
+    color: "#666",
+  },
   avatarUploadBtn: {
     position:       "absolute" as const,
     bottom:         0,
     right:          0,
-    width:          "28px",
-    height:         "28px",
+    width:          "34px",
+    height:         "34px",
     borderRadius:   "50%",
     background:     "#C0392B",
     border:         "2px solid white",
@@ -106,8 +111,25 @@ export const profileStyles: Record<string, React.CSSProperties> = {
     alignItems:     "center",
     justifyContent: "center",
     cursor:         "pointer",
-    fontSize:       "12px",
+    fontSize:       "14px",
     color:          "white",
+  },
+  avatarActions: {
+    marginTop: "12px",
+    display:   "flex",
+    flexDirection: "column" as const,
+    gap: "8px",
+  },
+  uploadPhotoButton: {
+    width: "fit-content",
+    padding: "10px 16px",
+    borderRadius: "999px",
+    border: "none",
+    background: "#C0392B",
+    color: "white",
+    cursor: "pointer",
+    fontSize: "0.95rem",
+    fontWeight: 700,
   },
   avatarInfo: {
     flex: 1,
@@ -139,6 +161,11 @@ export const profileStyles: Record<string, React.CSSProperties> = {
     borderRadius:  "20px",
     fontSize:      "11px",
     fontWeight:    500,
+  },
+  avatarError: {
+    color: "#C0392B",
+    fontSize: "0.85rem",
+    marginTop: "8px",
   },
 
   // ── form fields ──────────────────────────────────────

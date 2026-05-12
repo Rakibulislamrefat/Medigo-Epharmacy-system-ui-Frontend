@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  type AdminMedicine,
   createAdminMedicine,
   deleteAdminMedicine,
   getAdminMedicines,
@@ -16,7 +17,7 @@ import clsx from "clsx";
 
 const parseList = (value: string) =>
   value
-    .split(/\n+/g)
+    .split(/[,\n]+/g)
     .map((v) => v.trim())
     .filter(Boolean);
 
@@ -36,6 +37,30 @@ const generateSlug = (value: string) =>
     .replace(/&/g, "and")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+
+const getErrorMessage = (err: unknown) => {
+  const error = err as {
+    message?: string;
+    response?: {
+      data?: {
+        message?: string;
+        error?: string;
+      };
+    };
+  };
+
+  return (
+    error.response?.data?.message ||
+    error.response?.data?.error ||
+    error.message ||
+    "Operation failed"
+  );
+};
+
+const allowedImageTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+
+const getMedicineImage = (medicine: AdminMedicine) =>
+  medicine.images?.[0] || medicine.image || medicine.imageUrl || "";
 
 export default function AdminMedicinesPage() {
   const qc = useQueryClient();
@@ -83,6 +108,7 @@ export default function AdminMedicinesPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState(initialFormState);
+  const [selectedMedicine, setSelectedMedicine] = useState<AdminMedicine | null>(null);
 
   const statusOptions = useMemo(() => ["active", "inactive"], []);
   const dosageFormOptions = useMemo(
@@ -97,7 +123,7 @@ export default function AdminMedicinesPage() {
       const slug = createForm.slug.trim() || generateSlug(createForm.name.trim());
       return createAdminMedicine({
         name: createForm.name.trim(),
-        slug: slug,
+        slug,
         genericName: createForm.genericName.trim() || undefined,
         brandName: createForm.brandName.trim() || undefined,
         dosageForm: createForm.dosageForm,
@@ -172,10 +198,9 @@ export default function AdminMedicinesPage() {
     const form = isEdit ? editForm : createForm;
     if (!form.name.trim()) return toast.error("Name is required");
     if (!form.price || Number.isNaN(Number(form.price))) return toast.error("Valid price is required");
-    
-    // Generate slug if not provided
     const slug = form.slug.trim() || generateSlug(form.name.trim());
     if (!slug) return toast.error("Slug is required");
+    if (!isEdit && !form.imageFile) return toast.error("Image is required");
     
     const t = toast.loading(isEdit ? "Saving..." : "Creating...");
     try {
@@ -186,8 +211,7 @@ export default function AdminMedicinesPage() {
       }
       toast.success(isEdit ? "Saved" : "Created", { id: t });
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Operation failed";
-      toast.error(msg, { id: t });
+      toast.error(getErrorMessage(err), { id: t });
     }
   };
 
@@ -345,13 +369,19 @@ export default function AdminMedicinesPage() {
                   <span className="text-sm font-medium text-slate-600">Choose Image</span>
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
+                        if (!allowedImageTypes.includes(file.type)) {
+                          toast.error("Only JPEG, PNG and WebP images are allowed");
+                          e.target.value = "";
+                          return;
+                        }
                         // Validate file size (5MB limit)
                         if (file.size > 5 * 1024 * 1024) {
                           toast.error("File size must be less than 5MB");
+                          e.target.value = "";
                           return;
                         }
                         setForm(p => ({...p, imageFile: file}));
@@ -491,12 +521,29 @@ export default function AdminMedicinesPage() {
                       className="group hover:bg-slate-50/60 transition-colors"
                     >
                       <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-800 text-sm group-hover:text-primary transition-colors">{m.name}</span>
-                          <span className="text-xs font-medium text-slate-500 mt-0.5">{m.genericName || m.slug}</span>
-                          <div className="flex gap-2 mt-1.5">
-                            {m.dosageForm && <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">{m.dosageForm}</span>}
-                            {m.requiresPrescription && <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-600">Rx</span>}
+                        <div className="flex items-center gap-3">
+                          <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shrink-0">
+                            {getMedicineImage(m) ? (
+                              <img src={getMedicineImage(m)} alt={m.name} className="h-full w-full object-cover" />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-slate-400">
+                                <ImageIcon className="h-5 w-5" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedMedicine(m)}
+                              className="w-fit text-left font-bold text-slate-800 text-sm group-hover:text-primary hover:underline underline-offset-4 transition-colors"
+                            >
+                              {m.name}
+                            </button>
+                            <span className="text-xs font-medium text-slate-500 mt-0.5">{m.genericName || m.slug}</span>
+                            <div className="flex gap-2 mt-1.5">
+                              {m.dosageForm && <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">{m.dosageForm}</span>}
+                              {m.requiresPrescription && <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-600">Rx</span>}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -593,6 +640,112 @@ export default function AdminMedicinesPage() {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {selectedMedicine && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              onClick={() => setSelectedMedicine(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-6 py-5">
+                <div className="min-w-0">
+                  <h2 className="truncate text-xl font-bold text-slate-800">{selectedMedicine.name}</h2>
+                  <p className="mt-1 text-sm font-medium text-slate-500">{selectedMedicine.genericName || selectedMedicine.slug || "Medicine details"}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedMedicine(null)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="max-h-[calc(90vh-88px)] overflow-y-auto p-6">
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-[180px_1fr]">
+                  <div className="aspect-square overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+                    {getMedicineImage(selectedMedicine) ? (
+                      <img src={getMedicineImage(selectedMedicine)} alt={selectedMedicine.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-slate-400">
+                        <ImageIcon className="h-12 w-12" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Price</p>
+                        <p className="mt-1 text-base font-black text-slate-800">{selectedMedicine.price != null ? `${selectedMedicine.currency ?? "BDT"} ${selectedMedicine.price}` : "-"}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Stock</p>
+                        <p className="mt-1 text-base font-black text-slate-800">{selectedMedicine.stockQty ?? 0}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Dosage</p>
+                        <p className="mt-1 text-sm font-bold text-slate-700">{selectedMedicine.dosageForm || "-"}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Status</p>
+                        <p className="mt-1 text-sm font-bold capitalize text-slate-700">{selectedMedicine.status || "-"}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 text-sm">
+                      <p><span className="font-bold text-slate-700">Brand:</span> <span className="text-slate-600">{selectedMedicine.brandName || "-"}</span></p>
+                      <p><span className="font-bold text-slate-700">Strength:</span> <span className="text-slate-600">{selectedMedicine.strength || "-"}</span></p>
+                      <p><span className="font-bold text-slate-700">SKU:</span> <span className="text-slate-600">{selectedMedicine.sku || "-"}</span></p>
+                      <p><span className="font-bold text-slate-700">Manufacturer:</span> <span className="text-slate-600">{selectedMedicine.manufacturer || "-"}</span></p>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedMedicine.description && (
+                  <div className="mt-5 rounded-2xl border border-slate-100 bg-white p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Description</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{selectedMedicine.description}</p>
+                  </div>
+                )}
+
+                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {selectedMedicine.categories?.length ? (
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Categories</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {selectedMedicine.categories.map((category) => (
+                          <span key={category} className="rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">{category}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {selectedMedicine.tags?.length ? (
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Tags</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {selectedMedicine.tags.map((tag) => (
+                          <span key={tag} className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {(isCreateModalOpen || editingId) && (

@@ -1,11 +1,14 @@
 import { useMemo, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { NavLink, useParams, useSearchParams } from "react-router-dom";
+import toast from "react-hot-toast";
 import CustomButton from "../../../shared/button/CustomButton";
 import { Icons } from "../../../shared/icons/Icons";
 import MainContainer from "../../../shared/main-container/MainContainer";
 import SectionContainer from "../../../shared/section-container/SectionContainer";
 import SectionHeading from "../../../shared/section-heading/SectionHeading";
 import { SectionParagraph } from "../../../shared/section-heading/SectionHeading";
+import { addProductToCart } from "../../cart/service/cartApi";
 
 type MedicineProduct = {
   id: string;
@@ -272,12 +275,38 @@ const catalog = (() => {
 })();
 
 const priceTag = (value: number) => `৳${value.toFixed(1)}`;
+const isMongoId = (value: string) => /^[a-f\d]{24}$/i.test(value);
+
+const getErrorMessage = (err: unknown) => {
+  const error = err as {
+    message?: string;
+    response?: {
+      status?: number;
+      data?: {
+        message?: string;
+        error?: string;
+      };
+    };
+  };
+
+  if (error.response?.status === 401) return "Please log in to add items to your bag";
+  return error.response?.data?.message || error.response?.data?.error || error.message || "Could not add item to bag";
+};
 
 export default function CategoryPage({ mode = "category" }: CategoryPageProps) {
   const { slug } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [localQuery, setLocalQuery] = useState("");
+  const qc = useQueryClient();
+  const [addingProductId, setAddingProductId] = useState<string | null>(null);
   const query = mode === "all" ? searchParams.get("q") ?? "" : localQuery;
+
+  const addToBagMutation = useMutation({
+    mutationFn: (productId: string) => addProductToCart(productId, 1),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["cart"] });
+    },
+  });
 
   const allProducts = useMemo(() => {
     return catalog.entries.flatMap((c) =>
@@ -308,6 +337,24 @@ export default function CategoryPage({ mode = "category" }: CategoryPageProps) {
     if (!q) return base;
     return base.filter((p) => p.name.toLowerCase().includes(q));
   }, [allProducts, category, mode, query]);
+
+  const handleAddToBag = async (product: MedicineProduct) => {
+    if (!isMongoId(product.id)) {
+      toast.error("This demo product is not available for cart yet");
+      return;
+    }
+
+    setAddingProductId(product.id);
+    const toastId = toast.loading("Adding to bag...");
+    try {
+      await addToBagMutation.mutateAsync(product.id);
+      toast.success(`${product.name} added to bag`, { id: toastId });
+    } catch (err) {
+      toast.error(getErrorMessage(err), { id: toastId });
+    } finally {
+      setAddingProductId(null);
+    }
+  };
 
   const header = useMemo(() => {
     if (mode === "all") {
@@ -429,7 +476,7 @@ export default function CategoryPage({ mode = "category" }: CategoryPageProps) {
               </div>
             )}
 
-            <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="mt-5 grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {products.map((product) => (
                 <div
                   key={product.id}
@@ -475,9 +522,12 @@ export default function CategoryPage({ mode = "category" }: CategoryPageProps) {
                         radius="full"
                         fullWidth
                         leftIcon={<Icons.Cart className="!w-4 !h-4" />}
-                        onClick={() => {}}
+                        onClick={() => handleAddToBag(product)}
+                        loading={addingProductId === product.id}
+                        disabled={addingProductId === product.id}
+                        className="min-h-10 whitespace-nowrap text-xs sm:text-sm"
                       >
-                        Add to Bag
+                        {addingProductId === product.id ? "Adding..." : "Add to Bag"}
                       </CustomButton>
                     </div>
                   </div>
