@@ -82,24 +82,22 @@ const Requirement: React.FC<{ met: boolean; text: string }> = ({
   </div>
 );
 
-// ── Blood drop SVG ─────────────────────────────────────────
-const BloodDrop: React.FC<{ className?: string }> = ({ className = "" }) => (
+// ── Medigo pill SVG ─────────────────────────────────────────
+const MedigoMark: React.FC<{ className?: string }> = ({ className = "" }) => (
   <svg
-    viewBox="0 0 40 52"
+    viewBox="0 0 64 64"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
     className={className}
   >
+    <rect x="10" y="18" width="44" height="28" rx="14" fill="white" />
     <path
-      d="M20 2C20 2 4 18.5 4 30C4 39.941 11.163 48 20 48C28.837 48 36 39.941 36 30C36 18.5 20 2 20 2Z"
-      fill="white"
-      fillOpacity="0.9"
+      d="M22 24h20M22 32h20M22 40h12"
+      stroke="#0B5E4F"
+      strokeWidth="3"
+      strokeLinecap="round"
     />
-    <path
-      d="M20 12C20 12 10 22.5 10 30C10 35.523 14.477 40 20 40C25.523 40 30 35.523 30 30C30 22.5 20 12 20 12Z"
-      fill="white"
-      fillOpacity="0.25"
-    />
+    <circle cx="46" cy="32" r="7" fill="#0B5E4F" />
   </svg>
 );
 
@@ -185,7 +183,7 @@ const ExpiredState: React.FC = () => (
       <Link
         to="/forgot-password"
         className="w-full py-3 rounded-xs bg-primary text-white text-sm font-semibold text-center
-          hover:bg-red-700 transition-colors duration-200"
+          hover:bg-primary/90 transition-colors duration-200"
       >
         Request a new link
       </Link>
@@ -431,16 +429,16 @@ const ResetPasswordPage: React.FC = () => {
       <div
         className={`
           hidden lg:flex lg:w-[46%] xl:w-[42%] flex-col relative
-          bg-[#6B0F0F] overflow-hidden
+          bg-[#0F5E4F] overflow-hidden
           transition-all duration-700
           ${mounted ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-8"}
         `}
       >
         {/* Background depth */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-32 -left-32 w-[480px] h-[480px] rounded-full bg-[#8B1A1A]/40" />
-          <div className="absolute -bottom-40 -right-20 w-[520px] h-[520px] rounded-full bg-black/20" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#7A1515]/20" />
+          <div className="absolute -top-32 -left-32 w-[480px] h-[480px] rounded-full bg-primary/30" />
+          <div className="absolute -bottom-40 -right-20 w-[520px] h-[520px] rounded-full bg-white/10" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/15" />
           <div
             className="absolute inset-0 opacity-[0.04]"
             style={{
@@ -455,11 +453,16 @@ const ResetPasswordPage: React.FC = () => {
           {/* Logo */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-white/15 backdrop-blur-sm flex items-center justify-center">
-              <BloodDrop className="w-5 h-6" />
+              <MedigoMark className="w-5 h-5" />
             </div>
-            <span className="text-white font-bold text-xl tracking-tight">
-              Blood<span className="text-red-300">Connect</span>
-            </span>
+            <div>
+              <p className="text-white font-bold text-xl tracking-tight">
+                Medigo
+              </p>
+              <p className="text-xs uppercase text-white/70 tracking-[0.25em]">
+                e-Pharmacy
+              </p>
+            </div>
           </div>
 
           {/* Content */}
@@ -481,32 +484,32 @@ const ResetPasswordPage: React.FC = () => {
             </div>
 
             <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight">
-              Create a<br />
-              <span className="text-red-300">new password</span>
+              Secure your<br />
+              <span className="text-green-200">Medigo account</span>
             </h1>
 
-            <p className="text-white/60 text-base leading-relaxed max-w-xs">
-              Choose a strong password to keep your donor account secure and
-              your data protected.
+            <p className="text-white/70 text-base leading-relaxed max-w-xs">
+              Set a strong password for your Medigo e-Pharmacy account to keep
+              orders, prescriptions, and delivery details safe.
             </p>
 
             {/* Security tips */}
             <div className="flex flex-col gap-4 mt-2">
               {[
                 {
-                  icon: "🔑",
-                  title: "Use a passphrase",
-                  desc: "Three random words are easier to remember and harder to crack.",
+                  icon: "�",
+                  title: "Protect your orders",
+                  desc: "A strong password secures your medicine requests and delivery info.",
                 },
                 {
                   icon: "🔒",
-                  title: "Never reuse passwords",
-                  desc: "Each account deserves its own unique password.",
+                  title: "Use a unique password",
+                  desc: "Don’t reuse login details from other apps or stores.",
                 },
                 {
-                  icon: "📱",
-                  title: "Consider a password manager",
-                  desc: "Tools like Bitwarden or 1Password keep you safe effortlessly.",
+                  icon: "🛡️",
+                  title: "Keep your account private",
+                  desc: "Only you should know your Medigo password and verification codes.",
                 },
               ].map((tip) => (
                 <div key={tip.title} className="flex items-start gap-3">
@@ -527,7 +530,7 @@ const ResetPasswordPage: React.FC = () => {
           </div>
 
           <p className="mt-auto text-white/30 text-xs">
-            © 2025 BloodConnect Bangladesh. All rights reserved.
+            © 2026 Medigo e-Pharmacy. All rights reserved.
           </p>
         </div>
       </div>
@@ -544,11 +547,12 @@ const ResetPasswordPage: React.FC = () => {
         {/* Mobile logo */}
         <div className="lg:hidden flex items-center gap-2 mb-10">
           <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-            <BloodDrop className="w-4 h-5" />
+            <MedigoMark className="w-4 h-4" />
           </div>
-          <span className="text-dark font-bold text-lg">
-            Blood<span className="text-primary">Connect</span>
-          </span>
+          <div className="text-sm font-bold text-dark">
+            <div>Medigo</div>
+            <div className="text-xs text-slate-500">e-Pharmacy</div>
+          </div>
         </div>
 
         <div className="w-full max-w-[420px]">
@@ -583,13 +587,13 @@ const ResetPasswordPage: React.FC = () => {
 
               <div className="mb-7">
                 <h2 className="text-3xl font-bold text-dark tracking-tight">
-                  Set a new
+                  Reset your
                   <br />
-                  <span className="text-primary">password</span>
+                  <span className="text-primary">Medigo password</span>
                 </h2>
                 <p className="mt-2.5 text-sm text-dark/50 leading-relaxed">
-                  Must be at least 8 characters with a mix of letters, numbers,
-                  and symbols.
+                  Create a secure password for your Medigo e-Pharmacy account.
+                  Use letters, numbers, and symbols.
                 </p>
               </div>
 
@@ -715,7 +719,7 @@ const ResetPasswordPage: React.FC = () => {
                   ${
                     loading
                       ? "bg-primary/60 text-white cursor-not-allowed"
-                      : "bg-primary text-white hover:bg-red-700 cursor-pointer"
+                      : "bg-primary text-white hover:bg-primary/90 cursor-pointer"
                   }
                 `}
               >
@@ -815,7 +819,7 @@ const ResetPasswordPage: React.FC = () => {
               <Link
                 to="/login"
                 className="mt-6 w-full py-3 rounded-xs bg-primary text-white text-sm font-semibold
-                  flex items-center justify-center gap-2 hover:bg-red-700 transition-colors duration-200"
+                  flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors duration-200"
               >
                 Sign in now
                 <svg

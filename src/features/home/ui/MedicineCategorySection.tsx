@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import MainContainer from "../../../shared/main-container/MainContainer";
 import SectionContainer from "../../../shared/section-container/SectionContainer";
@@ -37,6 +38,7 @@ const MedicineCategorySection = ({
   onViewAll,
   onAddToBag,
 }: MedicineCategorySectionProps) => {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [addingProductId, setAddingProductId] = useState<string | null>(null);
   const { data: apiCategories } = useQuery({
@@ -351,7 +353,11 @@ const MedicineCategorySection = ({
     onAddToBag?.(product, category);
 
     if (!isMongoId(product.id)) {
-      toast.error("This demo product is not available for cart yet");
+      const toastId = toast.loading("Adding to bag...");
+      toast.success(`${product.name} is ready in your order request`, { id: toastId });
+      navigate("/request-order", {
+        state: { prefilledItem: { name: product.name, quantity: "1", notes: "" } },
+      });
       return;
     }
 
@@ -360,6 +366,7 @@ const MedicineCategorySection = ({
     try {
       await addToBagMutation.mutateAsync(product.id);
       toast.success(`${product.name} added to bag`, { id: toastId });
+      navigate("/cart");
     } catch (err) {
       toast.error(getErrorMessage(err), { id: toastId });
     } finally {

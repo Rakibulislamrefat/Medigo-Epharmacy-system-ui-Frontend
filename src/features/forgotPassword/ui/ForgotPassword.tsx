@@ -26,11 +26,17 @@ const FORGOT_FIELDS: Field[] = [
   },
 ];
 
-// ── Blood drop SVG (reused from LoginPage) ─────────────────
-const BloodDrop: React.FC<{ className?: string }> = ({ className = '' }) => (
-  <svg viewBox="0 0 40 52" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M20 2C20 2 4 18.5 4 30C4 39.941 11.163 48 20 48C28.837 48 36 39.941 36 30C36 18.5 20 2 20 2Z" fill="white" fillOpacity="0.9" />
-    <path d="M20 12C20 12 10 22.5 10 30C10 35.523 14.477 40 20 40C25.523 40 30 35.523 30 30C30 22.5 20 12 20 12Z" fill="white" fillOpacity="0.25" />
+// ── Medigo pill SVG ───────────────────────────────────────
+const MedigoMark: React.FC<{ className?: string }> = ({ className = '' }) => (
+  <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <rect x="10" y="18" width="44" height="28" rx="14" fill="white" />
+    <path
+      d="M22 28h20M22 36h20M22 44h12"
+      stroke="#0B5E4F"
+      strokeWidth="3"
+      strokeLinecap="round"
+    />
+    <circle cx="46" cy="32" r="7" fill="#0B5E4F" />
   </svg>
 );
 
@@ -186,21 +192,21 @@ const ForgotPasswordPage: React.FC = () => {
       <div
         className={`
           hidden lg:flex lg:w-[46%] xl:w-[42%] flex-col relative
-          bg-[#6B0F0F] overflow-hidden
+          bg-[#0F5E4F] overflow-hidden
           transition-all duration-700
           ${mounted ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}
         `}
       >
         {/* Background depth circles */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-32 -left-32 w-[480px] h-[480px] rounded-full bg-[#8B1A1A]/40" />
-          <div className="absolute -bottom-40 -right-20 w-[520px] h-[520px] rounded-full bg-black/20" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#7A1515]/20" />
+          <div className="absolute -top-32 -left-32 w-[480px] h-[480px] rounded-full bg-primary/30" />
+          <div className="absolute -bottom-40 -right-20 w-[520px] h-[520px] rounded-full bg-white/10" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/15" />
           <div
             className="absolute inset-0 opacity-[0.04]"
             style={{
               backgroundImage:
-                'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)',
+                'linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)',
               backgroundSize: '40px 40px',
             }}
           />
@@ -211,18 +217,19 @@ const ForgotPasswordPage: React.FC = () => {
           {/* Logo */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-white/15 backdrop-blur-sm flex items-center justify-center">
-              <BloodDrop className="w-5 h-6" />
+              <MedigoMark className="w-5 h-5" />
             </div>
-            <span className="text-white font-bold text-xl tracking-tight">
-              Blood<span className="text-red-300">Connect</span>
-            </span>
+            <div>
+              <p className="text-white font-bold text-xl tracking-tight">Medigo</p>
+              <p className="text-xs uppercase text-white/70 tracking-[0.25em]">e-Pharmacy</p>
+            </div>
           </div>
 
           {/* Illustration area */}
           <div className="mt-auto mb-auto flex flex-col gap-6 pt-16">
             {/* Big lock icon */}
             <div className="w-20 h-20 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center">
-              <svg className="w-10 h-10 text-red-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <svg className="w-10 h-10 text-green-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round"
                   d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
               </svg>
@@ -233,9 +240,9 @@ const ForgotPasswordPage: React.FC = () => {
               <span className="text-red-300">password?</span>
             </h1>
 
-            <p className="text-white/60 text-base leading-relaxed max-w-xs">
-              No worries — it happens. Enter your registered email and we'll
-              send you a secure reset link instantly.
+            <p className="text-white/70 text-base leading-relaxed max-w-xs">
+              No worries — it happens. Enter your registered Medigo email and
+              we'll send you a secure password reset link instantly.
             </p>
 
             {/* How it works */}
@@ -246,15 +253,15 @@ const ForgotPasswordPage: React.FC = () => {
                 { icon: '03', text: 'Set a strong new password' },
               ].map(item => (
                 <div key={item.icon} className="flex items-center gap-3">
-                  <span className="text-xs font-bold text-red-300/60 w-6 shrink-0">{item.icon}</span>
-                  <span className="text-white/50 text-sm">{item.text}</span>
+                  <span className="text-xs font-bold text-primary/80 w-6 shrink-0">{item.icon}</span>
+                  <span className="text-white/70 text-sm">{item.text}</span>
                 </div>
               ))}
             </div>
           </div>
 
           <p className="mt-auto text-white/30 text-xs">
-            © 2025 BloodConnect Bangladesh. All rights reserved.
+            © 2026 Medigo e-Pharmacy. All rights reserved.
           </p>
         </div>
       </div>
@@ -271,13 +278,13 @@ const ForgotPasswordPage: React.FC = () => {
         {/* Mobile logo */}
         <div className="lg:hidden flex items-center gap-2 mb-10">
           <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-            <BloodDrop className="w-4 h-5" />
+            <MedigoMark className="w-4 h-4" />
           </div>
-          <span className="text-dark font-bold text-lg">
-            Blood<span className="text-primary">Connect</span>
-          </span>
+          <div className="text-sm font-bold text-dark">
+            <div>Medigo</div>
+            <div className="text-xs text-slate-500">e-Pharmacy</div>
+          </div>
         </div>
-
         <div className="w-full max-w-[420px]">
 
           {/* Back to login */}

@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { useLocation as useRouterLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useLocation } from "../../../hooks/useLocation";
 import CustomButton from "../../../shared/button/CustomButton";
@@ -40,7 +41,39 @@ const uid = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 export default function RequestOrderPage() {
   const { getLocation, loading: detectingLocation } = useLocation();
+  const routerLocation = useRouterLocation();
   const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const initialItems = (() => {
+    const state = routerLocation.state as
+      | {
+          prefilledItem?: { name: string; quantity?: string; notes?: string };
+          prefilledItems?: { name: string; quantity?: string; notes?: string }[];
+        }
+      | null;
+
+    if (state?.prefilledItems?.length) {
+      return state.prefilledItems.map((item) => ({
+        id: uid(),
+        name: item.name,
+        quantity: item.quantity ?? "1",
+        notes: item.notes ?? "",
+      }));
+    }
+
+    if (state?.prefilledItem?.name) {
+      return [
+        {
+          id: uid(),
+          name: state.prefilledItem.name,
+          quantity: state.prefilledItem.quantity ?? "1",
+          notes: state.prefilledItem.notes ?? "",
+        },
+      ];
+    }
+
+    return [{ id: uid(), name: "", quantity: "1", notes: "" }];
+  })();
 
   const [form, setForm] = useState<RequestOrderForm>({
     fullName: "",
@@ -51,7 +84,7 @@ export default function RequestOrderPage() {
     country: "",
     deliveryNotes: "",
     prescriptionFile: null,
-    items: [{ id: uid(), name: "", quantity: "1", notes: "" }],
+    items: initialItems,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -209,8 +242,8 @@ export default function RequestOrderPage() {
   return (
     <SectionContainer>
       <MainContainer>
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-2xl w-full">
             <SectionHeading
               title="Request Order"
               description="Place an order request for medicine and get fast delivery from Medigo e‑Pharmacy."
@@ -223,8 +256,8 @@ export default function RequestOrderPage() {
             </SectionParagraph>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end w-full sm:w-auto">
+            <div className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 flex items-center gap-2 min-w-[120px] sm:min-w-0">
               <Icons.Cart className="!w-4 !h-4 text-primary" />
               {itemCount} items
             </div>
@@ -519,22 +552,22 @@ export default function RequestOrderPage() {
                         key={it.id}
                         className="bg-white rounded-xl border border-gray-100 p-4"
                       >
-                        <div className="flex items-center justify-between gap-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <p className="text-sm font-black text-dark">
                             Item {index + 1}
                           </p>
                           <button
                             type="button"
                             onClick={() => removeItem(it.id)}
-                            className="inline-flex items-center gap-2 text-xs font-semibold text-danger hover:bg-danger/5 border border-danger/20 px-3 py-2 rounded-full transition-colors"
+                            className="inline-flex items-center gap-2 text-xs font-semibold text-danger hover:bg-danger/5 border border-danger/20 px-3 py-2 rounded-full transition-colors self-start sm:self-auto"
                           >
                             <Icons.Trash className="!w-4 !h-4" />
                             Remove
                           </button>
                         </div>
 
-                        <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <div className="md:col-span-2">
+                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-3">
+                          <div>
                             <label className="block text-xs font-semibold text-slate-600 mb-1">
                               Medicine name
                             </label>

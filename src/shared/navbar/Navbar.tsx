@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Icons } from "../icons/Icons";
 import Button from "../button/CustomButton";
 import MainContainer from "../main-container/MainContainer";
@@ -7,6 +8,7 @@ import { clearUser } from "../../redux/slices/userSlice";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../../redux/store";
 import { logoutApi } from "../../features/login/service/loginService";
+import { getMyCart } from "../../features/cart/service/cartApi";
 import toast from "react-hot-toast";
 
 const navLinks = [
@@ -36,6 +38,16 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
   const visibleNavLinks = navLinks.filter(
     (link) => link.label !== "Donate Blood" || canDonate,
   );
+
+  // Fetch cart items
+  const { data: cart } = useQuery({
+    queryKey: ["cart"],
+    queryFn: getMyCart,
+    enabled: isAuthenticated,
+    staleTime: 1000 * 60, // 1 minute
+  });
+
+  const cartItemCount = cart?.items?.reduce((acc, item) => acc + (item.qty || 0), 0) || 0;
 
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -312,7 +324,19 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
 
             <div className="hidden lg:flex items-center gap-3 min-w-[220px] justify-end">
               {isAuthenticated && user ? (
-                !isMobile && <UserAvatar />
+                <>
+                  {!isMobile && <UserAvatar />}
+                  <NavLink to="/cart" className="relative">
+                    <Button variant="outline" size="sm" radius="xs" className="relative">
+                      <Icons.Cart className="!w-4 !h-4" />
+                      {cartItemCount > 0 && (
+                        <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center">
+                          {cartItemCount}
+                        </span>
+                      )}
+                    </Button>
+                  </NavLink>
+                </>
               ) : (
                 <NavLink to="/login">
                   <Button variant="outline" size="sm" radius="xs">

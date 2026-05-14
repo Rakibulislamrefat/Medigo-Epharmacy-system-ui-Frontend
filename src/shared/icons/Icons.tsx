@@ -25,7 +25,7 @@ import { CgClose, CgCopyright } from "react-icons/cg";
 import { IoIosArrowBack, IoIosArrowForward, IoMdArrowForward } from "react-icons/io";
 import { LuHandshake } from "react-icons/lu";
 import { CiClock2 } from "react-icons/ci";
-import { FiPlus } from "react-icons/fi";
+import { FiPlus, FiMinus } from "react-icons/fi";
 import { RxCross2 } from "react-icons/rx";
 import { IoAlertCircleOutline } from "react-icons/io5";
 
@@ -85,6 +85,7 @@ export const Icons = {
   Cross: createIcon(RxCross2),
   Arrow: createIcon(IoIosArrowForward),
   ArrowBack: createIcon(IoIosArrowBack),
+  Minus: createIcon(FiMinus),
   AlertCircle: createIcon(IoAlertCircleOutline),
   Loading: createIcon(AiOutlineLoading),
   Shield: createIcon(BsShield),

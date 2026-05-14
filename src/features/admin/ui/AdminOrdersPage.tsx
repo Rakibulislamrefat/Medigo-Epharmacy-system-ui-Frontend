@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getAdminOrders, updateAdminOrder } from "../service/adminApi";
+import { getAdminOrders, updateAdminOrderStatus } from "../service/adminApi";
+import { Icons } from "../../../shared/icons/Icons";
 import toast from "react-hot-toast";
 
 const formatDate = (v?: string) => {
@@ -9,6 +10,47 @@ const formatDate = (v?: string) => {
   return Number.isNaN(d.getTime())
     ? v
     : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+};
+
+const formatPrice = (v?: number) => {
+  if (!v) return "৳0.00";
+  return `৳${v.toFixed(2)}`;
+};
+
+const getStatusColor = (status?: string) => {
+  switch (status) {
+    case "pending":
+      return { bg: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200" };
+    case "confirmed":
+      return { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" };
+    case "processing":
+      return { bg: "bg-indigo-50", text: "text-indigo-700", border: "border-indigo-200" };
+    case "shipped":
+      return { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" };
+    case "delivered":
+      return { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" };
+    case "cancelled":
+      return { bg: "bg-gray-50", text: "text-gray-700", border: "border-gray-200" };
+    case "refunded":
+      return { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" };
+    default:
+      return { bg: "bg-gray-50", text: "text-gray-700", border: "border-gray-200" };
+  }
+};
+
+const getPaymentColor = (status?: string) => {
+  switch (status) {
+    case "paid":
+      return { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" };
+    case "unpaid":
+      return { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" };
+    case "failed":
+      return { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" };
+    case "refunded":
+      return { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" };
+    default:
+      return { bg: "bg-gray-50", text: "text-gray-700", border: "border-gray-200" };
+  }
 };
 
 export default function AdminOrdersPage() {
@@ -44,57 +86,65 @@ export default function AdminOrdersPage() {
   const items = paged?.items ?? [];
   const meta = paged?.meta ?? { page: 1, limit, total: 0, totalPages: 1 };
 
-  const [draft, setDraft] = useState<Record<string, { status: string; paymentStatus: string }>>({});
-
   const statusOptions = useMemo(
     () => ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled", "refunded"],
     [],
   );
   const paymentOptions = useMemo(() => ["unpaid", "paid", "failed", "refunded"], []);
-  const limitOptions = useMemo(() => [10, 20, 50], []);
 
-  const mutation = useMutation({
-    mutationFn: async (args: { id: string; status: string; paymentStatus: string }) =>
-      updateAdminOrder(args.id, { status: args.status, paymentStatus: args.paymentStatus }),
+  const statusMutation = useMutation({
+    mutationFn: (args: { id: string; status: string }) =>
+      updateAdminOrderStatus(args.id, args.status),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin", "orders"] });
     },
   });
 
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-xl sm:text-2xl font-black text-dark">Orders</h1>
-        <p className="text-sm text-slate-500 mt-1">Track and manage orders.</p>
+        <p className="text-sm text-slate-500 mt-1">Track and manage all customer orders.</p>
       </div>
 
       {isLoading && (
-        <div className="rounded-xl border border-gray-100 bg-white p-5 animate-pulse h-48" />
+        <div className="rounded-2xl border border-gray-100 bg-white p-8 animate-pulse h-64" />
       )}
 
       {!isLoading && (error || !paged) && (
-        <div className="rounded-xl border border-red-100 bg-red-50 p-5 text-sm text-red-600">
-          Failed to load orders.
+        <div className="rounded-2xl border border-red-100 bg-red-50 p-6">
+          <div className="flex items-center gap-3">
+            <Icons.AlertCircle className="!w-5 !h-5 text-red-600" />
+            <div>
+              <p className="text-sm font-semibold text-red-700">Failed to load orders</p>
+              <p className="text-xs text-red-600 mt-1">Try refreshing the page or check your connection.</p>
+            </div>
+          </div>
         </div>
       )}
 
       {!isLoading && paged && (
-        <div className="rounded-xl border border-gray-100 bg-white overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <p className="text-sm font-semibold text-dark">All orders</p>
-            <span className="text-xs font-black bg-primary/10 text-primary px-3 py-1 rounded-full">
-              {meta.total}
-            </span>
-          </div>
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-dark">All orders</p>
+                <p className="text-xs text-slate-500 mt-0.5">{meta.total} total orders</p>
+              </div>
+              <span className="text-xs font-black bg-primary/10 text-primary px-3 py-1.5 rounded-full">
+                {meta.total}
+              </span>
+            </div>
 
-          <div className="px-5 py-4 border-b border-gray-100">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <input
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
-                  className="h-10 w-full sm:w-[320px] rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                  placeholder="Search orders (order number)"
+                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm placeholder:text-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
+                  placeholder="Search order number..."
                 />
                 <select
                   value={statusFilter}
@@ -102,12 +152,12 @@ export default function AdminOrdersPage() {
                     setStatusFilter(e.target.value);
                     setPage(1);
                   }}
-                  className="h-10 w-full sm:w-[180px] rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
                 >
-                  <option value="">All status</option>
+                  <option value="">All statuses</option>
                   {statusOptions.map((s) => (
                     <option key={s} value={s}>
-                      {s}
+                      {s.charAt(0).toUpperCase() + s.slice(1)}
                     </option>
                   ))}
                 </select>
@@ -117,167 +167,227 @@ export default function AdminOrdersPage() {
                     setPaymentFilter(e.target.value);
                     setPage(1);
                   }}
-                  className="h-10 w-full sm:w-[180px] rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
                 >
                   <option value="">All payments</option>
                   {paymentOptions.map((s) => (
                     <option key={s} value={s}>
-                      {s}
+                      {s.charAt(0).toUpperCase() + s.slice(1)}
                     </option>
                   ))}
                 </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-slate-500">Rows</span>
                 <select
                   value={limit}
                   onChange={(e) => {
                     setLimit(Number(e.target.value));
                     setPage(1);
                   }}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
                 >
-                  {limitOptions.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
+                  <option value={10}>10 per page</option>
+                  <option value={20}>20 per page</option>
+                  <option value={50}>50 per page</option>
                 </select>
               </div>
             </div>
-          </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-[900px] w-full">
-              <thead className="bg-light">
-                <tr className="text-left text-xs font-black tracking-[0.2em] uppercase text-slate-500">
-                  <th className="px-5 py-3">Order No</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Payment</th>
-                  <th className="px-5 py-3">Total</th>
-                  <th className="px-5 py-3">Created</th>
-                  <th className="px-5 py-3">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {items.map((o) => (
-                  <tr key={o._id} className="text-sm text-dark">
-                    <td className="px-5 py-3 font-semibold">
-                      {o.orderNumber ?? o._id}
-                    </td>
-                    <td className="px-5 py-3">
-                      <select
-                        value={draft[o._id]?.status ?? o.status ?? "pending"}
-                        onChange={(e) =>
-                          setDraft((p) => ({
-                            ...p,
-                            [o._id]: {
-                              status: e.target.value,
-                              paymentStatus: p[o._id]?.paymentStatus ?? o.paymentStatus ?? "unpaid",
-                            },
-                          }))
-                        }
-                        className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                      >
-                        {statusOptions.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-5 py-3">
-                      <select
-                        value={draft[o._id]?.paymentStatus ?? o.paymentStatus ?? "unpaid"}
-                        onChange={(e) =>
-                          setDraft((p) => ({
-                            ...p,
-                            [o._id]: {
-                              status: p[o._id]?.status ?? o.status ?? "pending",
-                              paymentStatus: e.target.value,
-                            },
-                          }))
-                        }
-                        className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                      >
-                        {paymentOptions.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-5 py-3 text-slate-600">
-                      {o.grandTotal != null ? `${o.grandTotal}` : ""}
-                    </td>
-                    <td className="px-5 py-3 text-slate-600">
-                      {formatDate(o.createdAt)}
-                    </td>
-                    <td className="px-5 py-3">
+            {items.length === 0 ? (
+              <div className="px-6 py-12 text-center">
+                <Icons.Cart className="!w-12 !h-12 mx-auto text-gray-300 mb-3" />
+                <p className="text-sm font-semibold text-dark">No orders found</p>
+                <p className="text-xs text-slate-500 mt-1">Try adjusting your search filters</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {items.map((order) => {
+                  const statusColor = getStatusColor(order.status);
+                  const paymentColor = getPaymentColor(order.paymentStatus);
+                  const isExpanded = expandedOrder === order._id;
+
+                  return (
+                    <div
+                      key={order._id}
+                      className="bg-white hover:bg-gray-50/50 transition-colors"
+                    >
                       <button
                         type="button"
-                        disabled={mutation.isPending}
-                        onClick={async () => {
-                          const status = draft[o._id]?.status ?? o.status ?? "pending";
-                          const paymentStatus = draft[o._id]?.paymentStatus ?? o.paymentStatus ?? "unpaid";
-                          const t = toast.loading("Updating...");
-                          try {
-                            await mutation.mutateAsync({ id: o._id, status, paymentStatus });
-                            toast.success("Updated", { id: t });
-                            setDraft((p) => {
-                              const { [o._id]: _, ...rest } = p;
-                              return rest;
-                            });
-                          } catch (err: unknown) {
-                            const msg =
-                              (err as { response?: { data?: { message?: string } } })?.response
-                                ?.data?.message ?? "Update failed";
-                            toast.error(msg, { id: t });
-                          }
-                        }}
-                        className="h-9 px-4 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-60"
+                        onClick={() => setExpandedOrder(isExpanded ? null : order._id)}
+                        className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50"
                       >
-                        Save
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10">
+                            <Icons.Cart className="!w-5 !h-5 text-primary" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-dark truncate">
+                              {order.orderNumber || order._id.slice(-8).toUpperCase()}
+                            </p>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {formatDate(order.createdAt)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="hidden sm:flex items-center gap-3 flex-1 justify-center px-4">
+                          <span
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${statusColor.bg} ${statusColor.text} ${statusColor.border}`}
+                          >
+                            {order.status?.charAt(0).toUpperCase() + (order.status?.slice(1) || "")}
+                          </span>
+                        </div>
+
+                        <div className="hidden lg:flex items-center gap-3 flex-1 justify-center px-4">
+                          <span
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${paymentColor.bg} ${paymentColor.text} ${paymentColor.border}`}
+                          >
+                            {order.paymentStatus?.charAt(0).toUpperCase() + (order.paymentStatus?.slice(1) || "")}
+                          </span>
+                        </div>
+
+                        <div className="hidden md:flex items-center justify-end flex-1 px-4">
+                          <p className="text-sm font-semibold text-dark">
+                            {formatPrice(order.grandTotal)}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Icons.ArrowForward
+                            className={`!w-4 !h-4 text-slate-400 transition-transform ${
+                              isExpanded ? "rotate-90" : "rotate-0"
+                            }`}
+                          />
+                        </div>
                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
 
-          <div className="px-5 py-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="text-sm text-slate-600">
-              {meta.total === 0
-                ? "No results"
-                : (() => {
-                    const start = (page - 1) * limit + 1;
-                    const end = Math.min(meta.total, page * limit);
-                    return `Showing ${start}-${end} of ${meta.total}`;
-                  })()}
-            </div>
+                      {isExpanded && (
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                                Order Status
+                              </p>
+                              <div className="mt-3 space-y-2 flex flex-wrap gap-2">
+                                {statusOptions.map((s) => {
+                                  const sColor = getStatusColor(s);
+                                  const isActive = order.status === s;
+                                  return (
+                                    <button
+                                      key={s}
+                                      type="button"
+                                      disabled={statusMutation.status === "pending"}
+                                      onClick={async () => {
+                                        const t = toast.loading("Updating status...");
+                                        try {
+                                          await statusMutation.mutateAsync({ id: order._id, status: s });
+                                          toast.success("Status updated", { id: t });
+                                        } catch (err) {
+                                          toast.error("Failed to update status", { id: t });
+                                        }
+                                      }}
+                                      className={`inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold border transition ${
+                                        isActive
+                                          ? `${sColor.bg} ${sColor.text} ${sColor.border} ring-2 ring-offset-2 ring-${s === "delivered" ? "green" : s === "pending" ? "yellow" : "primary"}-400`
+                                          : "border-gray-200 bg-white text-slate-600 hover:bg-gray-50"
+                                      } disabled:opacity-50`}
+                                    >
+                                      {s.charAt(0).toUpperCase() + s.slice(1)}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="h-10 px-4 rounded-lg border border-gray-200 bg-white text-sm font-semibold disabled:opacity-60"
-              >
-                Prev
-              </button>
-              <span className="text-sm font-semibold text-slate-700">
-                Page {page} / {meta.totalPages}
-              </span>
-              <button
-                type="button"
-                disabled={page >= meta.totalPages}
-                onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
-                className="h-10 px-4 rounded-lg border border-gray-200 bg-white text-sm font-semibold disabled:opacity-60"
-              >
-                Next
-              </button>
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                                Payment Status
+                              </p>
+                              <div className="mt-3 space-y-2 flex flex-wrap gap-2">
+                                {paymentOptions.map((p) => {
+                                  const pColor = getPaymentColor(p);
+                                  const isActive = order.paymentStatus === p;
+                                  return (
+                                    <span
+                                      key={p}
+                                      className={`inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold border ${
+                                        isActive
+                                          ? `${pColor.bg} ${pColor.text} ${pColor.border} ring-2 ring-offset-2 ring-${p === "paid" ? "green" : p === "unpaid" ? "red" : "orange"}-400`
+                                          : "border-gray-200 bg-white text-slate-600"
+                                      }`}
+                                    >
+                                      {p.charAt(0).toUpperCase() + p.slice(1)}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                                Order Total
+                              </p>
+                              <p className="text-lg font-black text-dark mt-1">
+                                {formatPrice(order.grandTotal)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                                Order Date
+                              </p>
+                              <p className="text-sm font-semibold text-dark mt-1">
+                                {formatDate(order.createdAt)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                                Order ID
+                              </p>
+                              <p className="text-sm font-mono text-slate-600 mt-1 truncate">
+                                {order._id}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="px-6 py-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="text-sm text-slate-600">
+                {meta.total === 0
+                  ? "No results"
+                  : (() => {
+                      const start = (page - 1) * limit + 1;
+                      const end = Math.min(meta.total, page * limit);
+                      return `Showing ${start}-${end} of ${meta.total}`;
+                    })()}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="h-10 px-4 rounded-lg border border-gray-200 bg-white text-sm font-semibold hover:bg-gray-50 disabled:opacity-60 transition"
+                >
+                  ← Prev
+                </button>
+                <span className="text-sm font-semibold text-slate-700">
+                  {page} / {meta.totalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={page >= meta.totalPages}
+                  onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
+                  className="h-10 px-4 rounded-lg border border-gray-200 bg-white text-sm font-semibold hover:bg-gray-50 disabled:opacity-60 transition"
+                >
+                  Next →
+                </button>
+              </div>
             </div>
           </div>
         </div>

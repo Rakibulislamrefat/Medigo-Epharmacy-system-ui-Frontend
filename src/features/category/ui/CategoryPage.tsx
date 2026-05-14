@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { NavLink, useParams, useSearchParams } from "react-router-dom";
+import { NavLink, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import CustomButton from "../../../shared/button/CustomButton";
 import { Icons } from "../../../shared/icons/Icons";
@@ -301,6 +301,8 @@ export default function CategoryPage({ mode = "category" }: CategoryPageProps) {
   const [addingProductId, setAddingProductId] = useState<string | null>(null);
   const query = mode === "all" ? searchParams.get("q") ?? "" : localQuery;
 
+  const navigate = useNavigate();
+
   const addToBagMutation = useMutation({
     mutationFn: (productId: string) => addProductToCart(productId, 1),
     onSuccess: async () => {
@@ -339,16 +341,22 @@ export default function CategoryPage({ mode = "category" }: CategoryPageProps) {
   }, [allProducts, category, mode, query]);
 
   const handleAddToBag = async (product: MedicineProduct) => {
+    setAddingProductId(product.id);
+    const toastId = toast.loading("Adding to bag...");
+
     if (!isMongoId(product.id)) {
-      toast.error("This demo product is not available for cart yet");
+      toast.success(`${product.name} is ready in your order request`, { id: toastId });
+      setAddingProductId(null);
+      navigate("/request-order", {
+        state: { prefilledItem: { name: product.name, quantity: "1", notes: "" } },
+      });
       return;
     }
 
-    setAddingProductId(product.id);
-    const toastId = toast.loading("Adding to bag...");
     try {
       await addToBagMutation.mutateAsync(product.id);
       toast.success(`${product.name} added to bag`, { id: toastId });
+      navigate("/cart");
     } catch (err) {
       toast.error(getErrorMessage(err), { id: toastId });
     } finally {

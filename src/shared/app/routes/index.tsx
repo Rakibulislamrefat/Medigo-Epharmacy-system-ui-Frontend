@@ -17,6 +17,7 @@ import BranchLocationsPage from "../../../features/branchLocations/ui/BranchLoca
 import ReviewsPage from "../../../features/review/ui/ReviewsPage";
 import ContactUsPage from "../../../features/contactUs/ui/ContactUsPage";
 import RequestOrderPage from "../../../features/requestOrder/ui/RequestOrderPage";
+import CartPage from "../../../features/cart/ui/CartPage";
 import UploadPrescriptionPage from "../../../features/prescription/ui/UploadPrescriptionPage";
 import HowToOrderPage from "../../../features/howToOrder/ui/HowToOrderPage";
 import CareerPage from "../../../features/career/ui/CareerPage";
@@ -85,6 +86,10 @@ export const router = createBrowserRouter([
       {
         path: "/request-order",
         element: <RequestOrderPage />,
+      },
+      {
+        path: "/cart",
+        element: <CartPage />,
       },
       {
         path: "/order",
