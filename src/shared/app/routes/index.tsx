@@ -34,6 +34,7 @@ import AdminMedicinesPage from "../../../features/admin/ui/AdminMedicinesPage";
 import AdminOrdersPage from "../../../features/admin/ui/AdminOrdersPage";
 import AdminDoctorsPage from "../../../features/admin/ui/AdminDoctorsPage";
 import AdminConsultanciesPage from "../../../features/admin/ui/AdminConsultanciesPage";
+import PaymentResultPage from "../../../features/payment/ui/PaymentResultPage";
 
 export const router = createBrowserRouter([
   {
@@ -90,6 +91,18 @@ export const router = createBrowserRouter([
       {
         path: "/cart",
         element: <CartPage />,
+      },
+      {
+        path: "/payment/success",
+        element: <PaymentResultPage mode="success" />,
+      },
+      {
+        path: "/payment/failed",
+        element: <PaymentResultPage mode="failed" />,
+      },
+      {
+        path: "/payment/cancelled",
+        element: <PaymentResultPage mode="cancelled" />,
       },
       {
         path: "/order",

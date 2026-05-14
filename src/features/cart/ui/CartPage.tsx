@@ -11,6 +11,11 @@ import CustomButton from "../../../shared/button/CustomButton";
 import { type RootState } from "../../../redux/store";
 import { getMyCart, removeCartItem, updateCartItemQty } from "../service/cartApi";
 import {
+  buildOrderPayloadFromCart,
+  createOrder,
+  initiateSslcommerzPayment,
+} from "../../payment/service/paymentApi";
+import {
   createAddress,
   listMyAddresses,
   updateAddress,
@@ -102,6 +107,7 @@ export default function CartPage() {
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [isAddressSelectOpen, setIsAddressSelectOpen] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [isStartingPayment, setIsStartingPayment] = useState(false);
 
   const canAddAddress = !user || addresses.length < 3;
   const addressButtonLabel = user ? "Add address" : "Log in to add address";
@@ -256,7 +262,7 @@ export default function CartPage() {
     setIsAddressSelectOpen(true);
   };
 
-  const handleConfirmOrder = () => {
+  const handleConfirmOrder = async () => {
     if (!cartItems.length) return;
     if (!selectedAddressId) {
       toast.error("Please select a delivery address.");
@@ -269,17 +275,25 @@ export default function CartPage() {
       return;
     }
 
-    const prefilledItems = cartItems.map((item) => ({
-      id: item.product._id,
-      name: item.product.name,
-      quantity: String(item.qty),
-      notes: "",
-    }));
+    const toastId = toast.loading("Creating your order...");
+    setIsStartingPayment(true);
 
-    setIsAddressSelectOpen(false);
-    navigate("/request-order", {
-      state: { prefilledItems, selectedAddress },
-    });
+    try {
+      const orderPayload = buildOrderPayloadFromCart(cartItems, selectedAddress);
+      const order = await createOrder(orderPayload);
+
+      toast.loading("Opening secure payment page...", { id: toastId });
+      const payment = await initiateSslcommerzPayment(order);
+
+      if (!payment.paymentUrl) {
+        throw new Error("Payment URL was not returned.");
+      }
+
+      window.location.href = payment.paymentUrl;
+    } catch {
+      toast.error("Unable to start payment. Please try again.", { id: toastId });
+      setIsStartingPayment(false);
+    }
   };
 
   return (
@@ -829,10 +843,11 @@ export default function CartPage() {
                   variant="primary"
                   size="sm"
                   radius="full"
-                  onClick={handleConfirmOrder}
-                  disabled={!selectedAddressId}
+                  onClick={() => void handleConfirmOrder()}
+                  disabled={!selectedAddressId || isStartingPayment}
+                  loading={isStartingPayment}
                 >
-                  Continue
+                  Continue to payment
                 </CustomButton>
               </div>
             </div>
