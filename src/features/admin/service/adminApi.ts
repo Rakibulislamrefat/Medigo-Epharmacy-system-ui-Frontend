@@ -160,10 +160,19 @@ export const getAdminOrders = async (params?: {
   paymentStatus?: string;
 }): Promise<AdminPaged<AdminOrder>> => {
   const res = await api.get("/admin/orders", { params });
-  const r = res.data as { data?: AdminOrder[]; meta?: AdminListMeta };
+  const raw = res.data as unknown;
+  const payload = (raw as { data?: unknown })?.data ?? raw;
+  const meta = (raw as { meta?: AdminListMeta })?.meta ?? (payload as { meta?: AdminListMeta })?.meta;
+
+  const items = Array.isArray(payload)
+    ? (payload as AdminOrder[])
+    : Array.isArray((payload as { items?: unknown })?.items)
+    ? ((payload as { items?: AdminOrder[] }).items as AdminOrder[])
+    : [];
+
   return {
-    items: r?.data ?? [],
-    meta: r?.meta ?? { page: 1, limit: params?.limit ?? 10, total: 0, totalPages: 1 },
+    items,
+    meta: meta ?? { page: 1, limit: params?.limit ?? 10, total: 0, totalPages: 1 },
   };
 };
 

@@ -1,13 +1,35 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import { Icons } from "../../../shared/icons/Icons";
 import MainContainer from "../../../shared/main-container/MainContainer";
 import SectionContainer from "../../../shared/section-container/SectionContainer";
 import SectionHeading, { SectionParagraph } from "../../../shared/section-heading/SectionHeading";
 import CustomButton from "../../../shared/button/CustomButton";
+import { type RootState } from "../../../redux/store";
 import { getMyCart, removeCartItem, updateCartItemQty } from "../service/cartApi";
+import {
+  createAddress,
+  listMyAddresses,
+  updateAddress,
+  deleteAddress,
+  type CartAddressPayload,
+} from "../service/addressApi";
+
+const emptyAddressForm: CartAddressPayload = {
+  label: "",
+  name: "",
+  phone: "",
+  line1: "",
+  line2: "",
+  city: "",
+  state: "",
+  postcode: "",
+  country: "",
+  isDefault: false,
+};
 
 export default function CartPage() {
   const navigate = useNavigate();
@@ -39,6 +61,50 @@ export default function CartPage() {
       await qc.invalidateQueries({ queryKey: ["cart"] });
     },
   });
+
+  const createAddressMutation = useMutation({
+    mutationFn: (payload: CartAddressPayload) => createAddress(payload),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["addresses"] });
+    },
+  });
+
+  const updateAddressMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<CartAddressPayload> }) =>
+      updateAddress(id, payload),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["addresses"] });
+    },
+  });
+
+  const deleteAddressMutation = useMutation({
+    mutationFn: (id: string) => deleteAddress(id),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["addresses"] });
+    },
+  });
+
+  const user = useSelector((state: RootState) => state.user.user);
+
+  const {
+    data: addresses = [],
+    isLoading: isAddressLoading,
+  } = useQuery({
+    queryKey: ["addresses"],
+    queryFn: listMyAddresses,
+    enabled: Boolean(user),
+    retry: false,
+  });
+
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [addressForm, setAddressForm] = useState<CartAddressPayload>(emptyAddressForm);
+  const [addressErrors, setAddressErrors] = useState<Record<string, string>>({});
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
+  const [isAddressSelectOpen, setIsAddressSelectOpen] = useState(false);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+
+  const canAddAddress = !user || addresses.length < 3;
+  const addressButtonLabel = user ? "Add address" : "Log in to add address";
 
   const cartItems = cart?.items ?? [];
   const totalItems = useMemo(
@@ -77,15 +143,143 @@ export default function CartPage() {
     }
   };
 
+  const handleOpenAddressModal = () => {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+
+    if (!canAddAddress) return;
+    setAddressErrors({});
+    setAddressForm(emptyAddressForm);
+    setEditingAddressId(null);
+    setIsAddressModalOpen(true);
+  };
+
+  const handleEditAddress = (id: string) => {
+    const address = addresses.find((a) => a._id === id);
+    if (!address) return;
+
+    setAddressErrors({});
+    setAddressForm({
+      label: address.label,
+      name: address.name,
+      phone: address.phone,
+      line1: address.line1,
+      line2: address.line2 || "",
+      city: address.city,
+      state: address.state,
+      postcode: address.postcode,
+      country: address.country,
+      isDefault: address.isDefault,
+    });
+    setEditingAddressId(id);
+    setIsAddressModalOpen(true);
+  };
+
+  const setAddressField = <K extends keyof CartAddressPayload>(
+    key: K,
+    value: CartAddressPayload[K],
+  ) => {
+    setAddressForm((prev) => ({ ...prev, [key]: value }));
+    setAddressErrors((prev) => ({ ...prev, [key]: "" }));
+  };
+
+  const validateAddressForm = () => {
+    const nextErrors: Record<string, string> = {};
+    if (!addressForm.label.trim()) nextErrors.label = "Label is required";
+    if (!addressForm.name.trim()) nextErrors.name = "Name is required";
+    if (!addressForm.phone.trim()) nextErrors.phone = "Phone is required";
+    if (!addressForm.line1.trim()) nextErrors.line1 = "Address is required";
+    if (!addressForm.city.trim()) nextErrors.city = "City is required";
+    if (!addressForm.state.trim()) nextErrors.state = "State is required";
+    if (!addressForm.postcode.trim()) nextErrors.postcode = "Postcode is required";
+    if (!addressForm.country.trim()) nextErrors.country = "Country is required";
+    setAddressErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handleSaveAddress = async () => {
+    if (!validateAddressForm()) return;
+
+    const toastId = toast.loading(
+      editingAddressId ? "Updating address..." : "Saving address...",
+    );
+    try {
+      if (editingAddressId) {
+        await updateAddressMutation.mutateAsync({
+          id: editingAddressId,
+          payload: addressForm,
+        });
+        toast.success("Address updated successfully.", { id: toastId });
+      } else {
+        await createAddressMutation.mutateAsync(addressForm);
+        toast.success("Address added successfully.", { id: toastId });
+      }
+      setIsAddressModalOpen(false);
+      setEditingAddressId(null);
+    } catch (err) {
+      toast.error(
+        editingAddressId ? "Unable to update address." : "Unable to save address.",
+        { id: toastId },
+      );
+    }
+  };
+
+  const handleDeleteAddress = async (id: string) => {
+    const confirmed = window.confirm("Are you sure you want to delete this address?");
+    if (!confirmed) return;
+
+    const toastId = toast.loading("Deleting address...");
+    try {
+      await deleteAddressMutation.mutateAsync(id);
+      toast.success("Address deleted successfully.", { id: toastId });
+    } catch (err) {
+      toast.error("Unable to delete address.", { id: toastId });
+    }
+  };
+
   const handleProceedToOrder = () => {
     if (!cartItems.length) return;
+    if (isAddressLoading) {
+      toast("Loading saved addresses...");
+      return;
+    }
+
+    if (!addresses.length) {
+      toast.error("Please add a delivery address before placing your order.");
+      return;
+    }
+
+    const defaultAddress = addresses.find((address) => address.isDefault) ?? addresses[0];
+    setSelectedAddressId(defaultAddress?._id ?? null);
+    setIsAddressSelectOpen(true);
+  };
+
+  const handleConfirmOrder = () => {
+    if (!cartItems.length) return;
+    if (!selectedAddressId) {
+      toast.error("Please select a delivery address.");
+      return;
+    }
+
+    const selectedAddress = addresses.find((address) => address._id === selectedAddressId);
+    if (!selectedAddress) {
+      toast.error("Selected address is invalid.");
+      return;
+    }
+
     const prefilledItems = cartItems.map((item) => ({
       id: item.product._id,
       name: item.product.name,
       quantity: String(item.qty),
       notes: "",
     }));
-    navigate("/request-order", { state: { prefilledItems } });
+
+    setIsAddressSelectOpen(false);
+    navigate("/request-order", {
+      state: { prefilledItems, selectedAddress },
+    });
   };
 
   return (
@@ -263,7 +457,7 @@ export default function CartPage() {
                   disabled={!cartItems.length}
                   onClick={handleProceedToOrder}
                 >
-                  Continue to request order
+                  Order Now
                 </CustomButton>
                 <NavLink to="/shop">
                   <CustomButton variant="outline" size="sm" radius="full" fullWidth>
@@ -275,22 +469,375 @@ export default function CartPage() {
 
             {cartItems.length > 0 && (
               <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Need help?
-                </p>
-                <p className="mt-3 text-sm text-slate-600">
-                  If you have a prescription or need assistance selecting the right medicine, our support team is ready to help.
-                </p>
-                <NavLink to="/contact-us">
-                  <CustomButton variant="outline" size="sm" radius="full" fullWidth>
-                    Contact support
-                  </CustomButton>
-                </NavLink>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Delivery address
+                    </p>
+                    <p className="mt-2 text-sm text-slate-600">
+                      {addresses.length > 0
+                        ? "Your saved delivery address(es)."
+                        : "Add a delivery address to save it for future orders."}
+                    </p>
+                  </div>
+                  {canAddAddress && (
+                    <CustomButton
+                      variant="outline"
+                      size="xs"
+                      radius="full"
+                      onClick={handleOpenAddressModal}
+                    >
+                      {addressButtonLabel}
+                    </CustomButton>
+                  )}
+                </div>
+
+                {isAddressLoading ? (
+                  <div className="mt-4 rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-slate-600">
+                    Loading addresses...
+                  </div>
+                ) : addresses.length > 0 ? (
+                  <div className="mt-4 space-y-3">
+                    {addresses.map((address) => (
+                      <div
+                        key={address._id ?? `${address.label}-${address.line1}`}
+                        className="rounded-2xl border border-gray-100 bg-gray-50 p-4"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-dark">{address.label}</p>
+                            <p className="text-xs text-slate-600 mt-1">{address.name}</p>
+                            <p className="text-xs text-slate-600">{address.phone}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {address.isDefault && (
+                              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600 whitespace-nowrap">
+                                Default
+                              </span>
+                            )}
+                            <button
+                              onClick={() => handleEditAddress(address._id)}
+                              className="rounded-full p-2 text-slate-500 hover:bg-blue-100 hover:text-blue-600 transition"
+                              title="Edit address"
+                            >
+                              <Icons.Edit className="w-4! h-4!" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAddress(address._id)}
+                              className="rounded-full p-2 text-slate-500 hover:bg-red-100 hover:text-red-600 transition"
+                              title="Delete address"
+                            >
+                              <Icons.Trash className="w-4! h-4!" />
+                            </button>
+                          </div>
+                        </div>
+                        <p className="mt-3 text-sm text-slate-700">{address.line1}</p>
+                        {address.line2 && (
+                          <p className="text-sm text-slate-700">{address.line2}</p>
+                        )}
+                        <p className="text-sm text-slate-700">
+                          {address.city}, {address.state} {address.postcode}
+                        </p>
+                        <p className="text-sm text-slate-700">{address.country}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-slate-600">
+                    No saved addresses yet.
+                  </div>
+                )}
               </div>
             )}
           </aside>
         </div>
-      </MainContainer>
+
+        {isAddressModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+            <div
+              className="absolute inset-0"
+              onClick={() => setIsAddressModalOpen(false)}
+            />
+            <div className="relative w-full max-w-2xl rounded-[2rem] bg-white shadow-2xl ring-1 ring-black/10 overflow-hidden">
+              <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                <div>
+                  <p className="text-lg font-semibold text-dark">
+                    {editingAddressId ? "Edit delivery address" : "Add delivery address"}
+                  </p>
+                  <p className="text-sm text-slate-500 mt-1">
+                    {editingAddressId
+                      ? "Update your address details."
+                      : "Save an address for future orders."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddressModalOpen(false);
+                    setEditingAddressId(null);
+                  }}
+                  className="rounded-full p-2 text-slate-500 hover:bg-gray-100 transition"
+                >
+                  <Icons.Close className="!w-4 !h-4" />
+                </button>
+              </div>
+
+              <div className="px-6 py-5 space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700">Label</label>
+                    <input
+                      value={addressForm.label}
+                      onChange={(e) => setAddressField("label", e.target.value)}
+                      className="mt-2 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      placeholder="Home, Office, Parents"
+                    />
+                    {addressErrors.label && (
+                      <p className="mt-1 text-xs text-red-600">{addressErrors.label}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700">Name</label>
+                    <input
+                      value={addressForm.name}
+                      onChange={(e) => setAddressField("name", e.target.value)}
+                      className="mt-2 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      placeholder="Your full name"
+                    />
+                    {addressErrors.name && (
+                      <p className="mt-1 text-xs text-red-600">{addressErrors.name}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Phone</label>
+                  <input
+                    value={addressForm.phone}
+                    onChange={(e) => setAddressField("phone", e.target.value)}
+                    className="mt-2 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    placeholder="Phone number"
+                  />
+                  {addressErrors.phone && (
+                    <p className="mt-1 text-xs text-red-600">{addressErrors.phone}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Address line 1</label>
+                  <input
+                    value={addressForm.line1}
+                    onChange={(e) => setAddressField("line1", e.target.value)}
+                    className="mt-2 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    placeholder="Street address, house number"
+                  />
+                  {addressErrors.line1 && (
+                    <p className="mt-1 text-xs text-red-600">{addressErrors.line1}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-slate-700">Address line 2</label>
+                  <input
+                    value={addressForm.line2}
+                    onChange={(e) => setAddressField("line2", e.target.value)}
+                    className="mt-2 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    placeholder="Apartment, suite, unit, building (optional)"
+                  />
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700">City</label>
+                    <input
+                      value={addressForm.city}
+                      onChange={(e) => setAddressField("city", e.target.value)}
+                      className="mt-2 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      placeholder="City"
+                    />
+                    {addressErrors.city && (
+                      <p className="mt-1 text-xs text-red-600">{addressErrors.city}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700">State</label>
+                    <input
+                      value={addressForm.state}
+                      onChange={(e) => setAddressField("state", e.target.value)}
+                      className="mt-2 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      placeholder="State"
+                    />
+                    {addressErrors.state && (
+                      <p className="mt-1 text-xs text-red-600">{addressErrors.state}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700">Postcode</label>
+                    <input
+                      value={addressForm.postcode}
+                      onChange={(e) => setAddressField("postcode", e.target.value)}
+                      className="mt-2 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      placeholder="Postal code"
+                    />
+                    {addressErrors.postcode && (
+                      <p className="mt-1 text-xs text-red-600">{addressErrors.postcode}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700">Country</label>
+                    <input
+                      value={addressForm.country}
+                      onChange={(e) => setAddressField("country", e.target.value)}
+                      className="mt-2 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      placeholder="Country"
+                    />
+                    {addressErrors.country && (
+                      <p className="mt-1 text-xs text-red-600">{addressErrors.country}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input
+                    id="defaultAddress"
+                    type="checkbox"
+                    checked={addressForm.isDefault}
+                    onChange={(e) => setAddressField("isDefault", e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <label htmlFor="defaultAddress" className="text-sm text-slate-700">
+                    Set as default address
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 border-t border-gray-100 bg-gray-50 px-6 py-4 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsAddressModalOpen(false)}
+                  className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <CustomButton
+                  variant="primary"
+                  size="sm"
+                  radius="full"
+                  onClick={handleSaveAddress}
+                >
+                  {editingAddressId ? "Update address" : "Save address"}
+                </CustomButton>
+              </div>
+            </div>
+          </div>
+        )}
+        {isAddressSelectOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+            <div className="absolute inset-0" onClick={() => setIsAddressSelectOpen(false)} />
+            <div className="relative w-full max-w-2xl rounded-[2rem] bg-white shadow-2xl ring-1 ring-black/10 overflow-hidden">
+              <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                <div>
+                  <p className="text-lg font-semibold text-dark">Select delivery address</p>
+                  <p className="text-sm text-slate-500 mt-1">Choose the address to use for this order.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAddressSelectOpen(false)}
+                  className="rounded-full p-2 text-slate-500 hover:bg-gray-100 transition"
+                >
+                  <Icons.Close className="!w-4 !h-4" />
+                </button>
+              </div>
+
+              <div className="px-6 py-5 space-y-4">
+                {isAddressLoading ? (
+                  <p className="text-sm text-slate-500">Loading addresses...</p>
+                ) : addresses.length ? (
+                  addresses.map((address) => (
+                    <label
+                      key={address._id}
+                      className={`group block cursor-pointer rounded-2xl border p-4 transition ${
+                        selectedAddressId === address._id
+                          ? "border-primary bg-primary/10"
+                          : "border-gray-200 bg-white hover:border-primary/80"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="selectedAddress"
+                        value={address._id}
+                        checked={selectedAddressId === address._id}
+                        onChange={() => setSelectedAddressId(address._id)}
+                        className="sr-only"
+                      />
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-dark">{address.label}</p>
+                              <p className="text-xs text-slate-600 mt-1">{address.name}</p>
+                              <p className="text-xs text-slate-600">{address.phone}</p>
+                            </div>
+                            {address.isDefault && (
+                              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600">
+                                Default
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-3 text-sm text-slate-700">{address.line1}</p>
+                          {address.line2 && (
+                            <p className="text-sm text-slate-700">{address.line2}</p>
+                          )}
+                          <p className="text-sm text-slate-700">
+                            {address.city}, {address.state} {address.postcode}
+                          </p>
+                          <p className="text-sm text-slate-700">{address.country}</p>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <span
+                            className={`inline-flex h-5 w-5 items-center justify-center rounded-full border ${
+                              selectedAddressId === address._id
+                                ? "border-primary bg-primary text-white"
+                                : "border-gray-300 bg-white"
+                            }`}
+                          >
+                            {selectedAddressId === address._id ? (
+                              <Icons.Check className="!w-4 !h-4" />
+                            ) : null}
+                          </span>
+                        </div>
+                      </div>
+                    </label>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-500">No saved addresses available. Add an address first.</p>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3 border-t border-gray-100 bg-gray-50 px-6 py-4 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsAddressSelectOpen(false)}
+                  className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-gray-100"
+                >
+                  Back
+                </button>
+                <CustomButton
+                  variant="primary"
+                  size="sm"
+                  radius="full"
+                  onClick={handleConfirmOrder}
+                  disabled={!selectedAddressId}
+                >
+                  Continue
+                </CustomButton>
+              </div>
+            </div>
+          </div>
+        )}      </MainContainer>
     </SectionContainer>
   );
 }

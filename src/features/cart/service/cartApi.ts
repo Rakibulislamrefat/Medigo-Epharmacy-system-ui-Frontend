@@ -47,3 +47,8 @@ export const removeCartItem = async (productId: string): Promise<Cart> => {
   const res = await api.delete(`/carts/me/items/${productId}`);
   return unwrap<Cart>(res.data);
 };
+
+export const clearCart = async (): Promise<Cart> => {
+  const res = await api.delete("/carts/me");
+  return unwrap<Cart>(res.data);
+};
