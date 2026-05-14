@@ -2,12 +2,13 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import type { JSX } from "react";
 import type { RootState } from "../../../redux/store";
+import BuildInLoader from "../../loader/BuildInLoader";
 
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   const { user, isLoading } = useSelector((state: RootState) => state.user);
   const location = useLocation();
 
-  if (isLoading) return null;
+  if (isLoading) return <BuildInLoader />;
 
   if (!user) {
     //  Save where user came from

@@ -1,6 +1,6 @@
 import AOS from "aos";
 import "aos/dist/aos.css";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { RouterProvider } from "react-router-dom";
 import { router } from "./routes";
 import BuildInLoader from "../loader/BuildInLoader";
@@ -9,38 +9,57 @@ import { useDispatch } from "react-redux";
 import { clearUser, setAuthUser, setLoading, setToken } from "../../redux/slices/userSlice";
 import Api from "../../utilities/api";
 import { getAuthUserApi } from "../../features/login/service/loginService";
+
 export default function App() {
-  const dispatch = useDispatch()
+  const dispatch = useDispatch();
+  const [isBooting, setIsBooting] = useState(true);
+
   useEffect(() => {
     AOS.init({
       duration: 2000, // animation duration in ms
       once: true, // only animate once while scrolling
     });
   }, []);
-   useEffect(() => {
+
+  useEffect(() => {
+    let mounted = true;
+
     const initAuth = async () => {
-  try {
-    dispatch(setLoading(true));
+      dispatch(setLoading(true));
 
-    const res = await Api.post("/auth/refresh-token");
-console.log(res.data.data , "app.tsx")
-    if (!res?.data?.data?.accessToken) throw new Error();
+      try {
+        const res = await Api.post("/auth/refresh-token");
+        const accessToken = res?.data?.data?.accessToken;
 
-    dispatch(setToken(res.data.data.accessToken));
+        if (!accessToken) throw new Error("Missing access token");
 
-    const user = await getAuthUserApi();
-    // console.log(user, "app.tsx")
-    dispatch(setAuthUser(user));
+        dispatch(setToken(accessToken));
 
-  } catch {
-    dispatch(clearUser());
-  } finally {
-    dispatch(setLoading(false));
-  }
-};
+        const user = await getAuthUserApi();
+        dispatch(setAuthUser(user));
+      } catch {
+        dispatch(clearUser());
+      } finally {
+        dispatch(setLoading(false));
+        if (mounted) setIsBooting(false);
+      }
+    };
 
-    initAuth();
+    void initAuth();
+
+    return () => {
+      mounted = false;
+    };
   }, [dispatch]);
+
+  if (isBooting) {
+    return (
+      <>
+        <Toaster position="top-right" />
+        <BuildInLoader />
+      </>
+    );
+  }
 
   return (
     <Suspense fallback={<BuildInLoader/>}>

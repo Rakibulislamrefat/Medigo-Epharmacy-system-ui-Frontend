@@ -13,6 +13,7 @@ export type OrderPayload = {
   }[];
   contactName: string;
   contactPhone: string;
+  paymentMethod?: "cod" | "sslcommerz";
   deliveryAddress: {
     line1: string;
     line2?: string;
@@ -62,6 +63,7 @@ const unwrap = <T,>(data: unknown): T => {
 export const buildOrderPayloadFromCart = (
   items: CartItem[],
   address: CartAddress,
+  paymentMethod?: OrderPayload["paymentMethod"],
 ): OrderPayload => ({
   items: items.map((item) => ({
     product: item.product._id,
@@ -69,6 +71,7 @@ export const buildOrderPayloadFromCart = (
   })),
   contactName: address.name,
   contactPhone: address.phone,
+  paymentMethod,
   addressId: address._id,
   deliveryAddress: {
     line1: address.line1,

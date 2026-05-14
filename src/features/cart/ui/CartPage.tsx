@@ -106,8 +106,10 @@ export default function CartPage() {
   const [addressErrors, setAddressErrors] = useState<Record<string, string>>({});
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [isAddressSelectOpen, setIsAddressSelectOpen] = useState(false);
+  const [isPaymentSelectOpen, setIsPaymentSelectOpen] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [isStartingPayment, setIsStartingPayment] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"cod" | "online" | null>(null);
 
   const canAddAddress = !user || addresses.length < 3;
   const addressButtonLabel = user ? "Add address" : "Log in to add address";
@@ -262,16 +264,61 @@ export default function CartPage() {
     setIsAddressSelectOpen(true);
   };
 
-  const handleConfirmOrder = async () => {
+  const getSelectedAddress = () => {
+    if (!selectedAddressId) return null;
+    return addresses.find((address) => address._id === selectedAddressId) ?? null;
+  };
+
+  const handleConfirmAddress = () => {
     if (!cartItems.length) return;
     if (!selectedAddressId) {
       toast.error("Please select a delivery address.");
       return;
     }
 
-    const selectedAddress = addresses.find((address) => address._id === selectedAddressId);
+    const selectedAddress = getSelectedAddress();
     if (!selectedAddress) {
       toast.error("Selected address is invalid.");
+      return;
+    }
+
+    setIsAddressSelectOpen(false);
+    setPaymentMethod(null);
+    setIsPaymentSelectOpen(true);
+  };
+
+  const handlePlaceCodOrder = async () => {
+    if (!cartItems.length) return;
+
+    const selectedAddress = getSelectedAddress();
+    if (!selectedAddress) {
+      toast.error("Please select a delivery address.");
+      return;
+    }
+
+    const toastId = toast.loading("Placing your COD order...");
+    setIsStartingPayment(true);
+
+    try {
+      const orderPayload = buildOrderPayloadFromCart(cartItems, selectedAddress, "cod");
+      await createOrder(orderPayload);
+      await qc.invalidateQueries({ queryKey: ["cart"] });
+      toast.success("Order placed with cash on delivery.", { id: toastId });
+      setIsPaymentSelectOpen(false);
+      navigate("/order");
+    } catch {
+      toast.error("Unable to place COD order. Please try again.", { id: toastId });
+    } finally {
+      setIsStartingPayment(false);
+    }
+  };
+
+  const handleStartSslPayment = async () => {
+    if (!cartItems.length) return;
+
+    const selectedAddress = getSelectedAddress();
+    if (!selectedAddress) {
+      toast.error("Please select a delivery address.");
       return;
     }
 
@@ -279,7 +326,7 @@ export default function CartPage() {
     setIsStartingPayment(true);
 
     try {
-      const orderPayload = buildOrderPayloadFromCart(cartItems, selectedAddress);
+      const orderPayload = buildOrderPayloadFromCart(cartItems, selectedAddress, "sslcommerz");
       const order = await createOrder(orderPayload);
 
       toast.loading("Opening secure payment page...", { id: toastId });
@@ -843,16 +890,145 @@ export default function CartPage() {
                   variant="primary"
                   size="sm"
                   radius="full"
-                  onClick={() => void handleConfirmOrder()}
+                  onClick={handleConfirmAddress}
                   disabled={!selectedAddressId || isStartingPayment}
-                  loading={isStartingPayment}
                 >
-                  Continue to payment
+                  Continue
                 </CustomButton>
               </div>
             </div>
           </div>
-        )}      </MainContainer>
+        )}
+        {isPaymentSelectOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+            <div
+              className="absolute inset-0"
+              onClick={() => {
+                if (!isStartingPayment) setIsPaymentSelectOpen(false);
+              }}
+            />
+            <div className="relative w-full max-w-2xl rounded-[2rem] bg-white shadow-2xl ring-1 ring-black/10 overflow-hidden">
+              <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                <div>
+                  <p className="text-lg font-semibold text-dark">Choose payment method</p>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Select cash on delivery or pay securely through SSLCommerz.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isStartingPayment}
+                  onClick={() => setIsPaymentSelectOpen(false)}
+                  className="rounded-full p-2 text-slate-500 hover:bg-gray-100 transition disabled:opacity-50"
+                >
+                  <Icons.Close className="!w-4 !h-4" />
+                </button>
+              </div>
+
+              <div className="px-6 py-5 space-y-4">
+                <button
+                  type="button"
+                  disabled={isStartingPayment}
+                  onClick={() => setPaymentMethod("cod")}
+                  className={`w-full rounded-2xl border p-4 text-left transition disabled:opacity-50 ${
+                    paymentMethod === "cod"
+                      ? "border-primary bg-primary/10"
+                      : "border-gray-200 bg-white hover:border-primary/80"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-black text-dark">Cash on delivery</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Place the order now and pay when your medicines are delivered.
+                      </p>
+                    </div>
+                    <span
+                      className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                        paymentMethod === "cod"
+                          ? "border-primary bg-primary text-white"
+                          : "border-gray-300 bg-white"
+                      }`}
+                    >
+                      {paymentMethod === "cod" ? <Icons.Check className="!w-4 !h-4" /> : null}
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isStartingPayment}
+                  onClick={() => setPaymentMethod("online")}
+                  className={`w-full rounded-2xl border p-4 text-left transition disabled:opacity-50 ${
+                    paymentMethod === "online"
+                      ? "border-primary bg-primary/10"
+                      : "border-gray-200 bg-white hover:border-primary/80"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-black text-dark">Online payment</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Pay now using the secure SSLCommerz payment page.
+                      </p>
+                    </div>
+                    <span
+                      className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                        paymentMethod === "online"
+                          ? "border-primary bg-primary text-white"
+                          : "border-gray-300 bg-white"
+                      }`}
+                    >
+                      {paymentMethod === "online" ? <Icons.Check className="!w-4 !h-4" /> : null}
+                    </span>
+                  </div>
+                </button>
+
+                {paymentMethod === "online" && (
+                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">
+                      Payment gateway
+                    </p>
+                    <button
+                      type="button"
+                      disabled={isStartingPayment}
+                      onClick={() => void handleStartSslPayment()}
+                      className="mt-3 flex w-full items-center justify-between rounded-xl border border-primary/20 bg-white px-4 py-3 text-left text-sm font-black text-dark hover:border-primary disabled:opacity-50"
+                    >
+                      <span>SSLCommerz</span>
+                      <Icons.ArrowForward className="!w-4 !h-4 text-primary" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3 border-t border-gray-100 bg-gray-50 px-6 py-4 sm:flex-row sm:justify-between">
+                <button
+                  type="button"
+                  disabled={isStartingPayment}
+                  onClick={() => {
+                    setIsPaymentSelectOpen(false);
+                    setIsAddressSelectOpen(true);
+                  }}
+                  className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-gray-100 disabled:opacity-50"
+                >
+                  Back to address
+                </button>
+                <CustomButton
+                  variant="primary"
+                  size="sm"
+                  radius="full"
+                  onClick={() => void handlePlaceCodOrder()}
+                  disabled={paymentMethod !== "cod" || isStartingPayment}
+                  loading={paymentMethod === "cod" && isStartingPayment}
+                >
+                  Place COD order
+                </CustomButton>
+              </div>
+            </div>
+          </div>
+        )}
+      </MainContainer>
     </SectionContainer>
   );
 }
