@@ -88,6 +88,13 @@ export type AdminListMeta = {
   userId?: string;
 };
 
+type AdminPagination = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
 export type AdminPaged<T> = {
   items: T[];
   meta: AdminListMeta;
@@ -162,7 +169,11 @@ export const getAdminOrders = async (params?: {
   const res = await api.get("/admin/orders", { params });
   const raw = res.data as unknown;
   const payload = (raw as { data?: unknown })?.data ?? raw;
-  const meta = (raw as { meta?: AdminListMeta })?.meta ?? (payload as { meta?: AdminListMeta })?.meta;
+  const pagination =
+    (payload as { pagination?: AdminPagination })?.pagination ??
+    (payload as { meta?: AdminPagination })?.meta ??
+    (raw as { pagination?: AdminPagination })?.pagination ??
+    (raw as { meta?: AdminPagination })?.meta;
 
   const items = Array.isArray(payload)
     ? (payload as AdminOrder[])
@@ -172,7 +183,7 @@ export const getAdminOrders = async (params?: {
 
   return {
     items,
-    meta: meta ?? { page: 1, limit: params?.limit ?? 10, total: 0, totalPages: 1 },
+    meta: pagination ?? { page: 1, limit: params?.limit ?? 10, total: items.length, totalPages: 1 },
   };
 };
 
