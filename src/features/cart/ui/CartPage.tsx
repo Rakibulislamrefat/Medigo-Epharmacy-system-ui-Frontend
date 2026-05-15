@@ -22,6 +22,7 @@ import {
   deleteAddress,
   type CartAddressPayload,
 } from "../service/addressApi";
+import { getFrontendConfig } from "../../../config/frontend";
 
 const emptyAddressForm: CartAddressPayload = {
   label: "",
@@ -110,6 +111,7 @@ export default function CartPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [isStartingPayment, setIsStartingPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "online" | null>(null);
+  const isSslcommerzEnabled = getFrontendConfig().features.sslcommerz;
 
   const canAddAddress = !user || addresses.length < 3;
   const addressButtonLabel = user ? "Add address" : "Log in to add address";
@@ -315,6 +317,11 @@ export default function CartPage() {
 
   const handleStartSslPayment = async () => {
     if (!cartItems.length) return;
+
+    if (!isSslcommerzEnabled) {
+      toast.error("Online payment is unavailable right now.");
+      return;
+    }
 
     const selectedAddress = getSelectedAddress();
     if (!selectedAddress) {
@@ -912,7 +919,9 @@ export default function CartPage() {
                 <div>
                   <p className="text-lg font-semibold text-dark">Choose payment method</p>
                   <p className="text-sm text-slate-500 mt-1">
-                    Select cash on delivery or pay securely through SSLCommerz.
+                    {isSslcommerzEnabled
+                      ? "Select cash on delivery or pay securely through SSLCommerz."
+                      : "Select cash on delivery for this order."}
                   </p>
                 </div>
                 <button
@@ -955,36 +964,38 @@ export default function CartPage() {
                   </div>
                 </button>
 
-                <button
-                  type="button"
-                  disabled={isStartingPayment}
-                  onClick={() => setPaymentMethod("online")}
-                  className={`w-full rounded-2xl border p-4 text-left transition disabled:opacity-50 ${
-                    paymentMethod === "online"
-                      ? "border-primary bg-primary/10"
-                      : "border-gray-200 bg-white hover:border-primary/80"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-black text-dark">Online payment</p>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Pay now using the secure SSLCommerz payment page.
-                      </p>
+                {isSslcommerzEnabled && (
+                  <button
+                    type="button"
+                    disabled={isStartingPayment}
+                    onClick={() => setPaymentMethod("online")}
+                    className={`w-full rounded-2xl border p-4 text-left transition disabled:opacity-50 ${
+                      paymentMethod === "online"
+                        ? "border-primary bg-primary/10"
+                        : "border-gray-200 bg-white hover:border-primary/80"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-black text-dark">Online payment</p>
+                        <p className="mt-1 text-sm text-slate-600">
+                          Pay now using the secure SSLCommerz payment page.
+                        </p>
+                      </div>
+                      <span
+                        className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                          paymentMethod === "online"
+                            ? "border-primary bg-primary text-white"
+                            : "border-gray-300 bg-white"
+                        }`}
+                      >
+                        {paymentMethod === "online" ? <Icons.Check className="!w-4 !h-4" /> : null}
+                      </span>
                     </div>
-                    <span
-                      className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                        paymentMethod === "online"
-                          ? "border-primary bg-primary text-white"
-                          : "border-gray-300 bg-white"
-                      }`}
-                    >
-                      {paymentMethod === "online" ? <Icons.Check className="!w-4 !h-4" /> : null}
-                    </span>
-                  </div>
-                </button>
+                  </button>
+                )}
 
-                {paymentMethod === "online" && (
+                {isSslcommerzEnabled && paymentMethod === "online" && (
                   <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
                     <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">
                       Payment gateway

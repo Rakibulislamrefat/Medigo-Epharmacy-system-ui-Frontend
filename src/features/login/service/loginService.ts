@@ -1,5 +1,6 @@
 import api from "../../../utilities/api";
 import { type IReduxUser } from "../../../redux/slices/userSlice";
+import { getFrontendConfig } from "../../../config/frontend";
 
 // ── Types ──────────────────────────────────────────────────
 export interface LoginPayload {
@@ -22,7 +23,7 @@ export interface AuthResponse {
 
 // POST /api/auth/login
 export const loginApi = async (data: LoginPayload): Promise<AuthResponse> => {
-  const res = await api.post("/auth/login", data);
+  const res = await api.post(getFrontendConfig().endpoints.auth.login, data);
   return res.data;
 };
 

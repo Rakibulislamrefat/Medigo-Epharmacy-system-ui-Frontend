@@ -1,11 +1,17 @@
-const server = import.meta.env.VITE_SERVER_URL as string;
-const client = import.meta.env.VITE_CLIENT_URL as string;
-const api = import.meta.env.VITE_API_URL as string;
+import { getFrontendConfig } from "../config/frontend";
 
-const Path: { server: string; client: string; api: string } = {
-  server,
-  client,
-  api,
+const backendBaseUrl = (apiBaseUrl: string) => apiBaseUrl.replace(/\/api(\/.*)?$/, "");
+
+const Path: { readonly server: string; readonly client: string; readonly api: string } = {
+  get server() {
+    return backendBaseUrl(getFrontendConfig().apiBaseUrl);
+  },
+  get client() {
+    return getFrontendConfig().frontendUrl;
+  },
+  get api() {
+    return getFrontendConfig().apiBaseUrl;
+  },
 };
 
 export default Path;

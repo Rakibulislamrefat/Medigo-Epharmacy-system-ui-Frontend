@@ -2,6 +2,7 @@ import axios from "axios";
 import api from "../../../utilities/api";
 import type { CartItem } from "../../cart/service/cartApi";
 import type { CartAddress } from "../../cart/service/addressApi";
+import { getFrontendConfig } from "../../../config/frontend";
 
 type ApiEnvelope<T> = {
   data?: T;
@@ -32,6 +33,7 @@ export type PaymentOrder = {
   contactPhone?: string;
   deliveryAddress?: OrderPayload["deliveryAddress"];
   orderNumber?: string;
+  status?: string;
   paymentStatus?: string;
   grandTotal?: number;
 };
@@ -56,9 +58,56 @@ export type PaymentValidation = {
   };
 };
 
+export type OrderTrackingStep = {
+  status: string;
+  completed: boolean;
+  current: boolean;
+  timestamp: string | null;
+};
+
+export type OrderTrackingDetails = {
+  orderId: string;
+  orderNumber?: string;
+  status?: string;
+  paymentStatus?: string;
+  placedAt?: string;
+  lastUpdatedAt?: string;
+  estimatedDelivery?: string | null;
+  timeline: OrderTrackingStep[];
+  deliveryAddress?: OrderPayload["deliveryAddress"];
+  contactPhone?: string;
+  items?: {
+    product?: {
+      _id?: string;
+      name?: string;
+    };
+    nameSnapshot?: string;
+    unitPrice?: number;
+    qty?: number;
+    lineTotal?: number;
+  }[];
+  totals?: {
+    subtotal?: number;
+    discountTotal?: number;
+    deliveryFee?: number;
+    grandTotal?: number;
+  };
+};
+
 const unwrap = <T,>(data: unknown): T => {
   const response = data as ApiEnvelope<T>;
   return response?.data ?? (data as T);
+};
+
+const buildTrackingEndpoint = (idOrNumber: string) => {
+  const encodedId = encodeURIComponent(idOrNumber);
+  const configuredPath = getFrontendConfig().endpoints.orders.tracking;
+
+  if (configuredPath.includes(":idOrNumber")) {
+    return configuredPath.replace(":idOrNumber", encodedId);
+  }
+
+  return `/orders/${encodedId}/tracking`;
 };
 
 export const buildOrderPayloadFromCart = (
@@ -92,7 +141,7 @@ export const createOrder = async (payload: OrderPayload): Promise<PaymentOrder> 
 export const initiateSslcommerzPayment = async (
   order: PaymentOrder,
 ): Promise<PaymentInitiation> => {
-  const res = await api.post("/sslcommerz/initiate", {
+  const res = await api.post(getFrontendConfig().endpoints.payments.sslcommerzInitiate, {
     orderId: order._id,
     customerInfo: {
       name: order.contactName,
@@ -113,18 +162,32 @@ export const validateSslcommerzPayment = async (
   return unwrap<PaymentValidation>(res.data);
 };
 
+const unwrapArray = <T>(data: unknown): T[] => {
+  const payload = (data as { data?: unknown })?.data ?? data;
+  const items = Array.isArray(payload)
+    ? payload
+    : (payload as { items?: unknown })?.items ?? [];
+
+  return Array.isArray(items) ? (items as T[]) : [];
+};
+
 export const getMyOrders = async (): Promise<PaymentOrder[]> => {
   try {
     const res = await api.get("/orders/me");
-    const orders = unwrap<PaymentOrder[]>(res.data);
-    return Array.isArray(orders) ? orders : [];
+    return unwrapArray<PaymentOrder>(res.data);
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 404) {
       const fallbackRes = await api.get("/orders");
-      const fallbackOrders = unwrap<PaymentOrder[]>(fallbackRes.data);
-      return Array.isArray(fallbackOrders) ? fallbackOrders : [];
+      return unwrapArray<PaymentOrder>(fallbackRes.data);
     }
 
     throw error;
   }
+};
+
+export const getOrderTracking = async (
+  idOrNumber: string,
+): Promise<OrderTrackingDetails> => {
+  const res = await api.get(buildTrackingEndpoint(idOrNumber));
+  return unwrap<OrderTrackingDetails>(res.data);
 };

@@ -3,23 +3,28 @@ import Path from "./paths";
 import { store } from "../redux/store";
 import { setToken, clearUser } from "../redux/slices/userSlice";
 
+const getRefreshBaseURL = () => Path.server || Path.api.replace(/\/api(\/.*)?$/, "");
+
 const Api = axios.create({
   baseURL: Path.api,
-  withCredentials: true, 
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-const refreshBaseURL = Path.server || Path.api.replace(/\/api(\/.*)?$/, "");
-
-const RefreshApi = axios.create({
-  baseURL: refreshBaseURL,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
 });
+
+const RefreshApi = axios.create({
+  baseURL: getRefreshBaseURL(),
+  withCredentials: true,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+export const syncApiWithFrontendConfig = () => {
+  Api.defaults.baseURL = Path.api;
+  RefreshApi.defaults.baseURL = getRefreshBaseURL();
+};
 
 let refreshPromise: Promise<string> | null = null;
 

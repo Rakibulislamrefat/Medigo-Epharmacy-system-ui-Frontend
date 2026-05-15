@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import CustomButton from "../../../shared/button/CustomButton";
 import { Icons } from "../../../shared/icons/Icons";
 import MainContainer from "../../../shared/main-container/MainContainer";
@@ -89,6 +90,7 @@ const ReviewCard = ({ item }: { item: ReviewItem }) => {
 };
 
 const ReviewsPage = () => {
+  const navigate = useNavigate();
   const [rating, setRating] = useState<"All" | 5 | 4 | 3 | 2 | 1>("All");
 
   const summary = useMemo(() => {
@@ -139,7 +141,12 @@ const ReviewsPage = () => {
               </div>
             </div>
 
-            <CustomButton variant="primary" size="sm" radius="xs">
+            <CustomButton
+              variant="primary"
+              size="sm"
+              radius="xs"
+              onClick={() => navigate("/write-review")}
+            >
               Write a Review
             </CustomButton>
           </div>

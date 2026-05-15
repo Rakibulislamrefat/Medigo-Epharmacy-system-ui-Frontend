@@ -194,6 +194,16 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
               My Profile
             </NavLink>
 
+            <NavLink
+              to="/order-history"
+              onClick={() => setDropdownOpen(false)}
+              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-dark
+                hover:bg-gray-50 hover:text-primary transition-colors"
+            >
+              <Icons.Cart className="!w-4 !h-4" />
+              My Orders
+            </NavLink>
+
             {isDonor && (
               <NavLink
                 to="/my-donations"

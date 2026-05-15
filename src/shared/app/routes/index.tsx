@@ -37,6 +37,7 @@ import AdminConsultanciesPage from "../../../features/admin/ui/AdminConsultancie
 import OrderConfirmationPage from "../../../features/payment/ui/OrderConfirmationPage";
 import OrderHistoryPage from "../../../features/orderHistory/ui/OrderHistoryPage";
 import PaymentResultPage from "../../../features/payment/ui/PaymentResultPage";
+import WriteReviewPage from "../../../features/review/ui/WriteReviewPage";
 
 export const router = createBrowserRouter([
   {
@@ -65,6 +66,14 @@ export const router = createBrowserRouter([
       {
         path: "/review",
         element: <ReviewsPage />,
+      },
+      {
+        path: "/write-review",
+        element: (
+          <ProtectedRoute>
+            <WriteReviewPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "/contact-us",
