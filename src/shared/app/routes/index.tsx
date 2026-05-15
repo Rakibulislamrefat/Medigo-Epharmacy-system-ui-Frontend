@@ -34,6 +34,8 @@ import AdminMedicinesPage from "../../../features/admin/ui/AdminMedicinesPage";
 import AdminOrdersPage from "../../../features/admin/ui/AdminOrdersPage";
 import AdminDoctorsPage from "../../../features/admin/ui/AdminDoctorsPage";
 import AdminConsultanciesPage from "../../../features/admin/ui/AdminConsultanciesPage";
+import OrderConfirmationPage from "../../../features/payment/ui/OrderConfirmationPage";
+import OrderHistoryPage from "../../../features/orderHistory/ui/OrderHistoryPage";
 import PaymentResultPage from "../../../features/payment/ui/PaymentResultPage";
 
 export const router = createBrowserRouter([
@@ -103,6 +105,14 @@ export const router = createBrowserRouter([
       {
         path: "/payment/cancelled",
         element: <PaymentResultPage mode="cancelled" />,
+      },
+      {
+        path: "/order/confirmation",
+        element: <OrderConfirmationPage />,
+      },
+      {
+        path: "/order-history",
+        element: <OrderHistoryPage />,
       },
       {
         path: "/order",

@@ -1,3 +1,4 @@
+import axios from "axios";
 import api from "../../../utilities/api";
 import type { CartItem } from "../../cart/service/cartApi";
 import type { CartAddress } from "../../cart/service/addressApi";
@@ -110,4 +111,20 @@ export const validateSslcommerzPayment = async (
 ): Promise<PaymentValidation> => {
   const res = await api.get(`/sslcommerz/validate/${transactionId}`);
   return unwrap<PaymentValidation>(res.data);
+};
+
+export const getMyOrders = async (): Promise<PaymentOrder[]> => {
+  try {
+    const res = await api.get("/orders/me");
+    const orders = unwrap<PaymentOrder[]>(res.data);
+    return Array.isArray(orders) ? orders : [];
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      const fallbackRes = await api.get("/orders");
+      const fallbackOrders = unwrap<PaymentOrder[]>(fallbackRes.data);
+      return Array.isArray(fallbackOrders) ? fallbackOrders : [];
+    }
+
+    throw error;
+  }
 };

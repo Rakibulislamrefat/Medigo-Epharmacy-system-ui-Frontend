@@ -13,6 +13,8 @@ type OrderItem = {
   name: string;
   quantity: string;
   notes: string;
+  imageUrl?: string;
+  price?: number;
 };
 
 type RequestOrderForm = {
@@ -47,8 +49,8 @@ export default function RequestOrderPage() {
   const initialItems = (() => {
     const state = routerLocation.state as
       | {
-          prefilledItem?: { name: string; quantity?: string; notes?: string };
-          prefilledItems?: { name: string; quantity?: string; notes?: string }[];
+          prefilledItem?: { name: string; quantity?: string; notes?: string; imageUrl?: string; price?: number };
+          prefilledItems?: { name: string; quantity?: string; notes?: string; imageUrl?: string; price?: number }[];
         }
       | null;
 
@@ -58,6 +60,8 @@ export default function RequestOrderPage() {
         name: item.name,
         quantity: item.quantity ?? "1",
         notes: item.notes ?? "",
+        imageUrl: item.imageUrl,
+        price: item.price,
       }));
     }
 
@@ -68,6 +72,8 @@ export default function RequestOrderPage() {
           name: state.prefilledItem.name,
           quantity: state.prefilledItem.quantity ?? "1",
           notes: state.prefilledItem.notes ?? "",
+          imageUrl: state.prefilledItem.imageUrl,
+          price: state.prefilledItem.price,
         },
       ];
     }
@@ -550,23 +556,52 @@ export default function RequestOrderPage() {
                     {form.items.map((it, index) => (
                       <div
                         key={it.id}
-                        className="bg-white rounded-xl border border-gray-100 p-4"
+                        className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition hover:border-primary/25 hover:shadow-md"
                       >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <p className="text-sm font-black text-dark">
-                            Item {index + 1}
-                          </p>
+                        <div className="flex flex-col gap-4 border-b border-gray-100 bg-white p-4 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="flex items-start gap-3">
+                            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-gray-50 center-flex">
+                              {it.imageUrl ? (
+                                <img
+                                  src={it.imageUrl}
+                                  alt={it.name || `Medicine item ${index + 1}`}
+                                  className="h-full w-full object-contain p-2"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <Icons.Pill className="!h-8 !w-8 text-primary" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xxs font-black uppercase tracking-[0.2em] text-primary">
+                                Medicine item {index + 1}
+                              </p>
+                              <p className="mt-1 break-words text-sm font-black text-dark">
+                                {it.name.trim() || "Add medicine name"}
+                              </p>
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <span className="rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-xs font-semibold text-primary">
+                                  Qty {Number(it.quantity || 0) || 1}
+                                </span>
+                                {typeof it.price === "number" && (
+                                  <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                                    ৳{it.price}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                           <button
                             type="button"
                             onClick={() => removeItem(it.id)}
-                            className="inline-flex items-center gap-2 text-xs font-semibold text-danger hover:bg-danger/5 border border-danger/20 px-3 py-2 rounded-full transition-colors self-start sm:self-auto"
+                            className="inline-flex items-center gap-2 self-start rounded-full border border-danger/20 px-3 py-2 text-xs font-semibold text-danger transition-colors hover:bg-danger/5"
                           >
                             <Icons.Trash className="!w-4 !h-4" />
                             Remove
                           </button>
                         </div>
 
-                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-3">
+                        <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                           <div>
                             <label className="block text-xs font-semibold text-slate-600 mb-1">
                               Medicine name
@@ -597,7 +632,7 @@ export default function RequestOrderPage() {
                           </div>
                         </div>
 
-                        <div className="mt-3">
+                        <div className="px-4 pb-4">
                           <label className="block text-xs font-semibold text-slate-600 mb-1">
                             Notes (optional)
                           </label>

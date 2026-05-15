@@ -78,6 +78,7 @@ export default function PaymentResultPage({ mode }: PaymentResultPageProps) {
 
   const transactionStatus = result?.transaction?.status;
   const paymentStatus = result?.order?.paymentStatus;
+  const orderInfo = result?.order;
 
   return (
     <SectionContainer>
@@ -107,20 +108,49 @@ export default function PaymentResultPage({ mode }: PaymentResultPageProps) {
           )}
 
           {!loading && !error && result && (
-            <div className="mt-6 grid gap-3 text-left sm:grid-cols-2">
-              <div className={`rounded-xl border p-4 ${statusClass(transactionStatus)}`}>
-                <p className="text-xs font-black uppercase tracking-[0.18em]">Transaction</p>
-                <p className="mt-2 text-lg font-black capitalize">
-                  {transactionStatus || "Unknown"}
-                </p>
+            <>
+              <div className="mt-6 grid gap-3 text-left sm:grid-cols-2">
+                <div className={`rounded-xl border p-4 ${statusClass(transactionStatus)}`}>
+                  <p className="text-xs font-black uppercase tracking-[0.18em]">Transaction</p>
+                  <p className="mt-2 text-lg font-black capitalize">
+                    {transactionStatus || "Unknown"}
+                  </p>
+                </div>
+                <div className={`rounded-xl border p-4 ${statusClass(paymentStatus)}`}>
+                  <p className="text-xs font-black uppercase tracking-[0.18em]">Order payment</p>
+                  <p className="mt-2 text-lg font-black capitalize">
+                    {paymentStatus || "Unknown"}
+                  </p>
+                </div>
               </div>
-              <div className={`rounded-xl border p-4 ${statusClass(paymentStatus)}`}>
-                <p className="text-xs font-black uppercase tracking-[0.18em]">Order payment</p>
-                <p className="mt-2 text-lg font-black capitalize">
-                  {paymentStatus || "Unknown"}
-                </p>
-              </div>
-            </div>
+
+              {orderInfo && (
+                <div className="mt-4 grid gap-3 text-left sm:grid-cols-2">
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Order ID</p>
+                    <p className="mt-2 text-lg font-semibold text-dark break-all">{orderInfo._id || "Unknown"}</p>
+                  </div>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Order number</p>
+                    <p className="mt-2 text-lg font-semibold text-dark">
+                      {orderInfo.orderNumber || "Not available"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Order status</p>
+                    <p className="mt-2 text-lg font-semibold text-dark capitalize">
+                      {orderInfo.status || orderInfo.paymentStatus || "Unknown"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Total amount</p>
+                    <p className="mt-2 text-lg font-semibold text-dark">
+                      {orderInfo.grandTotal != null ? orderInfo.grandTotal : "Not available"}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {transactionId && (

@@ -301,11 +301,11 @@ export default function CartPage() {
 
     try {
       const orderPayload = buildOrderPayloadFromCart(cartItems, selectedAddress, "cod");
-      await createOrder(orderPayload);
+      const order = await createOrder(orderPayload);
       await qc.invalidateQueries({ queryKey: ["cart"] });
       toast.success("Order placed with cash on delivery.", { id: toastId });
       setIsPaymentSelectOpen(false);
-      navigate("/order");
+      navigate("/order/confirmation", { state: { order, paymentMethod: "cod" } });
     } catch {
       toast.error("Unable to place COD order. Please try again.", { id: toastId });
     } finally {

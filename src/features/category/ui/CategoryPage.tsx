@@ -348,7 +348,15 @@ export default function CategoryPage({ mode = "category" }: CategoryPageProps) {
       toast.success(`${product.name} is ready in your order request`, { id: toastId });
       setAddingProductId(null);
       navigate("/request-order", {
-        state: { prefilledItem: { name: product.name, quantity: "1", notes: "" } },
+        state: {
+          prefilledItem: {
+            name: product.name,
+            quantity: "1",
+            notes: "",
+            imageUrl: product.imageUrl,
+            price: product.price,
+          },
+        },
       });
       return;
     }
