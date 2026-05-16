@@ -8,6 +8,17 @@ import {
 } from "../service/adminApi";
 import toast from "react-hot-toast";
 
+const specializationOptions = [
+  "General Physician",
+  "Dermatology",
+  "Pediatrics",
+  "Gynecology",
+  "Cardiology",
+  "Diabetology",
+  "ENT",
+  "Orthopedics",
+] as const;
+
 const formatDate = (v?: string) => {
   if (!v) return "";
   const d = new Date(v);
@@ -44,7 +55,12 @@ export default function AdminDoctorsPage() {
     retry: 1,
   });
 
-  const items = paged?.items ?? [];
+  const _rawItems = paged?.items;
+  const items = Array.isArray(_rawItems)
+    ? _rawItems
+    : Array.isArray((_rawItems as any)?.items)
+    ? (_rawItems as any).items
+    : [];
   const meta = paged?.meta ?? { page: 1, limit, total: 0, totalPages: 1 };
 
   const [createForm, setCreateForm] = useState({
@@ -116,17 +132,23 @@ export default function AdminDoctorsPage() {
             className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
             placeholder="Full name"
           />
-          <input
+          <select
             value={createForm.specialization}
             onChange={(e) => setCreateForm((p) => ({ ...p, specialization: e.target.value }))}
             className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-            placeholder="Specialization"
-          />
+          >
+            <option value="">Select category</option>
+            {specializationOptions.map((specialty) => (
+              <option key={specialty} value={specialty}>
+                {specialty}
+              </option>
+            ))}
+          </select>
           <input
             value={createForm.userId}
             onChange={(e) => setCreateForm((p) => ({ ...p, userId: e.target.value }))}
             className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-            placeholder="User ID (optional)"
+            placeholder="User ID (required)"
           />
           <select
             value={createForm.status}
@@ -145,6 +167,10 @@ export default function AdminDoctorsPage() {
             onClick={async () => {
               if (!createForm.fullName.trim()) {
                 toast.error("Full name is required");
+                return;
+              }
+              if (!createForm.userId.trim()) {
+                toast.error("User ID is required to create a doctor profile");
                 return;
               }
               const t = toast.loading("Creating...");
@@ -361,14 +387,20 @@ export default function AdminDoctorsPage() {
                   className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
                   placeholder="Full name"
                 />
-                <input
+                <select
                   value={editForm.specialization}
                   onChange={(e) =>
                     setEditForm((p) => ({ ...p, specialization: e.target.value }))
                   }
                   className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                  placeholder="Specialization"
-                />
+                >
+                  <option value="">Select category</option>
+                  {specializationOptions.map((specialty) => (
+                    <option key={specialty} value={specialty}>
+                      {specialty}
+                    </option>
+                  ))}
+                </select>
                 <input
                   value={editForm.userId}
                   onChange={(e) => setEditForm((p) => ({ ...p, userId: e.target.value }))}

@@ -90,3 +90,45 @@ export const reviews: ReviewItem[] = [
     verified: true,
   },
 ];
+
+const STORAGE_KEY = "medigoReviews";
+
+const isBrowser = typeof window !== "undefined";
+
+export const getStoredReviews = (): ReviewItem[] => {
+  if (!isBrowser) return reviews;
+
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [...reviews];
+
+    const parsed = JSON.parse(raw) as ReviewItem[];
+    if (!Array.isArray(parsed)) return [...reviews];
+
+    return [...parsed, ...reviews];
+  } catch {
+    return [...reviews];
+  }
+};
+
+const saveStoredReviews = (items: ReviewItem[]) => {
+  if (!isBrowser) return;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+};
+
+export const addReview = (
+  review: Omit<ReviewItem, "id" | "dateLabel">,
+): ReviewItem => {
+  const existing = getStoredReviews();
+  const nextId = existing.reduce((max, item) => Math.max(max, item.id), 0) + 1;
+  const newReview: ReviewItem = {
+    ...review,
+    id: nextId,
+    dateLabel: "Just now",
+  };
+
+  const stored = existing.filter((item) => !reviews.some((base) => base.id === item.id));
+  saveStoredReviews([newReview, ...stored]);
+
+  return newReview;
+};

@@ -1,11 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import CustomButton from "../../../shared/button/CustomButton";
 import { Icons } from "../../../shared/icons/Icons";
 import MainContainer from "../../../shared/main-container/MainContainer";
 import SectionContainer from "../../../shared/section-container/SectionContainer";
 import SectionHeading from "../../../shared/section-heading/SectionHeading";
-import { reviews, type ReviewItem } from "../service/reviewData";
+import {
+  getStoredReviews,
+  type ReviewItem,
+} from "../service/reviewData";
 
 const RatingStars = ({ value }: { value: number }) => {
   return (
@@ -27,6 +30,8 @@ const RatingStars = ({ value }: { value: number }) => {
 };
 
 const ReviewCard = ({ item }: { item: ReviewItem }) => {
+  const [showPopup, setShowPopup] = useState(false);
+
   return (
     <div className="group bg-white rounded-xs border border-gray-100 shadow-md hover:shadow-xl transition-shadow overflow-hidden">
       <div className="p-5 sm:p-6 flex flex-col h-full">
@@ -41,7 +46,39 @@ const ReviewCard = ({ item }: { item: ReviewItem }) => {
               />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-black text-dark truncate">{item.name}</p>
+              <div className="relative inline-flex flex-col">
+                <button
+                  type="button"
+                  onClick={() => setShowPopup((prev) => !prev)}
+                  className="text-sm font-black text-dark truncate text-left w-full cursor-pointer focus:outline-none"
+                  aria-expanded={showPopup}
+                >
+                  {item.name}
+                </button>
+                <div
+                  className={`absolute left-0 top-full mt-2 w-60 rounded-xl border border-gray-200 bg-white p-3 shadow-lg transition-all duration-200 ${
+                    showPopup
+                      ? "block opacity-100"
+                      : "hidden opacity-0 md:block md:opacity-0 md:group-hover:block md:group-hover:opacity-100"
+                  }`}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400 mb-2">
+                    Reviewer details
+                  </p>
+                  <p className="text-sm font-semibold text-dark">{item.name}</p>
+                  <p className="text-xs text-slate-500">{item.location}</p>
+                  <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1">
+                      <Icons.Star className="!w-3.5 !h-3.5 text-secondary" />
+                      {item.rating} / 5
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1">
+                      {item.verified ? "Verified" : "Unverified"}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-xxs text-slate-500">Posted {item.dateLabel}</p>
+                </div>
+              </div>
               <p className="text-xs text-slate-500 truncate">{item.location}</p>
             </div>
           </div>
@@ -92,26 +129,31 @@ const ReviewCard = ({ item }: { item: ReviewItem }) => {
 const ReviewsPage = () => {
   const navigate = useNavigate();
   const [rating, setRating] = useState<"All" | 5 | 4 | 3 | 2 | 1>("All");
+  const [reviewList, setReviewList] = useState<ReviewItem[]>([]);
+
+  useEffect(() => {
+    setReviewList(getStoredReviews());
+  }, []);
 
   const summary = useMemo(() => {
-    const total = reviews.length;
+    const total = reviewList.length;
     const avg =
       total === 0
         ? 0
         : Math.round(
-            (reviews.reduce((acc, r) => acc + r.rating, 0) / total) * 10,
+            (reviewList.reduce((acc, r) => acc + r.rating, 0) / total) * 10,
           ) / 10;
     const counts = [1, 2, 3, 4, 5].reduce<Record<number, number>>((acc, n) => {
-      acc[n] = reviews.filter((r) => r.rating === n).length;
+      acc[n] = reviewList.filter((r) => r.rating === n).length;
       return acc;
     }, {});
     return { total, avg, counts };
-  }, []);
+  }, [reviewList]);
 
   const filtered = useMemo(() => {
-    if (rating === "All") return reviews;
-    return reviews.filter((r) => r.rating === rating);
-  }, [rating]);
+    if (rating === "All") return reviewList;
+    return reviewList.filter((r) => r.rating === rating);
+  }, [rating, reviewList]);
 
   return (
     <SectionContainer>

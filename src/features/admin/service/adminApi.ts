@@ -233,6 +233,33 @@ export const getAdminReadyOrders = async (params?: {
   };
 };
 
+export const getAdminReadyDoctors = async (params?: {
+  q?: string;
+  specialization?: string;
+  page?: number;
+  limit?: number;
+}): Promise<AdminPaged<AdminDoctor>> => {
+  const res = await api.get("/admin/doctors/ready", { params });
+  const raw = res.data as unknown;
+  const payload = (raw as { data?: unknown })?.data ?? raw;
+  const pagination =
+    (payload as { pagination?: AdminPagination })?.pagination ??
+    (payload as { meta?: AdminPagination })?.meta ??
+    (raw as { pagination?: AdminPagination })?.pagination ??
+    (raw as { meta?: AdminPagination })?.meta;
+
+  const items = Array.isArray(payload)
+    ? (payload as AdminDoctor[])
+    : Array.isArray((payload as { items?: unknown })?.items)
+    ? ((payload as { items?: AdminDoctor[] }).items as AdminDoctor[])
+    : [];
+
+  return {
+    items,
+    meta: pagination ?? { page: 1, limit: params?.limit ?? 10, total: items.length, totalPages: 1 },
+  };
+};
+
 export const getAdminDoctors = async (params?: {
   q?: string;
   page?: number;
@@ -398,12 +425,12 @@ export const updateAdminOrder = async (
 };
 
 export const createAdminDoctor = async (payload: {
-  userId?: string;
+  userId: string;
   fullName: string;
   specialization?: string;
   status?: string;
 }): Promise<AdminDoctor> => {
-  const res = await api.post("/admin/doctors", payload);
+  const res = await api.post("/doctors", payload);
   return unwrap<AdminDoctor>(res.data);
 };
 
@@ -411,12 +438,12 @@ export const updateAdminDoctor = async (
   doctorId: string,
   patch: { userId?: string; fullName?: string; specialization?: string; status?: string },
 ): Promise<AdminDoctor> => {
-  const res = await api.patch(`/admin/doctors/${doctorId}`, patch);
+  const res = await api.patch(`/doctors/${doctorId}`, patch);
   return unwrap<AdminDoctor>(res.data);
 };
 
 export const deleteAdminDoctor = async (doctorId: string): Promise<void> => {
-  await api.delete(`/admin/doctors/${doctorId}`);
+  await api.delete(`/doctors/${doctorId}`);
 };
 
 export const createAdminConsultancy = async (payload: {

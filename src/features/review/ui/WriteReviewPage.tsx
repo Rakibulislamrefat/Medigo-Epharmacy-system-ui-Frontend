@@ -8,6 +8,7 @@ import MainContainer from "../../../shared/main-container/MainContainer";
 import SectionContainer from "../../../shared/section-container/SectionContainer";
 import SectionHeading from "../../../shared/section-heading/SectionHeading";
 import type { RootState } from "../../../redux/store";
+import { addReview } from "../service/reviewData";
 
 interface ReviewFormData {
   name: string;
@@ -105,8 +106,22 @@ export default function WriteReviewPage() {
       // Simulate API call
       await new Promise((r) => setTimeout(r, 1500));
 
-      toast.success("Thank you for your review! It will be published shortly.");
-      setTimeout(() => navigate("/reviews"), 2000);
+      addReview({
+        name: formData.name,
+        location:
+          user?.location?.city && user?.location?.country
+            ? `${user.location.city}, ${user.location.country}`
+            : "Verified Customer",
+        avatar: user?.avatar ||
+          "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200",
+        rating: formData.rating,
+        title: formData.title,
+        message: formData.message,
+        verified: formData.verified,
+      });
+
+      toast.success("Thank you for your review! It has been added to reviews.");
+      setTimeout(() => navigate("/review"), 2000);
     } catch (err) {
       toast.error("Failed to submit review. Please try again.");
     } finally {

@@ -33,6 +33,7 @@ import AdminUsersPage from "../../../features/admin/ui/AdminUsersPage";
 import AdminMedicinesPage from "../../../features/admin/ui/AdminMedicinesPage";
 import AdminOrdersPage from "../../../features/admin/ui/AdminOrdersPage";
 import AdminDoctorsPage from "../../../features/admin/ui/AdminDoctorsPage";
+import AdminReadyDoctorsPage from "../../../features/admin/ui/AdminReadyDoctorsPage";
 import AdminConsultanciesPage from "../../../features/admin/ui/AdminConsultanciesPage";
 import OrderConfirmationPage from "../../../features/payment/ui/OrderConfirmationPage";
 import OrderHistoryPage from "../../../features/orderHistory/ui/OrderHistoryPage";
@@ -65,6 +66,10 @@ export const router = createBrowserRouter([
       },
       {
         path: "/review",
+        element: <ReviewsPage />,
+      },
+      {
+        path: "/reviews",
         element: <ReviewsPage />,
       },
       {
@@ -242,6 +247,7 @@ export const router = createBrowserRouter([
       { path: "medicines", element: <AdminMedicinesPage /> },
       { path: "orders", element: <AdminOrdersPage /> },
       { path: "doctors", element: <AdminDoctorsPage /> },
+      { path: "doctors/ready", element: <AdminReadyDoctorsPage /> },
       { path: "consultancies", element: <AdminConsultanciesPage /> },
     ],
   },

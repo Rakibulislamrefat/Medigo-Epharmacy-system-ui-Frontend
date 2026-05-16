@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import { useSelector } from "react-redux";
+import type { RootState } from "../../../redux/store";
+import { createConsultancy, sendConsultancyConfirmation } from "../service/consultancyApi";
 import CustomButton from "../../../shared/button/CustomButton";
 import { Icons } from "../../../shared/icons/Icons";
 import MainContainer from "../../../shared/main-container/MainContainer";
@@ -158,7 +161,9 @@ export default function DoctorConsultancyPage() {
   const canSubmit =
     Boolean(selectedDoctor) && Boolean(patientName.trim()) && Boolean(phone.trim());
 
-  const submitBooking = () => {
+  const user = useSelector((s: RootState) => s.user.user);
+
+  const submitBooking = async () => {
     if (!selectedDoctor) return;
     if (!patientName.trim()) {
       toast.error("Please enter your name");
@@ -174,13 +179,102 @@ export default function DoctorConsultancyPage() {
       toast.error("Use a valid Bangladeshi number (01XXXXXXXXX)");
       return;
     }
-    toast.success(
-      `Request received! We'll contact you to confirm ${selectedDoctor.name}'s slot.`,
-    );
+    // Prepare payload to persist
+    const payload = {
+      userId: user?._id,
+      doctorId: selectedDoctor.id,
+      status: "requested",
+      mode: selectedDoctor.type.toLowerCase(),
+      scheduledAt: null,
+      patientName: patientName.trim(),
+      contactPhone: phone.trim(),
+      notes: notes.trim(),
+    };
+
+    const t = toast.loading("Submitting booking...");
+    try {
+      const res = await createConsultancy(payload);
+      // res may contain an id or _id depending on backend
+      const id = (res && (res._id || res.id || res.appointmentId)) ?? null;
+
+      toast.success(`Request received! Booking ID: ${id ?? "(pending)"}`, { id: t });
+
+      // Generate appointment script including backend id if present
+      const script = generateAppointmentScript({
+        doctor: selectedDoctor,
+        patientName: patientName.trim(),
+        phone: phone.trim(),
+        notes: notes.trim(),
+      }) + (id ? `\n\nBackend ID: ${id}` : "");
+      setAppointmentScript(script);
+      setShowScriptModal(true);
+
+      // Attempt to send confirmation email (best-effort)
+      if (id) {
+        try {
+          await sendConsultancyConfirmation(id);
+        } catch {
+          // ignore
+        }
+      }
+    } catch (err) {
+      toast.error("Failed to submit booking. Please try again.", { id: t });
+      return;
+    }
+
+    // Reset form selection but keep script visible
     setSelectedDoctor(null);
     setPatientName("");
     setPhone("");
     setNotes("");
+  };
+
+  // Appointment script state
+  const [appointmentScript, setAppointmentScript] = useState<string>("");
+  const [showScriptModal, setShowScriptModal] = useState(false);
+
+  const generateAppointmentScript = ({
+    doctor,
+    patientName,
+    phone,
+    notes,
+  }: {
+    doctor: Doctor | null;
+    patientName: string;
+    phone: string;
+    notes: string;
+  }) => {
+    const id = `MDG-APPT-${Date.now().toString().slice(-6)}`;
+    const when = doctor?.nextAvailable ?? "To be scheduled";
+    const mode = doctor?.type ?? "Unknown";
+    const fee = doctor ? formatFee(doctor.fee) : "N/A";
+
+    return `Appointment Confirmation\n-------------------------\nAppointment ID: ${id}\nDoctor: ${doctor?.name ?? "-"} (${doctor?.specialty ?? "-"})\nMode: ${mode}\nWhen: ${when}\nFee: ${fee}\n\nPatient Name: ${patientName}\nContact: ${phone}\nNotes: ${notes || "-"}\n\nPlease keep this confirmation for your records. Medigo e‑Pharmacy will contact you to confirm the exact slot.`;
+  };
+
+  const copyScriptToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(appointmentScript);
+      toast.success("Appointment script copied to clipboard");
+    } catch (err) {
+      toast.error("Failed to copy");
+    }
+  };
+
+  const downloadScript = () => {
+    try {
+      const blob = new Blob([appointmentScript], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "medigo-appointment.txt";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error("Failed to download");
+    }
   };
 
   return (
@@ -428,6 +522,53 @@ export default function DoctorConsultancyPage() {
             </div>
           </div>
         </div>
+        {/* Appointment script modal */}
+        {showScriptModal && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-2xl rounded-2xl bg-white border border-gray-100 shadow-2xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                <p className="text-sm font-semibold text-dark">Appointment Confirmation</p>
+                <button
+                  type="button"
+                  onClick={() => setShowScriptModal(false)}
+                  className="h-9 w-9 rounded-lg hover:bg-gray-50"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="p-5">
+                <pre className="whitespace-pre-wrap text-sm text-slate-700 bg-gray-50 p-4 rounded-md max-h-[360px] overflow-auto">
+                  {appointmentScript}
+                </pre>
+
+                <div className="mt-4 flex items-center gap-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={copyScriptToClipboard}
+                    className="h-10 px-4 rounded-lg border border-gray-200 bg-white text-sm font-semibold hover:bg-gray-50"
+                  >
+                    Copy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={downloadScript}
+                    className="h-10 px-4 rounded-lg border border-gray-200 bg-white text-sm font-semibold hover:bg-gray-50"
+                  >
+                    Download
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowScriptModal(false)}
+                    className="h-10 px-4 rounded-lg bg-primary text-white text-sm font-semibold"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </MainContainer>
     </SectionContainer>
   );
