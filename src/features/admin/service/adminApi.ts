@@ -127,8 +127,8 @@ export type AdminDoctorUser = {
 
 export type AdminConsultancy = {
   _id: string;
-  user?: { _id: string; name: string; email?: string; phone?: string };
-  doctor?: { _id: string; fullName: string; specialization?: string };
+  user?: string | { _id: string; name?: string; email?: string; phone?: string };
+  doctor?: string | { _id: string; fullName?: string; specialization?: string };
   transaction?: string | { _id: string } | null;
   status?: string;
   mode?: string;
@@ -143,6 +143,7 @@ export type AdminConsultancy = {
   meetingLink?: string;
   paymentStatus?: string;
   createdAt?: string;
+  updatedAt?: string;
 };
 
 export type AdminMetrics = {
@@ -355,14 +356,26 @@ export const getAdminConsultancies = async (params?: {
   limit?: number;
   status?: string;
   mode?: string;
-  doctorId?: string;
-  userId?: string;
+  doctor?: string;
+  user?: string;
 }): Promise<AdminPaged<AdminConsultancy>> => {
-  const res = await api.get("/admin/consultancies", { params });
-  const r = res.data as { data?: AdminConsultancy[]; meta?: AdminListMeta };
+  const res = await api.get("/consultancies", { params });
+  const raw = res.data as unknown;
+  const payload = (raw as { data?: unknown })?.data ?? raw;
+  const pagination =
+    (payload as { pagination?: AdminPagination })?.pagination ??
+    (payload as { meta?: AdminPagination })?.meta ??
+    (raw as { pagination?: AdminPagination })?.pagination ??
+    (raw as { meta?: AdminPagination })?.meta;
+  const items = Array.isArray(payload)
+    ? (payload as AdminConsultancy[])
+    : Array.isArray((payload as { items?: unknown })?.items)
+    ? ((payload as { items?: AdminConsultancy[] }).items as AdminConsultancy[])
+    : [];
+
   return {
-    items: r?.data ?? [],
-    meta: r?.meta ?? { page: 1, limit: params?.limit ?? 10, total: 0, totalPages: 1 },
+    items,
+    meta: pagination ?? { page: 1, limit: params?.limit ?? 10, total: items.length, totalPages: 1 },
   };
 };
 
@@ -535,9 +548,8 @@ export const deleteAdminDoctor = async (doctorId: string): Promise<void> => {
 };
 
 export const createAdminConsultancy = async (payload: {
-  userId: string;
+  userId?: string;
   doctorId: string;
-  status?: string;
   patientName?: string;
   contactPhone?: string;
   contactEmail?: string;
@@ -547,38 +559,39 @@ export const createAdminConsultancy = async (payload: {
   symptoms?: string;
   notes?: string;
   attachments?: string[];
-  meetingLink?: string;
-  paymentStatus?: string;
-  transactionId?: string | null;
 }): Promise<AdminConsultancy> => {
-  const res = await api.post("/admin/consultancies", payload);
+  const res = await api.post("/consultancies", payload);
   return unwrap<AdminConsultancy>(res.data);
 };
 
 export const updateAdminConsultancy = async (
   consultancyId: string,
   patch: {
-    userId?: string;
-    doctorId?: string;
     status?: string;
-    patientName?: string;
-    contactPhone?: string;
-    contactEmail?: string;
     mode?: string;
     scheduledAt?: string | null;
     durationMinutes?: number;
-    symptoms?: string;
     notes?: string;
-    attachments?: string[];
     meetingLink?: string;
-    paymentStatus?: string;
-    transactionId?: string | null;
   },
 ): Promise<AdminConsultancy> => {
-  const res = await api.patch(`/admin/consultancies/${consultancyId}`, patch);
+  const res = await api.patch(`/consultancies/${consultancyId}`, patch);
   return unwrap<AdminConsultancy>(res.data);
 };
 
+export const markAdminConsultancyReady = async (consultancyId: string): Promise<AdminConsultancy> => {
+  const res = await api.patch(`/consultancies/${consultancyId}/ready`);
+  return unwrap<AdminConsultancy>(res.data);
+};
+
+export const sendAdminConsultancyConfirmation = async (
+  consultancyId: string,
+): Promise<boolean> => {
+  const res = await api.post(`/consultancies/${consultancyId}/send-confirmation`);
+  const payload = unwrap<{ success?: boolean }>(res.data);
+  return Boolean(payload?.success);
+};
+
 export const deleteAdminConsultancy = async (consultancyId: string): Promise<void> => {
-  await api.delete(`/admin/consultancies/${consultancyId}`);
+  await api.delete(`/consultancies/${consultancyId}`);
 };

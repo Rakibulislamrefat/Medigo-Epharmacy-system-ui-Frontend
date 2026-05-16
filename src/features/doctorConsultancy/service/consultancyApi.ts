@@ -5,6 +5,8 @@ const unwrap = <T,>(data: unknown): T => {
   return (r?.data as T) ?? (data as T);
 };
 
+export type ConsultancyMode = "chat" | "video" | "audio" | "in_person";
+
 export type CreateConsultancyPayload = {
   userId?: string;
   doctorId: string;
@@ -12,7 +14,7 @@ export type CreateConsultancyPayload = {
   patientName?: string;
   contactPhone?: string;
   contactEmail?: string;
-  mode?: string;
+  mode?: ConsultancyMode;
   scheduledAt?: string | null;
   durationMinutes?: number;
   symptoms?: string;
@@ -27,6 +29,23 @@ export type ConsultancyResponse = {
   _id?: string;
   id?: string;
   appointmentId?: string;
+  user?: string;
+  doctor?: string;
+  patientName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  status?: string;
+  mode?: ConsultancyMode;
+  scheduledAt?: string;
+  durationMinutes?: number;
+  symptoms?: string;
+  notes?: string;
+  attachments?: string[];
+  meetingLink?: string;
+  paymentStatus?: string;
+  transaction?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type PublicDoctor = {
@@ -85,37 +104,12 @@ export const getPublicDoctors = async (params?: {
 export const createConsultancy = async (
   payload: CreateConsultancyPayload,
 ): Promise<ConsultancyResponse> => {
-  // Prefer public endpoint first
-  try {
-    const res = await api.post("/consultancies", payload);
-    return unwrap<ConsultancyResponse>(res.data);
-  } catch (err) {
-    // fallback to admin endpoint (best-effort)
-    try {
-      const res = await api.post("/admin/consultancies", payload);
-      return unwrap<ConsultancyResponse>(res.data);
-    } catch {
-      throw err; // rethrow original error
-    }
-  }
+  const res = await api.post("/consultancies", payload);
+  return unwrap<ConsultancyResponse>(res.data);
 };
 
 export const sendConsultancyConfirmation = async (consultancyId: string) => {
-  // Best-effort: try a couple of plausible endpoints
-  const attempts = [
-    `/consultancies/${consultancyId}/send-confirmation`,
-    `/admin/consultancies/${consultancyId}/send-confirmation`,
-    `/consultancies/${consultancyId}/notify`,
-  ];
-
-  for (const p of attempts) {
-    try {
-      await api.post(p);
-      return true;
-    } catch {
-      // try next
-    }
-  }
-
-  return false;
+  const res = await api.post(`/consultancies/${consultancyId}/send-confirmation`);
+  const payload = unwrap<{ success?: boolean }>(res.data);
+  return Boolean(payload?.success);
 };

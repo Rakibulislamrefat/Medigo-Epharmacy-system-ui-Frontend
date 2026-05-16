@@ -4,6 +4,8 @@ import {
   createAdminConsultancy,
   deleteAdminConsultancy,
   getAdminConsultancies,
+  markAdminConsultancyReady,
+  sendAdminConsultancyConfirmation,
   updateAdminConsultancy,
 } from "../service/adminApi";
 import toast from "react-hot-toast";
@@ -14,8 +16,7 @@ const getApiErrorMessage = (err: unknown, fallback: string) => {
   return data?.errors?.[0] ?? data?.message ?? fallback;
 };
 
-const toIsoOrNull = (value: string) =>
-  value ? new Date(value + "Z").toISOString() : null;
+const toIsoOrNull = (value: string) => (value ? new Date(value).toISOString() : null);
 
 const splitCsv = (value: string) =>
   value
@@ -37,6 +38,30 @@ const formatDateTime = (v?: string) => {
       });
 };
 
+const getUserLabel = (user: unknown) => {
+  if (!user) return "-";
+  if (typeof user === "string") return user;
+  const u = user as { name?: string; email?: string; phone?: string; _id?: string };
+  return u.name || u.email ? `${u.name ?? "User"}${u.email ? ` (${u.email})` : ""}` : u._id ?? "-";
+};
+
+const getDoctorLabel = (doctor: unknown) => {
+  if (!doctor) return "-";
+  if (typeof doctor === "string") return doctor;
+  const d = doctor as { fullName?: string; specialization?: string; _id?: string };
+  return d.fullName
+    ? `${d.fullName}${d.specialization ? ` (${d.specialization})` : ""}`
+    : d._id ?? "-";
+};
+
+const toDateTimeLocal = (value?: string) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+};
+
 export default function AdminConsultanciesPage() {
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("");
@@ -56,8 +81,8 @@ export default function AdminConsultanciesPage() {
       getAdminConsultancies({
         status: statusFilter || undefined,
         mode: modeFilter || undefined,
-        doctorId: doctorIdFilter.trim() || undefined,
-        userId: userIdFilter.trim() || undefined,
+        doctor: doctorIdFilter.trim() || undefined,
+        user: userIdFilter.trim() || undefined,
         page,
         limit,
       }),
@@ -70,7 +95,6 @@ export default function AdminConsultanciesPage() {
   const [createForm, setCreateForm] = useState({
     userId: "",
     doctorId: "",
-    status: "ready",
     patientName: "",
     contactPhone: "",
     contactEmail: "",
@@ -80,44 +104,30 @@ export default function AdminConsultanciesPage() {
     symptoms: "",
     notes: "",
     attachments: "",
-    meetingLink: "",
-    paymentStatus: "pending",
-    transactionId: "",
   });
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
-    userId: "",
-    doctorId: "",
-    status: "ready",
-    patientName: "",
-    contactPhone: "",
-    contactEmail: "",
+    status: "confirmed",
     mode: "video",
     scheduledAt: "",
     durationMinutes: "30",
-    symptoms: "",
     notes: "",
-    attachments: "",
     meetingLink: "",
-    paymentStatus: "pending",
-    transactionId: "",
   });
 
   const statusOptions = useMemo(
-    () => ["requested", "ready", "confirmed", "completed", "cancelled"],
+    () => ["requested", "confirmed", "ready", "completed", "cancelled"],
     [],
   );
   const modeOptions = useMemo(() => ["chat", "video", "audio", "in_person"], []);
-  const paymentStatusOptions = useMemo(() => ["pending", "paid", "failed", "refunded"], []);
   const limitOptions = useMemo(() => [10, 20, 50], []);
 
   const createMutation = useMutation({
     mutationFn: async () =>
       createAdminConsultancy({
-        userId: createForm.userId.trim(),
+        userId: createForm.userId.trim() || undefined,
         doctorId: createForm.doctorId.trim(),
-        status: createForm.status,
         patientName: createForm.patientName.trim() || undefined,
         contactPhone: createForm.contactPhone.trim() || undefined,
         contactEmail: createForm.contactEmail.trim() || undefined,
@@ -129,9 +139,6 @@ export default function AdminConsultanciesPage() {
         symptoms: createForm.symptoms.trim() || undefined,
         notes: createForm.notes.trim() || undefined,
         attachments: splitCsv(createForm.attachments),
-        meetingLink: createForm.meetingLink.trim() || undefined,
-        paymentStatus: createForm.paymentStatus,
-        transactionId: createForm.transactionId.trim() || null,
       }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin", "consultancies"] });
@@ -141,21 +148,12 @@ export default function AdminConsultanciesPage() {
   const updateMutation = useMutation({
     mutationFn: async (args: { id: string }) =>
       updateAdminConsultancy(args.id, {
-        userId: editForm.userId.trim() || undefined,
-        doctorId: editForm.doctorId.trim() || undefined,
         status: editForm.status,
-        patientName: editForm.patientName.trim() || undefined,
-        contactPhone: editForm.contactPhone.trim() || undefined,
-        contactEmail: editForm.contactEmail.trim() || undefined,
         mode: editForm.mode,
         scheduledAt: toIsoOrNull(editForm.scheduledAt),
         durationMinutes: editForm.durationMinutes ? Number(editForm.durationMinutes) : undefined,
-        symptoms: editForm.symptoms.trim() || undefined,
         notes: editForm.notes.trim() || undefined,
-        attachments: splitCsv(editForm.attachments),
         meetingLink: editForm.meetingLink.trim() || undefined,
-        paymentStatus: editForm.paymentStatus,
-        transactionId: editForm.transactionId.trim() || null,
       }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin", "consultancies"] });
@@ -167,6 +165,17 @@ export default function AdminConsultanciesPage() {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin", "consultancies"] });
     },
+  });
+
+  const readyMutation = useMutation({
+    mutationFn: async (id: string) => markAdminConsultancyReady(id),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["admin", "consultancies"] });
+    },
+  });
+
+  const confirmationMutation = useMutation({
+    mutationFn: async (id: string) => sendAdminConsultancyConfirmation(id),
   });
 
   return (
@@ -213,17 +222,6 @@ export default function AdminConsultanciesPage() {
             type="email"
           />
           <select
-            value={createForm.status}
-            onChange={(e) => setCreateForm((p) => ({ ...p, status: e.target.value }))}
-            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-          >
-            {statusOptions.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          <select
             value={createForm.mode}
             onChange={(e) => setCreateForm((p) => ({ ...p, mode: e.target.value }))}
             className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
@@ -248,29 +246,6 @@ export default function AdminConsultanciesPage() {
             type="number"
             min="0"
           />
-          <select
-            value={createForm.paymentStatus}
-            onChange={(e) => setCreateForm((p) => ({ ...p, paymentStatus: e.target.value }))}
-            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-          >
-            {paymentStatusOptions.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          <input
-            value={createForm.meetingLink}
-            onChange={(e) => setCreateForm((p) => ({ ...p, meetingLink: e.target.value }))}
-            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-            placeholder="Meeting link"
-          />
-          <input
-            value={createForm.transactionId}
-            onChange={(e) => setCreateForm((p) => ({ ...p, transactionId: e.target.value }))}
-            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-            placeholder="Transaction ID (optional)"
-          />
           <textarea
             value={createForm.symptoms}
             onChange={(e) => setCreateForm((p) => ({ ...p, symptoms: e.target.value }))}
@@ -293,8 +268,24 @@ export default function AdminConsultanciesPage() {
             type="button"
             disabled={createMutation.isPending}
             onClick={async () => {
-              if (!createForm.userId.trim() || !createForm.doctorId.trim()) {
-                toast.error("User ID and Doctor ID are required");
+              if (!createForm.doctorId.trim()) {
+                toast.error("Doctor ID is required");
+                return;
+              }
+              if (!createForm.patientName.trim()) {
+                toast.error("Patient name is required");
+                return;
+              }
+              if (!createForm.contactPhone.trim()) {
+                toast.error("Contact phone is required");
+                return;
+              }
+              if (!createForm.contactEmail.trim()) {
+                toast.error("Contact email is required");
+                return;
+              }
+              if (!createForm.scheduledAt) {
+                toast.error("Schedule is required");
                 return;
               }
               const t = toast.loading("Creating...");
@@ -304,7 +295,6 @@ export default function AdminConsultanciesPage() {
                 setCreateForm({
                   userId: "",
                   doctorId: "",
-                  status: "ready",
                   patientName: "",
                   contactPhone: "",
                   contactEmail: "",
@@ -314,9 +304,6 @@ export default function AdminConsultanciesPage() {
                   symptoms: "",
                   notes: "",
                   attachments: "",
-                  meetingLink: "",
-                  paymentStatus: "pending",
-                  transactionId: "",
                 });
               } catch (err: unknown) {
                 toast.error(getApiErrorMessage(err, "Create failed"), { id: t });
@@ -440,10 +427,10 @@ export default function AdminConsultanciesPage() {
                 {items.map((c) => (
                   <tr key={c._id} className="text-sm text-dark">
                     <td className="px-5 py-3 text-slate-600">
-                      {c.user ? `${c.user.name} (${c.user.email})` : "—"}
+                      {getUserLabel(c.user)}
                     </td>
                     <td className="px-5 py-3 text-slate-600">
-                      {c.doctor ? `${c.doctor.fullName}` : "—"}
+                      {getDoctorLabel(c.doctor)}
                     </td>
                     <td className="px-5 py-3 text-slate-600">
                       {c.patientName || c.contactPhone || ""}
@@ -461,35 +448,59 @@ export default function AdminConsultanciesPage() {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          disabled={createMutation.isPending || updateMutation.isPending || deleteMutation.isPending}
+                          disabled={
+                            createMutation.isPending ||
+                            updateMutation.isPending ||
+                            deleteMutation.isPending ||
+                            readyMutation.isPending ||
+                            confirmationMutation.isPending
+                          }
                           onClick={() => {
                             setEditingId(c._id);
                             setEditForm({
-                              userId: c.user?._id ?? "",
-                              doctorId: c.doctor?._id ?? "",
-                              status: c.status ?? "ready",
-                              patientName: c.patientName ?? "",
-                              contactPhone: c.contactPhone ?? "",
-                              contactEmail: c.contactEmail ?? "",
+                              status: c.status ?? "confirmed",
                               mode: c.mode ?? "video",
-                              scheduledAt: c.scheduledAt
-                                ? new Date(c.scheduledAt).toISOString().slice(0, 16)
-                                : "",
+                              scheduledAt: toDateTimeLocal(c.scheduledAt),
                               durationMinutes: String(c.durationMinutes ?? 30),
-                              symptoms: c.symptoms ?? "",
                               notes: c.notes ?? "",
-                              attachments: (c.attachments ?? []).join(", "),
                               meetingLink: c.meetingLink ?? "",
-                              paymentStatus: c.paymentStatus ?? "pending",
-                              transactionId:
-                                typeof c.transaction === "string"
-                                  ? c.transaction
-                                  : c.transaction?._id ?? "",
                             });
                           }}
                           className="h-9 px-3 rounded-lg border border-gray-200 bg-white text-sm font-semibold hover:bg-gray-50 disabled:opacity-60"
                         >
                           Edit
+                        </button>
+                        <button
+                          type="button"
+                          disabled={readyMutation.isPending || c.status === "ready"}
+                          onClick={async () => {
+                            const t = toast.loading("Marking ready...");
+                            try {
+                              await readyMutation.mutateAsync(c._id);
+                              toast.success("Marked ready", { id: t });
+                            } catch (err: unknown) {
+                              toast.error(getApiErrorMessage(err, "Ready update failed"), { id: t });
+                            }
+                          }}
+                          className="h-9 px-3 rounded-lg border border-primary/20 bg-primary/5 text-sm font-semibold text-primary hover:bg-primary/10 disabled:opacity-60"
+                        >
+                          Ready
+                        </button>
+                        <button
+                          type="button"
+                          disabled={confirmationMutation.isPending}
+                          onClick={async () => {
+                            const t = toast.loading("Sending confirmation...");
+                            try {
+                              const sent = await confirmationMutation.mutateAsync(c._id);
+                              toast.success(sent ? "Confirmation sent" : "Confirmation queued or failed", { id: t });
+                            } catch (err: unknown) {
+                              toast.error(getApiErrorMessage(err, "Confirmation failed"), { id: t });
+                            }
+                          }}
+                          className="h-9 px-3 rounded-lg border border-gray-200 bg-white text-sm font-semibold hover:bg-gray-50 disabled:opacity-60"
+                        >
+                          Send
                         </button>
                         <button
                           type="button"
@@ -568,37 +579,6 @@ export default function AdminConsultanciesPage() {
             </div>
             <div className="p-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input
-                  value={editForm.userId}
-                  onChange={(e) => setEditForm((p) => ({ ...p, userId: e.target.value }))}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                  placeholder="User ID"
-                />
-                <input
-                  value={editForm.doctorId}
-                  onChange={(e) => setEditForm((p) => ({ ...p, doctorId: e.target.value }))}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                  placeholder="Doctor ID"
-                />
-                <input
-                  value={editForm.patientName}
-                  onChange={(e) => setEditForm((p) => ({ ...p, patientName: e.target.value }))}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                  placeholder="Patient name"
-                />
-                <input
-                  value={editForm.contactPhone}
-                  onChange={(e) => setEditForm((p) => ({ ...p, contactPhone: e.target.value }))}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                  placeholder="Contact phone"
-                />
-                <input
-                  value={editForm.contactEmail}
-                  onChange={(e) => setEditForm((p) => ({ ...p, contactEmail: e.target.value }))}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                  placeholder="Contact email"
-                  type="email"
-                />
                 <select
                   value={editForm.status}
                   onChange={(e) => setEditForm((p) => ({ ...p, status: e.target.value }))}
@@ -635,46 +615,17 @@ export default function AdminConsultanciesPage() {
                   type="number"
                   min="0"
                 />
-                <select
-                  value={editForm.paymentStatus}
-                  onChange={(e) => setEditForm((p) => ({ ...p, paymentStatus: e.target.value }))}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                >
-                  {paymentStatusOptions.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
                 <input
                   value={editForm.meetingLink}
                   onChange={(e) => setEditForm((p) => ({ ...p, meetingLink: e.target.value }))}
                   className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
                   placeholder="Meeting link"
                 />
-                <input
-                  value={editForm.transactionId}
-                  onChange={(e) => setEditForm((p) => ({ ...p, transactionId: e.target.value }))}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                  placeholder="Transaction ID"
-                />
-                <textarea
-                  value={editForm.symptoms}
-                  onChange={(e) => setEditForm((p) => ({ ...p, symptoms: e.target.value }))}
-                  className="min-h-20 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm sm:col-span-2"
-                  placeholder="Symptoms"
-                />
                 <textarea
                   value={editForm.notes}
                   onChange={(e) => setEditForm((p) => ({ ...p, notes: e.target.value }))}
                   className="min-h-20 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm sm:col-span-2"
                   placeholder="Notes"
-                />
-                <input
-                  value={editForm.attachments}
-                  onChange={(e) => setEditForm((p) => ({ ...p, attachments: e.target.value }))}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm sm:col-span-2"
-                  placeholder="Attachments URLs, comma separated"
                 />
               </div>
 
@@ -712,3 +663,4 @@ export default function AdminConsultanciesPage() {
     </div>
   );
 }
+
