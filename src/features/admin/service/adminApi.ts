@@ -430,7 +430,13 @@ export const createAdminDoctor = async (payload: {
   specialization?: string;
   status?: string;
 }): Promise<AdminDoctor> => {
-  const res = await api.post("/doctors", payload);
+  const body = {
+    user: payload.userId,
+    fullName: payload.fullName,
+    specialization: payload.specialization,
+    status: payload.status,
+  };
+  const res = await api.post("/doctors", body);
   return unwrap<AdminDoctor>(res.data);
 };
 
@@ -438,7 +444,15 @@ export const updateAdminDoctor = async (
   doctorId: string,
   patch: { userId?: string; fullName?: string; specialization?: string; status?: string },
 ): Promise<AdminDoctor> => {
-  const res = await api.patch(`/doctors/${doctorId}`, patch);
+  const body: Record<string, unknown> = {
+    fullName: patch.fullName,
+    specialization: patch.specialization,
+    status: patch.status,
+  };
+  if (patch.userId) {
+    body.user = patch.userId;
+  }
+  const res = await api.patch(`/doctors/${doctorId}`, body);
   return unwrap<AdminDoctor>(res.data);
 };
 
