@@ -29,6 +29,59 @@ export type ConsultancyResponse = {
   appointmentId?: string;
 };
 
+export type PublicDoctor = {
+  _id: string;
+  fullName: string;
+  profileImage?: string;
+  qualifications?: string[];
+  specialization?: string;
+  experienceYears?: number;
+  consultationType?: "online" | "in-person" | "both" | string;
+  city?: string;
+  availability?: {
+    day: string;
+    startTime: string;
+    endTime: string;
+  }[];
+  nextAvailableAt?: string;
+  rating?: number;
+  totalReviews?: number;
+  fee?: number;
+  currency?: string;
+  bio?: string;
+  languages?: string[];
+  status?: string;
+};
+
+export type PublicDoctorsResponse = {
+  items: PublicDoctor[];
+  pagination?: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+};
+
+export const getPublicDoctors = async (params?: {
+  search?: string;
+  status?: string;
+  page?: number;
+  rows?: number;
+}): Promise<PublicDoctorsResponse> => {
+  const res = await api.get("/doctors", { params });
+  const payload = unwrap<PublicDoctorsResponse | PublicDoctor[]>(res.data);
+
+  if (Array.isArray(payload)) {
+    return { items: payload };
+  }
+
+  return {
+    items: Array.isArray(payload?.items) ? payload.items : [],
+    pagination: payload?.pagination,
+  };
+};
+
 export const createConsultancy = async (
   payload: CreateConsultancyPayload,
 ): Promise<ConsultancyResponse> => {

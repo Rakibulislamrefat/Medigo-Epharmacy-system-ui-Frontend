@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { useSelector } from "react-redux";
 import type { RootState } from "../../../redux/store";
-import { createConsultancy, sendConsultancyConfirmation } from "../service/consultancyApi";
+import {
+  createConsultancy,
+  getPublicDoctors,
+  sendConsultancyConfirmation,
+  type PublicDoctor,
+} from "../service/consultancyApi";
 import CustomButton from "../../../shared/button/CustomButton";
 import { Icons } from "../../../shared/icons/Icons";
 import MainContainer from "../../../shared/main-container/MainContainer";
@@ -17,10 +23,12 @@ type Doctor = {
   rating: number;
   reviews: number;
   fee: number;
+  currency?: string;
   languages: string[];
   nextAvailable: string;
   location: string;
-  type: "Online" | "In‑person" | "Both";
+  type: "Online" | "In-person" | "Both";
+  profileImage?: string;
 };
 
 const specialties = [
@@ -34,94 +42,51 @@ const specialties = [
   "Orthopedics",
 ] as const;
 
-const doctorsSeed: Doctor[] = [
-  {
-    id: "d1",
-    name: "Dr. Farhana Islam",
-    title: "MBBS, FCPS (Medicine)",
-    specialty: "General Physician",
-    experienceYears: 10,
-    rating: 4.8,
-    reviews: 1240,
-    fee: 600,
-    languages: ["Bangla", "English"],
-    nextAvailable: "Today, 6:30 PM",
-    location: "Dhaka",
-    type: "Online",
-  },
-  {
-    id: "d2",
-    name: "Dr. Mahmud Hasan",
-    title: "MBBS, MS (Ortho)",
-    specialty: "Orthopedics",
-    experienceYears: 12,
-    rating: 4.7,
-    reviews: 890,
-    fee: 800,
-    languages: ["Bangla", "English"],
-    nextAvailable: "Tomorrow, 10:00 AM",
-    location: "Dhaka",
-    type: "Both",
-  },
-  {
-    id: "d3",
-    name: "Dr. Nusrat Jahan",
-    title: "MBBS, FCPS (Dermatology)",
-    specialty: "Dermatology",
-    experienceYears: 8,
-    rating: 4.9,
-    reviews: 640,
-    fee: 900,
-    languages: ["Bangla", "English"],
-    nextAvailable: "Today, 9:00 PM",
-    location: "Chattogram",
-    type: "Online",
-  },
-  {
-    id: "d4",
-    name: "Dr. Saiful Karim",
-    title: "MBBS, DCH (Pediatrics)",
-    specialty: "Pediatrics",
-    experienceYears: 9,
-    rating: 4.6,
-    reviews: 520,
-    fee: 700,
-    languages: ["Bangla", "English"],
-    nextAvailable: "Sun, 4:00 PM",
-    location: "Sylhet",
-    type: "Both",
-  },
-  {
-    id: "d5",
-    name: "Dr. Tania Rahman",
-    title: "MBBS, FCPS (Gynae)",
-    specialty: "Gynecology",
-    experienceYears: 11,
-    rating: 4.8,
-    reviews: 780,
-    fee: 1000,
-    languages: ["Bangla", "English"],
-    nextAvailable: "Mon, 7:00 PM",
-    location: "Dhaka",
-    type: "In‑person",
-  },
-  {
-    id: "d6",
-    name: "Dr. Arif Chowdhury",
-    title: "MBBS, MD (Cardiology)",
-    specialty: "Cardiology",
-    experienceYears: 13,
-    rating: 4.7,
-    reviews: 410,
-    fee: 1200,
-    languages: ["Bangla", "English"],
-    nextAvailable: "Tue, 11:30 AM",
-    location: "Dhaka",
-    type: "Both",
-  },
-];
+const formatFee = (fee: number, currency = "BDT") => `${currency} ${fee}`;
 
-const formatFee = (fee: number) => `৳${fee}`;
+const formatNextAvailable = (doctor: PublicDoctor) => {
+  if (doctor.nextAvailableAt) {
+    const date = new Date(doctor.nextAvailableAt);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    }
+  }
+
+  const slot = doctor.availability?.[0];
+  if (slot) {
+    return `${slot.day}, ${slot.startTime}-${slot.endTime}`;
+  }
+
+  return "To be scheduled";
+};
+
+const formatConsultationType = (type?: string): Doctor["type"] => {
+  if (type === "online") return "Online";
+  if (type === "in-person") return "In-person";
+  return "Both";
+};
+
+const mapDoctor = (doctor: PublicDoctor): Doctor => ({
+  id: doctor._id,
+  name: doctor.fullName,
+  title: doctor.qualifications?.length ? doctor.qualifications.join(", ") : doctor.bio || "Doctor",
+  specialty: doctor.specialization ?? "General Physician",
+  experienceYears: doctor.experienceYears ?? 0,
+  rating: doctor.rating ?? 0,
+  reviews: doctor.totalReviews ?? 0,
+  fee: doctor.fee ?? 0,
+  currency: doctor.currency ?? "BDT",
+  languages: doctor.languages ?? [],
+  nextAvailable: formatNextAvailable(doctor),
+  location: doctor.city ?? "",
+  type: formatConsultationType(doctor.consultationType),
+  profileImage: doctor.profileImage || undefined,
+});
 
 export default function DoctorConsultancyPage() {
   const bookingRef = useRef<HTMLDivElement | null>(null);
@@ -134,6 +99,21 @@ export default function DoctorConsultancyPage() {
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
 
+  const {
+    data: doctorsResponse,
+    isLoading: doctorsLoading,
+    error: doctorsError,
+  } = useQuery({
+    queryKey: ["public", "doctors"],
+    queryFn: () => getPublicDoctors({ status: "active", page: 1, rows: 100 }),
+    retry: 1,
+  });
+
+  const doctors = useMemo(
+    () => (doctorsResponse?.items ?? []).map(mapDoctor),
+    [doctorsResponse?.items],
+  );
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (window.location.hash !== "#book-now") return;
@@ -142,7 +122,7 @@ export default function DoctorConsultancyPage() {
 
   const filteredDoctors = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return doctorsSeed.filter((d) => {
+    return doctors.filter((d) => {
       const matchesQuery =
         !q ||
         d.name.toLowerCase().includes(q) ||
@@ -156,7 +136,7 @@ export default function DoctorConsultancyPage() {
 
       return matchesQuery && matchesSpecialty && matchesOnline;
     });
-  }, [onlyOnline, query, specialty]);
+  }, [doctors, onlyOnline, query, specialty]);
 
   const canSubmit =
     Boolean(selectedDoctor) && Boolean(patientName.trim()) && Boolean(phone.trim());
@@ -247,7 +227,7 @@ export default function DoctorConsultancyPage() {
     const id = `MDG-APPT-${Date.now().toString().slice(-6)}`;
     const when = doctor?.nextAvailable ?? "To be scheduled";
     const mode = doctor?.type ?? "Unknown";
-    const fee = doctor ? formatFee(doctor.fee) : "N/A";
+    const fee = doctor ? formatFee(doctor.fee, doctor.currency) : "N/A";
 
     return `Appointment Confirmation\n-------------------------\nAppointment ID: ${id}\nDoctor: ${doctor?.name ?? "-"} (${doctor?.specialty ?? "-"})\nMode: ${mode}\nWhen: ${when}\nFee: ${fee}\n\nPatient Name: ${patientName}\nContact: ${phone}\nNotes: ${notes || "-"}\n\nPlease keep this confirmation for your records. Medigo e‑Pharmacy will contact you to confirm the exact slot.`;
   };
@@ -336,6 +316,24 @@ export default function DoctorConsultancyPage() {
                       Only show online doctors
                     </label>
 
+                    {doctorsLoading && (
+                      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {[1, 2, 3, 4].map((n) => (
+                          <div
+                            key={n}
+                            className="h-56 rounded-2xl border border-gray-100 bg-light animate-pulse"
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {!doctorsLoading && doctorsError && (
+                      <div className="mt-5 rounded-xl border border-red-100 bg-red-50 p-5 text-sm text-red-600">
+                        Failed to load doctors. Please try again.
+                      </div>
+                    )}
+
+                    {!doctorsLoading && !doctorsError && (
                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {filteredDoctors.map((d) => (
                         <div
@@ -345,7 +343,15 @@ export default function DoctorConsultancyPage() {
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0">
                               <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/15 center-flex shrink-0">
-                                <Icons.User className="!w-6 !h-6 text-primary" />
+                                {d.profileImage ? (
+                                  <img
+                                    src={d.profileImage}
+                                    alt={d.name}
+                                    className="h-full w-full rounded-xl object-cover"
+                                  />
+                                ) : (
+                                  <Icons.User className="!w-6 !h-6 text-primary" />
+                                )}
                               </div>
                               <div className="min-w-0">
                                 <p className="text-sm font-black text-dark truncate">
@@ -364,7 +370,7 @@ export default function DoctorConsultancyPage() {
                           <div className="mt-4 flex items-center gap-2 text-sm text-slate-700">
                             <Icons.Heartbeat className="!w-4 !h-4 text-primary" />
                             <span className="font-semibold">{d.specialty}</span>
-                            <span className="text-slate-400">•</span>
+                            <span className="text-slate-400">-</span>
                             <span className="text-slate-600">
                               {d.experienceYears} yrs
                             </span>
@@ -381,19 +387,19 @@ export default function DoctorConsultancyPage() {
                                 Next: {d.nextAvailable}
                               </span>
                             </div>
-                            <div className="flex items-center gap-2">
+                            {/* <div className="flex items-center gap-2">
                               <Icons.Star className="!w-4 !h-4 text-secondary" />
                               <span>
                                 {d.rating.toFixed(1)} ({d.reviews})
                               </span>
-                            </div>
+                            </div> */}
                           </div>
 
                           <div className="mt-4 flex items-center justify-between gap-3">
                             <div>
                               <p className="text-xs text-slate-500">Fee</p>
                               <p className="text-sm font-black text-dark">
-                                {formatFee(d.fee)}
+                                {formatFee(d.fee, d.currency)}
                               </p>
                             </div>
                             <CustomButton
@@ -418,8 +424,9 @@ export default function DoctorConsultancyPage() {
                         </div>
                       ))}
                     </div>
+                    )}
 
-                    {filteredDoctors.length === 0 && (
+                    {!doctorsLoading && !doctorsError && filteredDoctors.length === 0 && (
                       <div className="mt-5 rounded-xl border border-gray-100 bg-light p-5 text-sm text-slate-600">
                         No doctors match your filters. Try a different specialty or
                         search term.
@@ -451,7 +458,7 @@ export default function DoctorConsultancyPage() {
                             </p>
                             <p className="text-xs text-slate-600 mt-1">
                               {selectedDoctor
-                                ? `${selectedDoctor.specialty} • Fee ${formatFee(selectedDoctor.fee)}`
+                                ? `${selectedDoctor.specialty} - Fee ${formatFee(selectedDoctor.fee, selectedDoctor.currency)}`
                                 : "Choose a doctor from the list to start"}
                             </p>
                           </div>
