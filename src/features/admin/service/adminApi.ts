@@ -71,6 +71,8 @@ export type AdminDoctor = {
   user?: { _id: string; name: string; email?: string; phone?: string } | null;
   fullName: string;
   specialization?: string;
+  fee?: number;
+  currency?: string;
   status?: string;
   createdAt?: string;
 };
@@ -138,19 +140,22 @@ export const getAdminUsers = async (params?: {
 }): Promise<AdminPaged<AdminUser>> => {
   const res = await api.get("/admin/users", { params });
   const raw = res.data as unknown;
-  const payload = (raw as { data?: unknown })?.data as { data?: unknown; meta?: AdminListMeta } | undefined;
-  const data = payload?.data ?? payload ?? raw;
-  const meta = payload?.meta ?? (raw as { meta?: AdminListMeta })?.meta;
+  const payload = (raw as { data?: unknown })?.data ?? raw;
+  const pagination =
+    (payload as { pagination?: AdminPagination })?.pagination ??
+    (payload as { meta?: AdminPagination })?.meta ??
+    (raw as { pagination?: AdminPagination })?.pagination ??
+    (raw as { meta?: AdminPagination })?.meta;
 
-  const items = Array.isArray(data)
-    ? (data as AdminUser[])
-    : Array.isArray((data as { items?: unknown })?.items)
-    ? ((data as { items?: AdminUser[] }).items as AdminUser[])
+  const items = Array.isArray(payload)
+    ? (payload as AdminUser[])
+    : Array.isArray((payload as { items?: unknown })?.items)
+    ? ((payload as { items?: AdminUser[] }).items as AdminUser[])
     : [];
 
   return {
     items,
-    meta: meta ?? { page: 1, limit: params?.limit ?? 10, total: 0, totalPages: 1 },
+    meta: pagination ?? { page: 1, limit: params?.limit ?? 10, total: items.length, totalPages: 1 },
   };
 };
 
@@ -267,10 +272,23 @@ export const getAdminDoctors = async (params?: {
   status?: string;
 }): Promise<AdminPaged<AdminDoctor>> => {
   const res = await api.get("/admin/doctors", { params });
-  const r = res.data as { data?: AdminDoctor[]; meta?: AdminListMeta };
+  const raw = res.data as unknown;
+  const payload = (raw as { data?: unknown })?.data ?? raw;
+  const pagination =
+    (payload as { pagination?: AdminPagination })?.pagination ??
+    (payload as { meta?: AdminPagination })?.meta ??
+    (raw as { pagination?: AdminPagination })?.pagination ??
+    (raw as { meta?: AdminPagination })?.meta;
+
+  const items = Array.isArray(payload)
+    ? (payload as AdminDoctor[])
+    : Array.isArray((payload as { items?: unknown })?.items)
+    ? ((payload as { items?: AdminDoctor[] }).items as AdminDoctor[])
+    : [];
+
   return {
-    items: r?.data ?? [],
-    meta: r?.meta ?? { page: 1, limit: params?.limit ?? 10, total: 0, totalPages: 1 },
+    items,
+    meta: pagination ?? { page: 1, limit: params?.limit ?? 10, total: items.length, totalPages: 1 },
   };
 };
 
@@ -431,7 +449,7 @@ export const createAdminDoctor = async (payload: {
   status?: string;
 }): Promise<AdminDoctor> => {
   const body = {
-    user: payload.userId,
+    userId: payload.userId,
     fullName: payload.fullName,
     specialization: payload.specialization,
     status: payload.status,
@@ -450,7 +468,7 @@ export const updateAdminDoctor = async (
     status: patch.status,
   };
   if (patch.userId) {
-    body.user = patch.userId;
+    body.userId = patch.userId;
   }
   const res = await api.patch(`/doctors/${doctorId}`, body);
   return unwrap<AdminDoctor>(res.data);

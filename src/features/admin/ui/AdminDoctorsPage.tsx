@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  type AdminDoctor,
   createAdminDoctor,
   deleteAdminDoctor,
   getAdminDoctors,
+  getAdminUsers,
   updateAdminDoctor,
 } from "../service/adminApi";
 import toast from "react-hot-toast";
+
+const getApiErrorMessage = (err: unknown, fallback: string) => {
+  const data = (err as { response?: { data?: { message?: string; errors?: string[] } } })?.response
+    ?.data;
+  return data?.errors?.[0] ?? data?.message ?? fallback;
+};
 
 const specializationOptions = [
   "General Physician",
@@ -55,16 +63,22 @@ export default function AdminDoctorsPage() {
     retry: 1,
   });
 
+  const { data: doctorUsersPaged, isLoading: isDoctorUsersLoading } = useQuery({
+    queryKey: ["admin", "users", "doctor-options"],
+    queryFn: () => getAdminUsers({ role: "doctor", status: "active", page: 1, limit: 100 }),
+    retry: 1,
+  });
+
   const _rawItems = paged?.items;
-  const items = Array.isArray(_rawItems)
+  const items: AdminDoctor[] = Array.isArray(_rawItems)
     ? _rawItems
     : Array.isArray((_rawItems as any)?.items)
     ? (_rawItems as any).items
     : [];
   const meta = paged?.meta ?? { page: 1, limit, total: 0, totalPages: 1 };
+  const doctorUsers = doctorUsersPaged?.items ?? [];
 
   const [createForm, setCreateForm] = useState({
-    userId: "",
     fullName: "",
     specialization: "",
     status: "active",
@@ -72,7 +86,6 @@ export default function AdminDoctorsPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
-    userId: "",
     fullName: "",
     specialization: "",
     status: "active",
@@ -81,13 +94,27 @@ export default function AdminDoctorsPage() {
   const statusOptions = useMemo(() => ["active", "inactive"], []);
   const limitOptions = useMemo(() => [10, 20, 50], []);
 
+  const resolveDoctorUserId = (fullName: string) => {
+    const normalizedName = fullName.trim().toLowerCase();
+    const exactMatch = doctorUsers.find((user) => user.name.trim().toLowerCase() === normalizedName);
+
+    if (exactMatch) return exactMatch._id;
+    if (doctorUsers.length === 1) return doctorUsers[0]._id;
+    return "";
+  };
+
   const createMutation = useMutation({
-    mutationFn: async () =>
+    mutationFn: async (payload: {
+      userId: string;
+      fullName: string;
+      specialization?: string;
+      status: string;
+    }) =>
       createAdminDoctor({
-        userId: createForm.userId.trim() || undefined,
-        fullName: createForm.fullName.trim(),
-        specialization: createForm.specialization.trim() || undefined,
-        status: createForm.status,
+        userId: payload.userId,
+        fullName: payload.fullName,
+        specialization: payload.specialization,
+        status: payload.status,
       }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin", "doctors"] });
@@ -97,7 +124,6 @@ export default function AdminDoctorsPage() {
   const updateMutation = useMutation({
     mutationFn: async (args: { id: string }) =>
       updateAdminDoctor(args.id, {
-        userId: editForm.userId.trim() || undefined,
         fullName: editForm.fullName.trim() || undefined,
         specialization: editForm.specialization.trim() || undefined,
         status: editForm.status,
@@ -125,7 +151,7 @@ export default function AdminDoctorsPage() {
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-semibold text-dark">Create doctor</p>
         </div>
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <input
             value={createForm.fullName}
             onChange={(e) => setCreateForm((p) => ({ ...p, fullName: e.target.value }))}
@@ -144,12 +170,6 @@ export default function AdminDoctorsPage() {
               </option>
             ))}
           </select>
-          <input
-            value={createForm.userId}
-            onChange={(e) => setCreateForm((p) => ({ ...p, userId: e.target.value }))}
-            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-            placeholder="User ID (required)"
-          />
           <select
             value={createForm.status}
             onChange={(e) => setCreateForm((p) => ({ ...p, status: e.target.value }))}
@@ -169,20 +189,27 @@ export default function AdminDoctorsPage() {
                 toast.error("Full name is required");
                 return;
               }
-              if (!createForm.userId.trim()) {
-                toast.error("User ID is required to create a doctor profile");
+              if (isDoctorUsersLoading) {
+                toast.error("Doctor user list is still loading");
+                return;
+              }
+              const userId = resolveDoctorUserId(createForm.fullName);
+              if (!userId) {
+                toast.error("No matching doctor user found for this full name");
                 return;
               }
               const t = toast.loading("Creating...");
               try {
-                await createMutation.mutateAsync();
+                await createMutation.mutateAsync({
+                  userId,
+                  fullName: createForm.fullName.trim(),
+                  specialization: createForm.specialization.trim() || undefined,
+                  status: createForm.status,
+                });
                 toast.success("Created", { id: t });
-                setCreateForm({ userId: "", fullName: "", specialization: "", status: "active" });
+                setCreateForm({ fullName: "", specialization: "", status: "active" });
               } catch (err: unknown) {
-                const msg =
-                  (err as { response?: { data?: { message?: string } } })?.response?.data
-                    ?.message ?? "Create failed";
-                toast.error(msg, { id: t });
+                toast.error(getApiErrorMessage(err, "Create failed"), { id: t });
               }
             }}
             className="h-10 px-4 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-60"
@@ -291,7 +318,6 @@ export default function AdminDoctorsPage() {
                           onClick={() => {
                             setEditingId(d._id);
                             setEditForm({
-                              userId: d.user?._id ?? "",
                               fullName: d.fullName ?? "",
                               specialization: d.specialization ?? "",
                               status: d.status ?? "active",
@@ -312,10 +338,7 @@ export default function AdminDoctorsPage() {
                               await deleteMutation.mutateAsync(d._id);
                               toast.success("Deleted", { id: t });
                             } catch (err: unknown) {
-                              const msg =
-                                (err as { response?: { data?: { message?: string } } })?.response?.data
-                                  ?.message ?? "Delete failed";
-                              toast.error(msg, { id: t });
+                              toast.error(getApiErrorMessage(err, "Delete failed"), { id: t });
                             }
                           }}
                           className="h-9 px-3 rounded-lg border border-red-200 bg-red-50 text-sm font-semibold text-red-600 hover:bg-red-100 disabled:opacity-60"
@@ -401,12 +424,6 @@ export default function AdminDoctorsPage() {
                     </option>
                   ))}
                 </select>
-                <input
-                  value={editForm.userId}
-                  onChange={(e) => setEditForm((p) => ({ ...p, userId: e.target.value }))}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
-                  placeholder="User ID (optional)"
-                />
                 <select
                   value={editForm.status}
                   onChange={(e) => setEditForm((p) => ({ ...p, status: e.target.value }))}
@@ -443,10 +460,7 @@ export default function AdminDoctorsPage() {
                       toast.success("Saved", { id: t });
                       setEditingId(null);
                     } catch (err: unknown) {
-                      const msg =
-                        (err as { response?: { data?: { message?: string } } })?.response?.data
-                          ?.message ?? "Save failed";
-                      toast.error(msg, { id: t });
+                      toast.error(getApiErrorMessage(err, "Save failed"), { id: t });
                     }
                   }}
                   className="h-10 px-4 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-60"
