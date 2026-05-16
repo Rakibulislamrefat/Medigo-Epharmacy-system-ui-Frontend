@@ -68,18 +68,53 @@ export type AdminOrder = {
 
 export type AdminDoctor = {
   _id: string;
-  user?: { _id: string; name: string; email?: string; phone?: string } | null;
   fullName: string;
+  profileImage?: string;
+  qualifications?: string[];
   specialization?: string;
+  experienceYears?: number;
+  consultationType?: "online" | "in-person" | "both" | string;
+  city?: string;
+  availability?: {
+    day: string;
+    startTime: string;
+    endTime: string;
+  }[];
+  nextAvailableAt?: string;
+  fee?: number;
+  currency?: string;
   registrationNumber?: string;
   bio?: string;
   languages?: string[];
-  fee?: number;
-  currency?: string;
-  modes?: string[];
+  email?: string;
+  phone?: string;
   status?: string;
   createdAt?: string;
   updatedAt?: string;
+};
+
+export type AdminDoctorPayload = {
+  fullName: string;
+  profileImage?: string;
+  qualifications?: string[];
+  specialization: string;
+  experienceYears?: number;
+  consultationType: "online" | "in-person" | "both";
+  city: string;
+  availability?: {
+    day: string;
+    startTime: string;
+    endTime: string;
+  }[];
+  nextAvailableAt?: string;
+  fee: number;
+  currency?: string;
+  registrationNumber?: string;
+  bio?: string;
+  languages?: string[];
+  email: string;
+  phone: string;
+  status?: string;
 };
 
 export type AdminDoctorUser = {
@@ -289,12 +324,12 @@ export const getAdminReadyDoctors = async (params?: {
 };
 
 export const getAdminDoctors = async (params?: {
-  q?: string;
+  search?: string;
   page?: number;
-  limit?: number;
+  rows?: number;
   status?: string;
 }): Promise<AdminPaged<AdminDoctor>> => {
-  const res = await api.get("/admin/doctors", { params });
+  const res = await api.get("/doctors", { params });
   const raw = res.data as unknown;
   const payload = (raw as { data?: unknown })?.data ?? raw;
   const pagination =
@@ -311,7 +346,7 @@ export const getAdminDoctors = async (params?: {
 
   return {
     items,
-    meta: pagination ?? { page: 1, limit: params?.limit ?? 10, total: items.length, totalPages: 1 },
+    meta: pagination ?? { page: 1, limit: params?.rows ?? 10, total: items.length, totalPages: 1 },
   };
 };
 
@@ -482,37 +517,16 @@ export const createAdminDoctorUser = async (payload: {
   return unwrap<AdminDoctorUser>(res.data);
 };
 
-export const createAdminDoctor = async (payload: {
-  userId?: string;
-  fullName: string;
-  specialization?: string;
-  status?: string;
-}): Promise<AdminDoctor> => {
-  const body: Record<string, unknown> = {
-    fullName: payload.fullName,
-    specialization: payload.specialization,
-    status: payload.status,
-  };
-  if (payload.userId) {
-    body.userId = payload.userId;
-  }
-  const res = await api.post("/doctors", body);
+export const createAdminDoctor = async (payload: AdminDoctorPayload): Promise<AdminDoctor> => {
+  const res = await api.post("/doctors", payload);
   return unwrap<AdminDoctor>(res.data);
 };
 
 export const updateAdminDoctor = async (
   doctorId: string,
-  patch: { userId?: string; fullName?: string; specialization?: string; status?: string },
+  patch: Partial<AdminDoctorPayload>,
 ): Promise<AdminDoctor> => {
-  const body: Record<string, unknown> = {
-    fullName: patch.fullName,
-    specialization: patch.specialization,
-    status: patch.status,
-  };
-  if (patch.userId) {
-    body.userId = patch.userId;
-  }
-  const res = await api.patch(`/doctors/${doctorId}`, body);
+  const res = await api.patch(`/doctors/${doctorId}`, patch);
   return unwrap<AdminDoctor>(res.data);
 };
 
