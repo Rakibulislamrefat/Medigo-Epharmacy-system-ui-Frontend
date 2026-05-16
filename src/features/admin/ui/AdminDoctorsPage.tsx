@@ -3,9 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type AdminDoctor,
   createAdminDoctor,
+  createAdminDoctorUser,
   deleteAdminDoctor,
   getAdminDoctors,
-  getAdminUsers,
   updateAdminDoctor,
 } from "../service/adminApi";
 import toast from "react-hot-toast";
@@ -15,6 +15,9 @@ const getApiErrorMessage = (err: unknown, fallback: string) => {
     ?.data;
   return data?.errors?.[0] ?? data?.message ?? fallback;
 };
+
+const passwordPattern = /^(?=.*[A-Z])(?=.*\d).{8,64}$/;
+const bdPhonePattern = /^(?:\+?88)?01[3-9]\d{8}$/;
 
 const specializationOptions = [
   "General Physician",
@@ -63,12 +66,6 @@ export default function AdminDoctorsPage() {
     retry: 1,
   });
 
-  const { data: doctorUsersPaged, isLoading: isDoctorUsersLoading } = useQuery({
-    queryKey: ["admin", "users", "doctor-options"],
-    queryFn: () => getAdminUsers({ role: "doctor", status: "active", page: 1, limit: 100 }),
-    retry: 1,
-  });
-
   const _rawItems = paged?.items;
   const items: AdminDoctor[] = Array.isArray(_rawItems)
     ? _rawItems
@@ -76,10 +73,12 @@ export default function AdminDoctorsPage() {
     ? (_rawItems as any).items
     : [];
   const meta = paged?.meta ?? { page: 1, limit, total: 0, totalPages: 1 };
-  const doctorUsers = doctorUsersPaged?.items ?? [];
 
   const [createForm, setCreateForm] = useState({
     fullName: "",
+    email: "",
+    phone: "",
+    password: "",
     specialization: "",
     status: "active",
   });
@@ -94,30 +93,36 @@ export default function AdminDoctorsPage() {
   const statusOptions = useMemo(() => ["active", "inactive"], []);
   const limitOptions = useMemo(() => [10, 20, 50], []);
 
-  const resolveDoctorUserId = (fullName: string) => {
-    const normalizedName = fullName.trim().toLowerCase();
-    const exactMatch = doctorUsers.find((user) => user.name.trim().toLowerCase() === normalizedName);
-
-    if (exactMatch) return exactMatch._id;
-    if (doctorUsers.length === 1) return doctorUsers[0]._id;
-    return "";
-  };
-
   const createMutation = useMutation({
     mutationFn: async (payload: {
-      userId: string;
       fullName: string;
+      email: string;
+      phone: string;
+      password: string;
       specialization?: string;
       status: string;
-    }) =>
-      createAdminDoctor({
-        userId: payload.userId,
+    }) => {
+      const user = await createAdminDoctorUser({
+        name: payload.fullName,
+        email: payload.email,
+        phone: payload.phone,
+        password: payload.password,
+      });
+
+      if (!user.id) {
+        throw new Error("Doctor user was created but no user ID was returned");
+      }
+
+      return createAdminDoctor({
+        userId: user.id,
         fullName: payload.fullName,
         specialization: payload.specialization,
         status: payload.status,
-      }),
+      });
+    },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin", "doctors"] });
+      await qc.invalidateQueries({ queryKey: ["admin", "users"] });
     },
   });
 
@@ -151,12 +156,33 @@ export default function AdminDoctorsPage() {
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-semibold text-dark">Create doctor</p>
         </div>
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <input
             value={createForm.fullName}
             onChange={(e) => setCreateForm((p) => ({ ...p, fullName: e.target.value }))}
             className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
             placeholder="Full name"
+          />
+          <input
+            value={createForm.email}
+            onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))}
+            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+            placeholder="Email"
+            type="email"
+          />
+          <input
+            value={createForm.phone}
+            onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))}
+            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+            placeholder="Phone 01XXXXXXXXX"
+            inputMode="tel"
+          />
+          <input
+            value={createForm.password}
+            onChange={(e) => setCreateForm((p) => ({ ...p, password: e.target.value }))}
+            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm"
+            placeholder="Temporary password"
+            type="password"
           />
           <select
             value={createForm.specialization}
@@ -189,25 +215,41 @@ export default function AdminDoctorsPage() {
                 toast.error("Full name is required");
                 return;
               }
-              if (isDoctorUsersLoading) {
-                toast.error("Doctor user list is still loading");
+              if (!createForm.email.trim()) {
+                toast.error("Email is required");
                 return;
               }
-              const userId = resolveDoctorUserId(createForm.fullName);
-              if (!userId) {
-                toast.error("No matching doctor user found for this full name");
+              if (!createForm.phone.trim()) {
+                toast.error("Phone is required");
+                return;
+              }
+              if (!bdPhonePattern.test(createForm.phone.trim().replace(/[\s-]/g, ""))) {
+                toast.error("Use a valid Bangladeshi phone number");
+                return;
+              }
+              if (!passwordPattern.test(createForm.password)) {
+                toast.error("Password needs 8+ characters, one uppercase letter, and one number");
                 return;
               }
               const t = toast.loading("Creating...");
               try {
                 await createMutation.mutateAsync({
-                  userId,
                   fullName: createForm.fullName.trim(),
+                  email: createForm.email.trim().toLowerCase(),
+                  phone: createForm.phone.trim().replace(/[\s-]/g, ""),
+                  password: createForm.password,
                   specialization: createForm.specialization.trim() || undefined,
                   status: createForm.status,
                 });
                 toast.success("Created", { id: t });
-                setCreateForm({ fullName: "", specialization: "", status: "active" });
+                setCreateForm({
+                  fullName: "",
+                  email: "",
+                  phone: "",
+                  password: "",
+                  specialization: "",
+                  status: "active",
+                });
               } catch (err: unknown) {
                 toast.error(getApiErrorMessage(err, "Create failed"), { id: t });
               }

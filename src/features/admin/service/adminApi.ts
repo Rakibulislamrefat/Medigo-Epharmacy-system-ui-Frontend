@@ -71,19 +71,42 @@ export type AdminDoctor = {
   user?: { _id: string; name: string; email?: string; phone?: string } | null;
   fullName: string;
   specialization?: string;
+  registrationNumber?: string;
+  bio?: string;
+  languages?: string[];
   fee?: number;
   currency?: string;
+  modes?: string[];
   status?: string;
   createdAt?: string;
+  updatedAt?: string;
+};
+
+export type AdminDoctorUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status?: string;
 };
 
 export type AdminConsultancy = {
   _id: string;
   user?: { _id: string; name: string; email?: string; phone?: string };
   doctor?: { _id: string; fullName: string; specialization?: string };
+  transaction?: string | { _id: string } | null;
   status?: string;
   mode?: string;
   scheduledAt?: string;
+  durationMinutes?: number;
+  patientName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  symptoms?: string;
+  notes?: string;
+  attachments?: string[];
+  meetingLink?: string;
+  paymentStatus?: string;
   createdAt?: string;
 };
 
@@ -442,18 +465,37 @@ export const updateAdminOrder = async (
   return unwrap<AdminOrder>(res.data);
 };
 
+export const createAdminDoctorUser = async (payload: {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+}): Promise<AdminDoctorUser> => {
+  const res = await api.post("/auth/register", {
+    name: payload.name,
+    email: payload.email,
+    phone: payload.phone,
+    password: payload.password,
+    role: "doctor",
+    addresses: [],
+  });
+  return unwrap<AdminDoctorUser>(res.data);
+};
+
 export const createAdminDoctor = async (payload: {
-  userId: string;
+  userId?: string;
   fullName: string;
   specialization?: string;
   status?: string;
 }): Promise<AdminDoctor> => {
-  const body = {
-    userId: payload.userId,
+  const body: Record<string, unknown> = {
     fullName: payload.fullName,
     specialization: payload.specialization,
     status: payload.status,
   };
+  if (payload.userId) {
+    body.userId = payload.userId;
+  }
   const res = await api.post("/doctors", body);
   return unwrap<AdminDoctor>(res.data);
 };
@@ -482,8 +524,18 @@ export const createAdminConsultancy = async (payload: {
   userId: string;
   doctorId: string;
   status?: string;
+  patientName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
   mode?: string;
   scheduledAt?: string | null;
+  durationMinutes?: number;
+  symptoms?: string;
+  notes?: string;
+  attachments?: string[];
+  meetingLink?: string;
+  paymentStatus?: string;
+  transactionId?: string | null;
 }): Promise<AdminConsultancy> => {
   const res = await api.post("/admin/consultancies", payload);
   return unwrap<AdminConsultancy>(res.data);
@@ -491,7 +543,23 @@ export const createAdminConsultancy = async (payload: {
 
 export const updateAdminConsultancy = async (
   consultancyId: string,
-  patch: { status?: string; mode?: string; scheduledAt?: string | null },
+  patch: {
+    userId?: string;
+    doctorId?: string;
+    status?: string;
+    patientName?: string;
+    contactPhone?: string;
+    contactEmail?: string;
+    mode?: string;
+    scheduledAt?: string | null;
+    durationMinutes?: number;
+    symptoms?: string;
+    notes?: string;
+    attachments?: string[];
+    meetingLink?: string;
+    paymentStatus?: string;
+    transactionId?: string | null;
+  },
 ): Promise<AdminConsultancy> => {
   const res = await api.patch(`/admin/consultancies/${consultancyId}`, patch);
   return unwrap<AdminConsultancy>(res.data);

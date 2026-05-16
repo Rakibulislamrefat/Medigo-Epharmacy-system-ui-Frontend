@@ -13,7 +13,7 @@ const AdminRoute = ({ children }: { children: JSX.Element }) => {
     // Development convenience: allow bypass when localStorage.DEV_ADMIN === '1'
     // This avoids needing a backend-authenticated admin while testing locally.
     try {
-      if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
+      if (import.meta.env.DEV && typeof window !== "undefined") {
         const dev = window.localStorage.getItem("DEV_ADMIN");
         if (dev === "1") {
           return children;

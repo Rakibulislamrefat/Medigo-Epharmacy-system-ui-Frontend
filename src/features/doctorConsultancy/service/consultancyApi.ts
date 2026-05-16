@@ -9,24 +9,39 @@ export type CreateConsultancyPayload = {
   userId?: string;
   doctorId: string;
   status?: string;
-  mode?: string;
-  scheduledAt?: string | null;
   patientName?: string;
   contactPhone?: string;
+  contactEmail?: string;
+  mode?: string;
+  scheduledAt?: string | null;
+  durationMinutes?: number;
+  symptoms?: string;
   notes?: string;
+  attachments?: string[];
+  meetingLink?: string;
+  paymentStatus?: string;
+  transactionId?: string | null;
 };
 
-export const createConsultancy = async (payload: CreateConsultancyPayload) => {
+export type ConsultancyResponse = {
+  _id?: string;
+  id?: string;
+  appointmentId?: string;
+};
+
+export const createConsultancy = async (
+  payload: CreateConsultancyPayload,
+): Promise<ConsultancyResponse> => {
   // Prefer public endpoint first
   try {
     const res = await api.post("/consultancies", payload);
-    return unwrap(res.data);
+    return unwrap<ConsultancyResponse>(res.data);
   } catch (err) {
     // fallback to admin endpoint (best-effort)
     try {
       const res = await api.post("/admin/consultancies", payload);
-      return unwrap(res.data);
-    } catch (err2) {
+      return unwrap<ConsultancyResponse>(res.data);
+    } catch {
       throw err; // rethrow original error
     }
   }
