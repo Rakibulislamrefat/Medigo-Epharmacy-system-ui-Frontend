@@ -161,6 +161,10 @@ export const router = createBrowserRouter([
         element: <CategoryPage mode="all" />,
       },
       {
+        path: "/medicines",
+        element: <CategoryPage mode="all" />,
+      },
+      {
         path: "/career",
         element: <CareerPage />,
       },
