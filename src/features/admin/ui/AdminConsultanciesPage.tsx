@@ -38,6 +38,11 @@ const formatDateTime = (v?: string) => {
       });
 };
 
+const formatCurrency = (value: number) =>
+  `Tk ${new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 0,
+  }).format(value)}`;
+
 const getUserLabel = (user: unknown) => {
   if (!user) return "-";
   if (typeof user === "string") return user;
@@ -91,6 +96,131 @@ export default function AdminConsultanciesPage() {
 
   const items = paged?.items ?? [];
   const meta = paged?.meta ?? { page: 1, limit, total: 0, totalPages: 1 };
+
+  const getConsultancyFee = (consultancy: any) => {
+    if (consultancy?.doctor && typeof consultancy.doctor === "object") {
+      return Number(consultancy.doctor.fee ?? 45);
+    }
+    return 45;
+  };
+
+  const totalRevenue = useMemo(() => {
+    return items.reduce((sum, consultancy) => sum + getConsultancyFee(consultancy), 0);
+  }, [items]);
+
+  const pageRevenue = useMemo(() => {
+    return items.reduce((sum, consultancy) => {
+      if (!consultancy?.paymentStatus) return sum;
+      return sum + getConsultancyFee(consultancy);
+    }, 0);
+  }, [items]);
+
+  const revenueByStatus = useMemo(() => {
+    const totals = {
+      requested: 0,
+      confirmed: 0,
+      ready: 0,
+      completed: 0,
+      cancelled: 0,
+      other: 0,
+    };
+
+    items.forEach((consultancy) => {
+      const status = String(consultancy?.status ?? "other").toLowerCase();
+      const revenue = consultancy?.paymentStatus ? getConsultancyFee(consultancy) : 0;
+      if (Object.prototype.hasOwnProperty.call(totals, status)) {
+        (totals as any)[status] += revenue;
+      } else {
+        totals.other += revenue;
+      }
+    });
+
+    return totals;
+  }, [items]);
+
+  const revenueChartDays = useMemo(() => {
+    const dailyRevenue = new Map<string, { label: string; value: number; timestamp: number }>();
+    items.forEach((consultancy) => {
+      const when = consultancy?.createdAt || consultancy?.scheduledAt;
+      if (!when) return;
+      const date = new Date(when);
+      if (Number.isNaN(date.getTime())) return;
+      const label = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const existing = dailyRevenue.get(label);
+      const revenue = consultancy?.paymentStatus ? getConsultancyFee(consultancy) : 0;
+      if (existing) {
+        existing.value += revenue;
+      } else {
+        dailyRevenue.set(label, { label, value: revenue, timestamp: date.getTime() });
+      }
+    });
+
+    return Array.from(dailyRevenue.values())
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .slice(-7)
+      .map(({ label, value }) => ({ label, value }));
+  }, [items]);
+
+  const revenueStatusChart = useMemo(() => {
+    const groups = [
+      { label: "Confirmed", status: "confirmed", color: "#10B981" },
+      { label: "Ready", status: "ready", color: "#8B5CF6" },
+      { label: "Completed", status: "completed", color: "#2563EB" },
+      { label: "Cancelled", status: "cancelled", color: "#EF4444" },
+      { label: "Requested", status: "requested", color: "#0EA5E9" },
+    ];
+    const totalRevenue = groups.reduce(
+      (sum, group) => sum + Number((revenueByStatus as any)[group.status] ?? 0),
+      0,
+    );
+    return groups
+      .map((group) => ({
+        ...group,
+        value: Number((revenueByStatus as any)[group.status] ?? 0),
+        percent: totalRevenue ? Math.round(((revenueByStatus as any)[group.status] ?? 0) / totalRevenue * 100) : 0,
+      }))
+      .filter((group) => group.value > 0);
+  }, [revenueByStatus]);
+
+  const statusCounts = useMemo(() => {
+    const counts = {
+      requested: 0,
+      confirmed: 0,
+      ready: 0,
+      completed: 0,
+      cancelled: 0,
+      other: 0,
+    };
+    items.forEach((consultancy) => {
+      const status = String(consultancy?.status ?? "other").toLowerCase();
+      if (Object.prototype.hasOwnProperty.call(counts, status)) {
+        (counts as any)[status] += 1;
+      } else {
+        counts.other += 1;
+      }
+    });
+    return counts;
+  }, [items]);
+
+  const statusChartData = useMemo(() => {
+    const items = [
+      { label: "Requested", value: statusCounts.requested, color: "bg-sky-500" },
+      { label: "Confirmed", value: statusCounts.confirmed, color: "bg-emerald-500" },
+      { label: "Ready", value: statusCounts.ready, color: "bg-violet-500" },
+      { label: "Completed", value: statusCounts.completed, color: "bg-primary" },
+      { label: "Cancelled", value: statusCounts.cancelled, color: "bg-red-500" },
+    ].filter((item) => item.value > 0);
+    const maxValue = Math.max(...items.map((item) => item.value), 1);
+    return items.map((item) => ({
+      ...item,
+      percent: Math.round((item.value / maxValue) * 100),
+    }));
+  }, [statusCounts]);
+
+  const completedRate = useMemo(() => {
+    const visible = items.length || 1;
+    return Math.round((statusCounts.completed / visible) * 100);
+  }, [items.length, statusCounts.completed]);
 
   const [createForm, setCreateForm] = useState({
     userId: "",
@@ -181,8 +311,164 @@ export default function AdminConsultanciesPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl sm:text-2xl font-black text-dark">Consultancies</h1>
-        <p className="text-sm text-slate-500 mt-1">Manage consultation bookings.</p>
+        <h1 className="text-xl sm:text-2xl font-black text-dark">Consultancy dashboard</h1>
+        <p className="text-sm text-slate-500 mt-1">
+          Manage consultation bookings, revenue and operational performance.
+        </p>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(340px,1fr)]">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+            <p className="text-sm font-medium text-slate-500">Total consultancies</p>
+            <p className="mt-4 text-3xl font-black text-dark">{meta.total}</p>
+            <p className="mt-2 text-sm text-slate-500">Total bookings in the current report.</p>
+          </div>
+          <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+            <p className="text-sm font-medium text-slate-500">Revenue estimate (Tk)</p>
+            <p className="mt-4 text-3xl font-black text-dark">{formatCurrency(totalRevenue)}</p>
+            <p className="mt-2 text-sm text-slate-500">Expected revenue from all consultancies on this page.</p>
+          </div>
+          <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+            <p className="text-sm font-medium text-slate-500">Completed rate</p>
+            <p className="mt-4 text-3xl font-black text-dark">{completedRate}%</p>
+            <p className="mt-2 text-sm text-slate-500">Completed consultancies on this page.</p>
+          </div>
+        </div>
+
+        <div className="grid gap-4">
+          <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Revenue trend</p>
+                <p className="mt-2 text-xs text-slate-500">
+                  Revenue movement across the latest consultancies.
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-slate-500">Paid revenue (Tk)</p>
+                <p className="text-base font-black text-dark">{formatCurrency(pageRevenue)}</p>
+              </div>
+            </div>
+            <div className="mt-6 overflow-hidden rounded-3xl bg-slate-100 p-4">
+              <svg viewBox="0 0 100 60" className="h-48 w-full">
+                <defs>
+                  <linearGradient id="trendGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#2563EB" />
+                    <stop offset="100%" stopColor="#9333EA" />
+                  </linearGradient>
+                </defs>
+                <polyline
+                  fill="none"
+                  stroke="url(#trendGradient)"
+                  strokeWidth="2"
+                  points={
+                    revenueChartDays
+                      .map((point, index) => {
+                        const maxValue = Math.max(...revenueChartDays.map((item) => item.value), 1);
+                        const x = revenueChartDays.length > 1 ? (index / (revenueChartDays.length - 1)) * 100 : 0;
+                        const y = 100 - Math.round((point.value / maxValue) * 80) - 10;
+                        return `${x},${y}`;
+                      })
+                      .join(" ")
+                  }
+                />
+                {revenueChartDays.map((point, index) => {
+                  const maxValue = Math.max(...revenueChartDays.map((item) => item.value), 1);
+                  const x = revenueChartDays.length > 1 ? (index / (revenueChartDays.length - 1)) * 100 : 0;
+                  const y = 100 - Math.round((point.value / maxValue) * 80) - 10;
+                  return (
+                    <circle
+                      key={point.label}
+                      cx={x}
+                      cy={y}
+                      r="1.8"
+                      fill="#2563EB"
+                    />
+                  );
+                })}
+              </svg>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-slate-500">
+              {revenueChartDays.map((point) => (
+                <div key={point.label} className="rounded-2xl bg-slate-50 p-2">
+                  <p className="font-semibold text-slate-900">{formatCurrency(point.value)}</p>
+                  <p>{point.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Revenue mix (Tk)</p>
+                <p className="mt-2 text-xs text-slate-500">
+                  Revenue distribution across consultation statuses.
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-slate-500">Total page revenue</p>
+                <p className="text-base font-black text-dark">{formatCurrency(totalRevenue)}</p>
+              </div>
+            </div>
+            <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:items-center">
+              <div className="relative mx-auto h-64 w-64">
+                <svg viewBox="0 0 200 200" className="h-full w-full">
+                  <circle
+                    cx="100"
+                    cy="100"
+                    r="70"
+                    fill="none"
+                    stroke="#E2E8F0"
+                    strokeWidth="24"
+                  />
+                  {revenueStatusChart.reduce((acc, segment, index) => {
+                    const circumference = 2 * Math.PI * 70;
+                    const dash = (segment.percent / 100) * circumference;
+                    const offset = circumference * 0.25 - acc.cumulative;
+                    acc.cumulative += dash;
+                    acc.elements.push(
+                      <circle
+                        key={segment.label}
+                        cx="100"
+                        cy="100"
+                        r="70"
+                        fill="none"
+                        stroke={segment.color}
+                        strokeWidth="24"
+                        strokeDasharray={`${dash} ${circumference - dash}`}
+                        strokeDashoffset={offset}
+                        transform="rotate(-90 100 100)"
+                        strokeLinecap="round"
+                      />,
+                    );
+                    return acc;
+                  }, { cumulative: 0, elements: [] as JSX.Element[] }).elements}
+                </svg>
+                <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
+                  <p className="text-xs uppercase text-slate-500">Revenue</p>
+                  <p className="mt-1 text-2xl font-black text-dark">{formatCurrency(totalRevenue)}</p>
+                  <p className="text-xs text-slate-500">Page estimate</p>
+                </div>
+              </div>
+              <div className="grid gap-3 flex-1">
+                {revenueStatusChart.map((segment) => (
+                  <div key={segment.label} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="h-3 w-3 rounded-full" style={{ backgroundColor: segment.color }} />
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">{segment.label}</p>
+                        <p className="text-xs text-slate-500">{formatCurrency(segment.value)}</p>
+                      </div>
+                    </div>
+                    <span className="text-xs font-semibold text-slate-700">{segment.percent}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="rounded-xl border border-gray-100 bg-white p-5">
