@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getAdminMetrics } from "../service/adminApi";
 import { Icons } from "../../../shared/icons/Icons";
@@ -178,6 +179,13 @@ export default function AdminDashboardPage() {
               <p className="max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
                 Monitor key performance metrics, track operations, and stay ahead with a clean executive summary built for fast decisions.
               </p>
+              <Link
+                to="/admin/analytics"
+                className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/20"
+              >
+                View analytics
+                <Icons.ArrowForward className="!w-4 !h-4 text-white" />
+              </Link>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <div className="rounded-3xl bg-white/10 border border-white/10 p-4">

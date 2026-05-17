@@ -14,6 +14,7 @@ const navItems = [
   { label: "Orders", to: "/admin/orders", Icon: Icons.Cart },
   { label: "Doctors", to: "/admin/doctors", Icon: Icons.Hospital },
   { label: "Consultancy", to: "/admin/consultancies", Icon: Icons.Check },
+  { label: "Analytics", to: "/admin/analytics", Icon: Icons.Star },
 ];
 
 const AdminLayout = () => {
@@ -162,6 +163,15 @@ const AdminLayout = () => {
                 <button className="relative p-2.5 bg-slate-50 border border-slate-200 text-slate-500 hover:text-primary hover:bg-white hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 transition-all duration-300 focus:outline-none rounded-full group">
                   <Bell className="w-5 h-5 group-hover:animate-[wiggle_1s_ease-in-out_infinite]" />
                   <span className="absolute top-0 right-0 w-3 h-3 bg-rose-500 border-2 border-white rounded-full"></span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate("/admin/analytics")}
+                  className="inline-flex items-center gap-2 rounded-full bg-primary px-3 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-primary/20 transition hover:bg-primary-dark"
+                >
+                  <Icons.Star className="!w-4 !h-4 text-white" />
+                  <span className="hidden sm:inline">Analytics</span>
                 </button>
                 
                 {/* User Email Pill */}
