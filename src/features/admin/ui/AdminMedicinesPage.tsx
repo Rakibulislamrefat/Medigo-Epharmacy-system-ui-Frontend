@@ -9,9 +9,9 @@ import {
 } from "../service/adminApi";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
+import {
   Search, Plus, Pill, Edit2, Trash2, X, ChevronLeft, ChevronRight, 
-  Settings2, Activity, Filter, Box, Upload, Image as ImageIcon
+  Settings2, Activity, Eye, Filter, Box, Upload, Image as ImageIcon
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -109,6 +109,7 @@ export default function AdminMedicinesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState(initialFormState);
   const [selectedMedicine, setSelectedMedicine] = useState<AdminMedicine | null>(null);
+  const [readyMedicine, setReadyMedicine] = useState<AdminMedicine | null>(null);
 
   const statusOptions = useMemo(() => ["active", "inactive"], []);
   const dosageFormOptions = useMemo(
@@ -567,6 +568,24 @@ export default function AdminMedicinesPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                           <button
+                            onClick={() => setSelectedMedicine(m)}
+                            className="p-2 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors tooltip"
+                            title="View details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setReadyMedicine(m)}
+                            className={clsx(
+                              "p-2 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 transition-colors tooltip",
+                              !m.stockQty && "opacity-50 cursor-not-allowed"
+                            )}
+                            title="Mark ready"
+                            disabled={!m.stockQty}
+                          >
+                            <Activity className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => {
                               setEditForm({
                                 name: m.name ?? "", slug: m.slug ?? "", genericName: m.genericName ?? "",
@@ -740,6 +759,76 @@ export default function AdminMedicinesPage() {
                       </div>
                     </div>
                   ) : null}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {readyMedicine && (
+          <div className="fixed inset-0 z-[115] flex items-center justify-center p-4 sm:p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              onClick={() => setReadyMedicine(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/90 px-6 py-4">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Ready Medicine</p>
+                  <h2 className="mt-1 text-xl font-bold text-slate-900">{readyMedicine.name}</h2>
+                </div>
+                <button
+                  onClick={() => setReadyMedicine(null)}
+                  className="rounded-xl p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Stock</p>
+                    <p className="mt-2 text-lg font-bold text-slate-900">{readyMedicine.stockQty ?? 0}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Price</p>
+                    <p className="mt-2 text-lg font-bold text-slate-900">{readyMedicine.price != null ? `${readyMedicine.currency ?? "BDT"} ${readyMedicine.price}` : "N/A"}</p>
+                  </div>
+                </div>
+                <div className="rounded-3xl bg-slate-950/5 p-4 text-sm text-slate-700">
+                  <p className="font-semibold text-slate-900">Ready for dispatch</p>
+                  <p className="mt-2 text-slate-600">
+                    This medicine is marked ready. Check the stock level and confirm packaging before dispatching to pharmacy fulfillment.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setReadyMedicine(null)}
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toast.success(`${readyMedicine.name} is ready for the next step!`);
+                      setReadyMedicine(null);
+                    }}
+                    className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors"
+                  >
+                    Confirm ready
+                  </button>
                 </div>
               </div>
             </motion.div>
