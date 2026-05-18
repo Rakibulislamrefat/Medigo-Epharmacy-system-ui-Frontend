@@ -10,7 +10,7 @@ const topMetrics = [
   {
     label: "Revenue pace",
     value: "Tk 12.4M",
-    note: "Monthly forecast",
+    note: "Monthly forecast in Taka",
     icon: <Icons.Currency className="!w-5 !h-5 text-primary" />,
   },
   {
@@ -94,7 +94,7 @@ export default function AdminAnalyticsPage() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold text-slate-900">Monthly revenue</p>
-              <p className="mt-1 text-xs text-slate-500">Track total sales and projected growth</p>
+              <p className="mt-1 text-xs text-slate-500">Track total sales in Taka and projected growth</p>
             </div>
             <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold uppercase text-emerald-700">
               Stable

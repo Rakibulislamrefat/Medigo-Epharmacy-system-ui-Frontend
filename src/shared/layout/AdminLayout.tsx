@@ -130,56 +130,46 @@ const AdminLayout = () => {
             <div className="px-4 sm:px-8 h-20 flex items-center justify-between">
               
               {/* Left: Brand/Context */}
-              <div className="flex items-center gap-4">
-                <div className="p-2.5 bg-gradient-to-br from-primary/10 to-transparent rounded-xl border border-primary/10 shadow-sm">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="p-2 bg-gradient-to-br from-primary/10 to-transparent rounded-xl border border-primary/10 shadow-sm">
                   <Icons.Pill className="w-5 h-5 text-primary drop-shadow-sm" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-base font-black text-slate-800 tracking-tight hidden sm:block">Medigo E-Pharmacy Dashboard</span>
-                  <span className="text-base font-black text-slate-800 tracking-tight sm:hidden">Medigo Admin</span>
+                  <span className="text-sm font-black text-slate-800 tracking-tight hidden sm:block">Medigo E-Pharmacy Dashboard</span>
+                  <span className="text-sm font-black text-slate-800 tracking-tight sm:hidden">Medigo Admin</span>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] hidden sm:block">Central Management System</span>
                 </div>
               </div>
 
               {/* Right: Actions & User */}
-              <div className="flex items-center gap-3 sm:gap-6">
-                
+              <div className="flex items-center gap-2 sm:gap-4">
                 {/* Search Bar (Fake for UI feel) */}
-                <div className="hidden md:flex relative group">
+                <div className="hidden md:flex relative group max-w-[18rem]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary transition-colors" />
-                  <input 
-                    type="text" 
-                    placeholder="Quick search..." 
-                    className="h-10 w-48 lg:w-64 pl-10 pr-4 rounded-full bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-inner"
+                  <input
+                    type="text"
+                    placeholder="Quick search..."
+                    className="h-10 w-44 lg:w-56 pl-10 pr-4 rounded-full bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-inner"
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-200">
                     Ctrl K
                   </div>
                 </div>
 
-                <div className="w-px h-8 bg-slate-200 hidden sm:block"></div>
+                <div className="w-px h-8 bg-slate-200 hidden md:block"></div>
 
                 {/* Notifications */}
-                <button className="relative p-2.5 bg-slate-50 border border-slate-200 text-slate-500 hover:text-primary hover:bg-white hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 transition-all duration-300 focus:outline-none rounded-full group">
+                <button className="relative p-2.5 bg-white border border-slate-200 text-slate-500 hover:text-primary hover:border-primary/30 hover:shadow-lg transition-all duration-300 focus:outline-none rounded-2xl group">
                   <Bell className="w-5 h-5 group-hover:animate-[wiggle_1s_ease-in-out_infinite]" />
-                  <span className="absolute top-0 right-0 w-3 h-3 bg-rose-500 border-2 border-white rounded-full"></span>
+                  <span className="absolute -top-1 -right-1 inline-flex h-3 w-3 rounded-full bg-rose-500 border-2 border-white"></span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => navigate("/admin/analytics")}
-                  className="inline-flex items-center gap-2 rounded-full bg-primary px-3 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm shadow-primary/20 transition hover:bg-primary-dark"
-                >
-                  <Icons.Star className="!w-4 !h-4 text-white" />
-                  <span className="hidden sm:inline">Analytics</span>
-                </button>
-                
                 {/* User Email Pill */}
-                <div className="hidden sm:flex items-center gap-2 bg-slate-50 border border-slate-200 pl-2 pr-4 py-1.5 rounded-full shadow-sm">
-                  <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+                <div className="hidden sm:flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-full shadow-sm">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
                     {user?.email?.charAt(0).toUpperCase() ?? "A"}
                   </div>
-                  <span className="text-xs font-bold text-slate-600">
+                  <span className="max-w-[10rem] truncate text-xs font-bold text-slate-600">
                     {user?.email ?? "admin@medigo.com"}
                   </span>
                 </div>
