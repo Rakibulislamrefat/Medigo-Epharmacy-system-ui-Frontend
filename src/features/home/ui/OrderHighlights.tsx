@@ -10,6 +10,7 @@ type HighlightCardProps = {
   description: string;
   gradientClassName: string;
   icon: ReactNode;
+  buttonLabel?: string;
 };
 
 const HighlightCard = ({
@@ -17,6 +18,7 @@ const HighlightCard = ({
   description,
   gradientClassName,
   icon,
+  buttonLabel = "Click Here",
 }: HighlightCardProps) => {
   const navigate = useNavigate();
 
@@ -26,8 +28,8 @@ const HighlightCard = ({
       window.open("tel:+1234567890"); // Replace with actual phone number
     } else if (title.toLowerCase().includes("authentic medicine")) {
       navigate("/shop");
-    } else if (title.toLowerCase().includes("surgical products")) {
-      navigate("/surgical-products");
+    } else if (title.toLowerCase().includes("surgical")) {
+      navigate("/category/surgical-product");
     } else if (title.toLowerCase().includes("upload prescription")) {
       navigate("/prescription/upload");
     } else if (title.toLowerCase().includes("order history") || title.toLowerCase().includes("my orders")) {
@@ -63,7 +65,7 @@ const HighlightCard = ({
           {description}
         </p>
         <div className="mt-3 inline-flex rounded-full border border-primary/20 bg-white px-3 py-1.5 text-[11px] font-semibold text-primary transition hover:bg-primary hover:text-white">
-          Click Here
+          {buttonLabel}
         </div>
       </div>
 
@@ -91,12 +93,13 @@ const OrderHighlights = () => {
       icon: <Icons.Shield className="!w-7 !h-7 text-primary" />,
     },
     {
-      title: "Order surgical products",
+      title: "Ready to order surgical products?",
       description:
-        "Explore our range of high-quality surgical supplies. Order now for swift delivery.",
+        "Click now to explore our high-quality surgical supplies and get them delivered quickly.",
       gradientClassName:
         "bg-gradient-to-r from-blue-100 via-blue-50 to-white",
       icon: <Icons.Delivery className="!w-7 !h-7 text-primary" />,
+      buttonLabel: "Click Now",
     },
     {
       title: "Upload prescription",

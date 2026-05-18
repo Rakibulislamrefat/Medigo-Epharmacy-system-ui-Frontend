@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useLocation as useRouterLocation } from "react-router-dom";
 import toast from "react-hot-toast";
+import Api from "../../../utilities/api";
 import { useLocation } from "../../../hooks/useLocation";
 import CustomButton from "../../../shared/button/CustomButton";
 import { Icons } from "../../../shared/icons/Icons";
@@ -227,8 +228,31 @@ export default function RequestOrderPage() {
     if (!validate()) return;
     setSubmitting(true);
     try {
-      await new Promise((r) => setTimeout(r, 450));
-      toast.success("Order request submitted. We’ll contact you shortly.");
+      const itemsPayload = form.items.map((it) => ({
+        name: it.name.trim(),
+        quantity: Number(it.quantity) || 0,
+        notes: it.notes?.trim() || "",
+        imageUrl: it.imageUrl || null,
+        price: typeof it.price === "number" ? it.price : null,
+      }));
+
+      const fd = new FormData();
+      fd.append("fullName", form.fullName);
+      fd.append("phone", form.phone);
+      fd.append("email", form.email);
+      fd.append("deliveryAddress", form.deliveryAddress);
+      fd.append("city", form.city);
+      fd.append("country", form.country);
+      fd.append("deliveryNotes", form.deliveryNotes || "");
+      fd.append("items", JSON.stringify(itemsPayload));
+      if (form.prescriptionFile) fd.append("prescriptionFile", form.prescriptionFile);
+
+      const res = await Api.post("/api/v1/request-orders", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      toast.success(res?.data?.message ?? "Order request submitted. We’ll contact you shortly.");
+
       setForm({
         fullName: "",
         phone: "",
@@ -240,6 +264,10 @@ export default function RequestOrderPage() {
         prescriptionFile: null,
         items: [{ id: uid(), name: "", quantity: "1", notes: "" }],
       });
+    } catch (err: unknown) {
+      const message = (err as any)?.response?.data?.message || (err as Error).message || "Submit failed";
+      toast.error(message);
+      console.error("Request order submit error:", err);
     } finally {
       setSubmitting(false);
     }

@@ -71,6 +71,25 @@ const MedigoHeroSlider = () => {
           .slide-subtitle { animation: fadeUp 0.7s ease 0.5s  both; }
           .slide-buttons  { animation: fadeUp 0.7s ease 0.65s both; }
           .overlay-fade   { animation: fadeIn 1s   ease       both; }
+          .medigo-hero-content {
+            position: relative;
+          }
+          .medigo-hero-content::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 300'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ffffff' stop-opacity='0.14'/%3E%3Cstop offset='1' stop-color='%23ffffff' stop-opacity='0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='600' height='300' fill='none'/%3E%3Cpath d='M104 138c0-24 30-44 67-44h257c37 0 67 20 67 44s-30 44-67 44H171c-37 0-67-20-67-44z' fill='url(%23g)'/%3E%3Ctext x='50%25' y='60%25' text-anchor='middle' font-family='Inter, sans-serif' font-size='72' fill='%23ffffff' fill-opacity='0.1'%3EMedigo%3C/text%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: 10% 40%;
+            background-size: 130%;
+            opacity: 0.28;
+            pointer-events: none;
+          }
+          .slide-category span,
+          .slide-title,
+          .slide-subtitle {
+            text-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+          }
 
           .swiper-pagination-bullet {
             background: rgba(255,255,255,0.4) !important;

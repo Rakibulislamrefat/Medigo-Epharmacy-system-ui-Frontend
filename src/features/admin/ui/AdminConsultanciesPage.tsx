@@ -222,9 +222,50 @@ export default function AdminConsultanciesPage() {
     return Math.round((statusCounts.completed / visible) * 100);
   }, [items.length, statusCounts.completed]);
 
+  const averageFee = useMemo(() => {
+    return items.length ? totalRevenue / items.length : 0;
+  }, [items.length, totalRevenue]);
+
+  const summaryCards = [
+    {
+      label: "Total consultancies",
+      value: meta.total,
+      description: "Bookings in the current report.",
+      accent: "from-sky-500 to-slate-100",
+    },
+    {
+      label: "Revenue estimate",
+      value: formatCurrency(totalRevenue),
+      description: "Expected revenue across fetched consultancies.",
+      accent: "from-emerald-500 to-emerald-100",
+    },
+    {
+      label: "Completed rate",
+      value: `${completedRate}%`,
+      description: "Consultations finished successfully.",
+      accent: "from-violet-500 to-violet-100",
+    },
+    {
+      label: "Average fee",
+      value: `${formatCurrency(Math.round(averageFee))}`,
+      description: "Average fee per consultancy.",
+      accent: "from-orange-500 to-orange-100",
+    },
+  ];
+
   const [createForm, setCreateForm] = useState({
     userId: "",
     doctorId: "",
+    patientName: "",
+    contactPhone: "",
+    contactEmail: "",
+    mode: "video",
+    scheduledAt: "",
+    durationMinutes: "30",
+    symptoms: "",
+    notes: "",
+    attachments: "",
+  });
     patientName: "",
     contactPhone: "",
     contactEmail: "",

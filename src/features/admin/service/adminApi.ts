@@ -117,6 +117,10 @@ export type AdminDoctorPayload = {
   status?: string;
 };
 
+export type AdminDoctorPayloadWithFile = AdminDoctorPayload & {
+  profileImageFile?: File;
+};
+
 export type AdminDoctorUser = {
   id: string;
   name: string;
@@ -530,15 +534,65 @@ export const createAdminDoctorUser = async (payload: {
   return unwrap<AdminDoctorUser>(res.data);
 };
 
-export const createAdminDoctor = async (payload: AdminDoctorPayload): Promise<AdminDoctor> => {
+export const createAdminDoctor = async (
+  payload: AdminDoctorPayloadWithFile,
+): Promise<AdminDoctor> => {
+  if (payload.profileImageFile) {
+    const formData = new FormData();
+
+    Object.entries(payload).forEach(([key, value]) => {
+      if (key === "profileImageFile") return;
+      if (value === undefined || value === null) return;
+      if (key === "profileImage" && payload.profileImageFile) return;
+      if (key === "qualifications" || key === "languages" || key === "availability") {
+        formData.append(key, JSON.stringify(value));
+        return;
+      }
+      formData.append(key, String(value));
+    });
+
+    formData.append("profileImage", payload.profileImageFile);
+
+    const res = await api.post("/doctors", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return unwrap<AdminDoctor>(res.data);
+  }
+
   const res = await api.post("/doctors", payload);
   return unwrap<AdminDoctor>(res.data);
 };
 
 export const updateAdminDoctor = async (
   doctorId: string,
-  patch: Partial<AdminDoctorPayload>,
+  patch: Partial<AdminDoctorPayloadWithFile>,
 ): Promise<AdminDoctor> => {
+  if (patch.profileImageFile) {
+    const formData = new FormData();
+
+    Object.entries(patch).forEach(([key, value]) => {
+      if (key === "profileImageFile") return;
+      if (value === undefined || value === null) return;
+      if (key === "profileImage" && patch.profileImageFile) return;
+      if (key === "qualifications" || key === "languages" || key === "availability") {
+        formData.append(key, JSON.stringify(value));
+        return;
+      }
+      formData.append(key, String(value));
+    });
+
+    formData.append("profileImage", patch.profileImageFile);
+
+    const res = await api.patch(`/doctors/${doctorId}`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return unwrap<AdminDoctor>(res.data);
+  }
+
   const res = await api.patch(`/doctors/${doctorId}`, patch);
   return unwrap<AdminDoctor>(res.data);
 };

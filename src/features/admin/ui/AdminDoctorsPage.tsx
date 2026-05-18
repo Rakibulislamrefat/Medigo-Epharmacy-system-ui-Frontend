@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type AdminDoctor,
   type AdminDoctorPayload,
+  type AdminDoctorPayloadWithFile,
   createAdminDoctor,
   deleteAdminDoctor,
   getAdminDoctors,
@@ -17,6 +18,8 @@ const getApiErrorMessage = (err: unknown, fallback: string) => {
 };
 
 const bdPhonePattern = /^(?:\+?88)?01[3-9]\d{8}$/;
+
+const allowedImageTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
 const specializationOptions = [
   "General Physician",
@@ -42,6 +45,7 @@ const dayOptions = [
 type DoctorForm = {
   fullName: string;
   profileImage: string;
+  profileImageFile: File | null;
   qualifications: string;
   specialization: string;
   experienceYears: string;
@@ -64,6 +68,7 @@ type DoctorForm = {
 const emptyForm: DoctorForm = {
   fullName: "",
   profileImage: "",
+  profileImageFile: null,
   qualifications: "",
   specialization: "",
   experienceYears: "",
@@ -105,7 +110,7 @@ const formatDate = (v?: string) => {
     : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 };
 
-const buildPayload = (form: DoctorForm): AdminDoctorPayload => {
+const buildPayload = (form: DoctorForm): AdminDoctorPayloadWithFile => {
   const availability =
     form.availabilityStartTime && form.availabilityEndTime
       ? [
@@ -120,6 +125,7 @@ const buildPayload = (form: DoctorForm): AdminDoctorPayload => {
   return {
     fullName: form.fullName.trim(),
     profileImage: form.profileImage.trim() || undefined,
+    profileImageFile: form.profileImageFile || undefined,
     qualifications: splitList(form.qualifications),
     specialization: form.specialization.trim(),
     experienceYears: form.experienceYears ? Number(form.experienceYears) : undefined,
@@ -199,14 +205,14 @@ export default function AdminDoctorsPage() {
   const rowOptions = useMemo(() => [10, 20, 50], []);
 
   const createMutation = useMutation({
-    mutationFn: (payload: AdminDoctorPayload) => createAdminDoctor(payload),
+    mutationFn: (payload: AdminDoctorPayloadWithFile) => createAdminDoctor(payload),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin", "doctors"] });
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: (args: { id: string; payload: Partial<AdminDoctorPayload> }) =>
+    mutationFn: (args: { id: string; payload: Partial<AdminDoctorPayloadWithFile> }) =>
       updateAdminDoctor(args.id, args.payload),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin", "doctors"] });
@@ -253,37 +259,115 @@ export default function AdminDoctorsPage() {
     form: DoctorForm,
     setForm: React.Dispatch<React.SetStateAction<DoctorForm>>,
   ) => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-      <input value={form.fullName} onChange={(e) => setForm((p) => ({ ...p, fullName: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="Full name" />
-      <input value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="Email" type="email" />
-      <input value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="Phone 01XXXXXXXXX" inputMode="tel" />
-      <select value={form.specialization} onChange={(e) => setForm((p) => ({ ...p, specialization: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm">
-        <option value="">Select specialization</option>
-        {specializationOptions.map((specialty) => <option key={specialty} value={specialty}>{specialty}</option>)}
-      </select>
-      <input value={form.city} onChange={(e) => setForm((p) => ({ ...p, city: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="City" />
-      <input value={form.fee} onChange={(e) => setForm((p) => ({ ...p, fee: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="Fee" inputMode="decimal" type="number" min="0" />
-      <select value={form.consultationType} onChange={(e) => setForm((p) => ({ ...p, consultationType: e.target.value as DoctorForm["consultationType"] }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm">
-        <option value="online">online</option>
-        <option value="in-person">in-person</option>
-        <option value="both">both</option>
-      </select>
-      <input value={form.experienceYears} onChange={(e) => setForm((p) => ({ ...p, experienceYears: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="Experience years" inputMode="numeric" type="number" min="0" />
-      <input value={form.currency} onChange={(e) => setForm((p) => ({ ...p, currency: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="Currency" />
-      <input value={form.registrationNumber} onChange={(e) => setForm((p) => ({ ...p, registrationNumber: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="Registration number" />
-      <input value={form.profileImage} onChange={(e) => setForm((p) => ({ ...p, profileImage: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="Profile image URL" />
-      <input value={form.nextAvailableAt} onChange={(e) => setForm((p) => ({ ...p, nextAvailableAt: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" type="datetime-local" />
-      <input value={form.qualifications} onChange={(e) => setForm((p) => ({ ...p, qualifications: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="Qualifications, comma separated" />
-      <input value={form.languages} onChange={(e) => setForm((p) => ({ ...p, languages: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="Languages, comma separated" />
-      <select value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm">
-        {statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}
-      </select>
-      <select value={form.availabilityDay} onChange={(e) => setForm((p) => ({ ...p, availabilityDay: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm">
-        {dayOptions.map((d) => <option key={d} value={d}>{d}</option>)}
-      </select>
-      <input value={form.availabilityStartTime} onChange={(e) => setForm((p) => ({ ...p, availabilityStartTime: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" type="time" />
-      <input value={form.availabilityEndTime} onChange={(e) => setForm((p) => ({ ...p, availabilityEndTime: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" type="time" />
-      <textarea value={form.bio} onChange={(e) => setForm((p) => ({ ...p, bio: e.target.value }))} className="min-h-20 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm sm:col-span-2 lg:col-span-3" placeholder="Bio" />
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-dark">Full Name</label>
+        <input value={form.fullName} onChange={(e) => setForm((p) => ({ ...p, fullName: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="Enter full name" />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-dark">Email</label>
+        <input value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="Enter email" type="email" />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-dark">Phone</label>
+        <input value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="01XXXXXXXXX" inputMode="tel" />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-dark">Specialization</label>
+        <select value={form.specialization} onChange={(e) => setForm((p) => ({ ...p, specialization: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm">
+          <option value="">Select specialization</option>
+          {specializationOptions.map((specialty) => <option key={specialty} value={specialty}>{specialty}</option>)}
+        </select>
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-dark">City</label>
+        <input value={form.city} onChange={(e) => setForm((p) => ({ ...p, city: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="Enter city" />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-dark">Fee</label>
+        <input value={form.fee} onChange={(e) => setForm((p) => ({ ...p, fee: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="0" inputMode="decimal" type="number" min="0" />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-dark">Consultation Type</label>
+        <select value={form.consultationType} onChange={(e) => setForm((p) => ({ ...p, consultationType: e.target.value as DoctorForm["consultationType"] }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm">
+          <option value="online">online</option>
+          <option value="in-person">in-person</option>
+          <option value="both">both</option>
+        </select>
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-dark">Experience Years</label>
+        <input value={form.experienceYears} onChange={(e) => setForm((p) => ({ ...p, experienceYears: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="0" inputMode="numeric" type="number" min="0" />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-dark">Currency</label>
+        <input value={form.currency} onChange={(e) => setForm((p) => ({ ...p, currency: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="BDT" />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-dark">Registration Number</label>
+        <input value={form.registrationNumber} onChange={(e) => setForm((p) => ({ ...p, registrationNumber: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="Enter registration number" />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-dark">Profile Image</label>
+        <div className="flex flex-col gap-2">
+          {form.profileImageFile && (
+            <img
+              src={URL.createObjectURL(form.profileImageFile)}
+              alt="Profile preview"
+              className="h-24 w-24 rounded-lg object-cover border border-gray-200"
+            />
+          )}
+          <input
+            type="file"
+            accept={allowedImageTypes.join(",")}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file && allowedImageTypes.includes(file.type)) {
+                setForm((p) => ({ ...p, profileImageFile: file }));
+              } else if (file) {
+                toast.error("Only JPEG, PNG, and WebP images are allowed");
+              }
+            }}
+            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm cursor-pointer file:cursor-pointer file:border-0 file:bg-primary file:text-white file:px-3 file:py-2"
+          />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-dark">Next Available At</label>
+        <input value={form.nextAvailableAt} onChange={(e) => setForm((p) => ({ ...p, nextAvailableAt: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" type="datetime-local" />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-dark">Qualifications</label>
+        <input value={form.qualifications} onChange={(e) => setForm((p) => ({ ...p, qualifications: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="Comma separated" />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-dark">Languages</label>
+        <input value={form.languages} onChange={(e) => setForm((p) => ({ ...p, languages: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" placeholder="Comma separated" />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-dark">Status</label>
+        <select value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm">
+          {statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-dark">Availability Day</label>
+        <select value={form.availabilityDay} onChange={(e) => setForm((p) => ({ ...p, availabilityDay: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm">
+          {dayOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+        </select>
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-dark">Start Time</label>
+        <input value={form.availabilityStartTime} onChange={(e) => setForm((p) => ({ ...p, availabilityStartTime: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" type="time" />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-dark">End Time</label>
+        <input value={form.availabilityEndTime} onChange={(e) => setForm((p) => ({ ...p, availabilityEndTime: e.target.value }))} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm" type="time" />
+      </div>
+      <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
+        <label className="text-sm font-semibold text-dark">Bio</label>
+        <textarea value={form.bio} onChange={(e) => setForm((p) => ({ ...p, bio: e.target.value }))} className="min-h-20 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm" placeholder="Enter doctor bio" />
+      </div>
     </div>
   );
 
@@ -305,6 +389,10 @@ export default function AdminDoctorsPage() {
               const validation = validateForm(createForm);
               if (validation) {
                 toast.error(validation);
+                return;
+              }
+              if (!createForm.profileImageFile) {
+                toast.error("Profile image is required");
                 return;
               }
               const t = toast.loading("Creating...");

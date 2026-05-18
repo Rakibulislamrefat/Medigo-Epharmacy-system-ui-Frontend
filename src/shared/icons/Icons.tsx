@@ -25,9 +25,12 @@ import { CgClose, CgCopyright } from "react-icons/cg";
 import { IoIosArrowBack, IoIosArrowForward, IoMdArrowForward } from "react-icons/io";
 import { LuHandshake } from "react-icons/lu";
 import { CiClock2 } from "react-icons/ci";
-import { FiPlus, FiMinus, FiEdit  } from "react-icons/fi";
+import { FiPlus, FiMinus, FiEdit } from "react-icons/fi";
 import { RxCross2 } from "react-icons/rx";
 import { IoAlertCircleOutline } from "react-icons/io5";
+import { HiOutlineChartBar, HiOutlineDownload } from "react-icons/hi";
+import { FiRefreshCcw, FiActivity } from "react-icons/fi";
+import { FaRupeeSign } from "react-icons/fa";
 
 
 
@@ -95,5 +98,11 @@ export const Icons = {
   Prescription: createIcon(LiaFilePrescriptionSolid),
   Pill: createIcon(CiPill),
   Star: createIcon(FaStar),
-  Edit: createIcon(FiEdit)
+  Edit: createIcon(FiEdit),
+  CheckCircle: createIcon(BsCheckCircleFill),
+  ChartLine: createIcon(HiOutlineChartBar),
+  Currency: createIcon(FaRupeeSign),
+  Download: createIcon(HiOutlineDownload),
+  Refresh: createIcon(FiRefreshCcw),
+  Pulse: createIcon(FiActivity),
 };
