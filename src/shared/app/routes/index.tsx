@@ -37,10 +37,17 @@ import AdminReadyDoctorsPage from "../../../features/admin/ui/AdminReadyDoctorsP
 import AdminConsultanciesPage from "../../../features/admin/ui/AdminConsultanciesPage";
 import AdminAnalyticsPage from "../../../features/admin/ui/AdminAnalyticsPage";
 import AdminLoginPage from "../../../features/admin/ui/AdminLoginPage";
+import AdminPharmacistsPage from "../../../features/admin/ui/AdminPharmacistsPage";
 import OrderConfirmationPage from "../../../features/payment/ui/OrderConfirmationPage";
 import OrderHistoryPage from "../../../features/orderHistory/ui/OrderHistoryPage";
 import PaymentResultPage from "../../../features/payment/ui/PaymentResultPage";
 import WriteReviewPage from "../../../features/review/ui/WriteReviewPage";
+
+import PharmacistLayout from "../../layout/PharmacistLayout";
+import PharmacistRoute from "./PharmacistRoute";
+import PharmacistDashboardPage from "../../../features/pharmacist/ui/PharmacistDashboardPage";
+import RequestedOrdersPage from "../../../features/pharmacist/ui/RequestedOrdersPage";
+import PrescribedOrdersPage from "../../../features/pharmacist/ui/PrescribedOrdersPage";
 
 export const router = createBrowserRouter([
   {
@@ -276,6 +283,20 @@ export const router = createBrowserRouter([
       { path: "doctors/ready", element: <AdminReadyDoctorsPage /> },
       { path: "consultancies", element: <AdminConsultanciesPage /> },
       { path: "analytics", element: <AdminAnalyticsPage /> },
+      { path: "pharmacists", element: <AdminPharmacistsPage /> },
+    ],
+  },
+  {
+    path: "/pharmacist",
+    element: (
+      <PharmacistRoute>
+        <PharmacistLayout />
+      </PharmacistRoute>
+    ),
+    children: [
+      { index: true, element: <PharmacistDashboardPage /> },
+      { path: "requested-orders", element: <RequestedOrdersPage /> },
+      { path: "prescribed-orders", element: <PrescribedOrdersPage /> },
     ],
   },
 ]);

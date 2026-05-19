@@ -84,6 +84,8 @@ export default function LoginPage() {
       const redirectPath =
         actor === "admin"
           ? "/admin"
+          : actor === "pharmacist"
+          ? "/pharmacist"
           : from || "/";
       navigate(redirectPath, { replace: true });
     } catch (err: unknown) {
