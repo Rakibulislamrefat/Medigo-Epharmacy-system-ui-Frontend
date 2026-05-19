@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useLocation as useRouterLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
@@ -90,9 +90,9 @@ export default function RequestOrderPage() {
   })();
 
   const [form, setForm] = useState<RequestOrderForm>({
-    fullName: "",
-    phone: "",
-    email: "",
+    fullName: user?.name ?? "",
+    phone: user?.phone ?? "",
+    email: user?.email ?? "",
     deliveryAddress: "",
     city: "",
     country: "",
@@ -100,6 +100,17 @@ export default function RequestOrderPage() {
     prescriptionFile: null,
     items: initialItems,
   });
+
+  useEffect(() => {
+    if (!user) return;
+
+    setForm((prev) => ({
+      ...prev,
+      fullName: prev.fullName.trim() ? prev.fullName : user.name,
+      phone: prev.phone.trim() ? prev.phone : user.phone,
+      email: prev.email.trim() ? prev.email : user.email,
+    }));
+  }, [user]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);

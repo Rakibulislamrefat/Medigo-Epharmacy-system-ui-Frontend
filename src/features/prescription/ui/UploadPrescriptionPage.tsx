@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import { useLocation } from "../../../hooks/useLocation";
 import CustomButton from "../../../shared/button/CustomButton";
@@ -6,6 +7,7 @@ import { Icons } from "../../../shared/icons/Icons";
 import MainContainer from "../../../shared/main-container/MainContainer";
 import SectionContainer from "../../../shared/section-container/SectionContainer";
 import SectionHeading, { SectionParagraph } from "../../../shared/section-heading/SectionHeading";
+import type { RootState } from "../../../redux/store";
 
 type UploadPrescriptionForm = {
   fullName: string;
@@ -30,12 +32,13 @@ const inputClass = (hasError: boolean) =>
 
 export default function UploadPrescriptionPage() {
   const { getLocation, loading: detectingLocation } = useLocation();
+  const { user } = useSelector((state: RootState) => state.user);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const [form, setForm] = useState<UploadPrescriptionForm>({
-    fullName: "",
-    phone: "",
-    email: "",
+    fullName: user?.name ?? "",
+    phone: user?.phone ?? "",
+    email: user?.email ?? "",
     deliveryAddress: "",
     city: "",
     country: "",
@@ -44,6 +47,17 @@ export default function UploadPrescriptionPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+
+    setForm((prev) => ({
+      ...prev,
+      fullName: prev.fullName.trim() ? prev.fullName : user.name,
+      phone: prev.phone.trim() ? prev.phone : user.phone,
+      email: prev.email.trim() ? prev.email : user.email,
+    }));
+  }, [user]);
 
   const fileMeta = useMemo(() => {
     if (!form.file) return null;
