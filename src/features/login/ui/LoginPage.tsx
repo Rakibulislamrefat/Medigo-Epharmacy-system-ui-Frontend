@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { loginApi } from "../service/loginService";
+import { loginApi, pharmacistLoginApi } from "../service/loginService";
 import { adminLoginApi } from "../../admin/service/adminLoginService";
 import { useDispatch } from "react-redux";
 import { setUser } from "../../../redux/slices/userSlice";
@@ -43,6 +43,8 @@ export default function LoginPage() {
       const res =
         actor === "admin"
           ? await adminLoginApi({ identifier, password })
+          : actor === "pharmacist"
+          ? await pharmacistLoginApi({ identifier, password })
           : await loginApi({ identifier, password });
 
       const message = res?.message ?? res?.data?.message ?? "Signed in";

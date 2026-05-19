@@ -27,6 +27,16 @@ export const loginApi = async (data: LoginPayload): Promise<AuthResponse> => {
   return res.data;
 };
 
+export const pharmacistLoginApi = async (
+  data: LoginPayload,
+): Promise<AuthResponse> => {
+  const res = await api.post(
+    getFrontendConfig().endpoints.auth.pharmacistLogin,
+    data,
+  );
+  return res.data;
+};
+
 // GET /api/auth/me
 export const getAuthUserApi = async (): Promise<IReduxUser> => {
   const res = await api.get("/auth/me");

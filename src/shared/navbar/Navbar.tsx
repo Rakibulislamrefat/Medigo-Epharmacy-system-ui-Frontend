@@ -157,19 +157,16 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
           </div>
         )}
 
-        {/* Name + role on separate lines */}
-        <div className="hidden xl:flex flex-col items-start leading-tight">
-          <span className="text-sm font-semibold text-dark">{user?.name}</span>
-          {user?.role && (
-            <span className="text-xxs font-semibold text-primary mt-0.5">
-              {roleBadge(user.role).label}
-            </span>
-          )}
-          {user?.bloodType && (
-            <span className="text-xxs font-bold text-primary">
-              {user.bloodType}
-            </span>
-          )}
+        {/* Name + role in a compact box */}
+        <div className="hidden xl:flex flex-col items-start">
+          <div className="rounded-2xl border border-primary/20 bg-white/95 px-3 py-2 shadow-[0_10px_30px_-18px_rgba(14,165,233,0.8)]">
+            <p className="text-sm font-semibold text-dark">{user?.name}</p>
+            {user?.role && (
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.25em] text-primary">
+                {roleBadge(user.role).label}
+              </p>
+            )}
+          </div>
         </div>
 
         <Icons.ArrowForward
