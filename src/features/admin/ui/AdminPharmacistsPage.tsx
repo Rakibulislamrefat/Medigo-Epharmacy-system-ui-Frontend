@@ -77,7 +77,8 @@ export default function AdminPharmacistsPage() {
     if (!form.email.trim()) errs.email = "Email is required";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = "Enter a valid email";
     if (!form.phone.trim()) errs.phone = "Phone is required";
-    if (form.password && form.password.length < 6) errs.password = "Password must be at least 6 characters";
+    if (!form.password.trim()) errs.password = "Password is required";
+    if (form.password && form.password.length < 8) errs.password = "Password must be at least 8 characters";
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -128,10 +129,10 @@ export default function AdminPharmacistsPage() {
               placeholder: "+8801XXXXXXXXX",
               onChange: (value: string) => setForm((prev) => ({ ...prev, phone: value })),
             }, {
-              label: "Password (optional)",
+              label: "Password",
               value: form.password,
               error: formErrors.password,
-              placeholder: "Leave blank to auto-generate",
+              placeholder: "Enter a secure password",
               type: "password",
               onChange: (value: string) => setForm((prev) => ({ ...prev, password: value })),
             }] as const).map((field) => (
@@ -339,7 +340,7 @@ export default function AdminPharmacistsPage() {
                               onClick={async () => {
                                 const toastId = toast.loading("Sending reset email...");
                                 try {
-                                  await resetMutation.mutateAsync(user._id);
+                                  await resetMutation.mutateAsync(user.email ?? "");
                                   toast.success("Password reset email sent.", { id: toastId });
                                 } catch {
                                   toast.error("Unable to send reset email.", { id: toastId });

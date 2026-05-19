@@ -395,18 +395,15 @@ export const createAdminPharmacist = async (payload: {
   name: string;
   email: string;
   phone: string;
-  password?: string;
+  password: string;
   status?: string;
 }): Promise<AdminUser> => {
-  const res = await api.post("/admin/users", {
-    ...payload,
-    role: "pharmacist",
-  });
+  const res = await api.post("/auth/pharmacists", payload);
   return unwrap<AdminUser>(res.data);
 };
 
-export const resetAdminUserPassword = async (userId: string): Promise<{ message?: string }> => {
-  const res = await api.post(`/admin/users/${userId}/reset-password`);
+export const resetAdminUserPassword = async (email: string): Promise<{ message?: string }> => {
+  const res = await api.post("/auth/pharmacists/reset-password", { email });
   return unwrap<{ message?: string }>(res.data);
 };
 
