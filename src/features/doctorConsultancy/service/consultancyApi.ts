@@ -30,7 +30,12 @@ export type ConsultancyResponse = {
   id?: string;
   appointmentId?: string;
   user?: string;
-  doctor?: string;
+  doctor?: {
+    _id?: string;
+    fullName?: string;
+    name?: string;
+    specialization?: string;
+  } | string;
   patientName?: string;
   contactPhone?: string;
   contactEmail?: string;
@@ -106,6 +111,12 @@ export const createConsultancy = async (
 ): Promise<ConsultancyResponse> => {
   const res = await api.post("/consultancies", payload);
   return unwrap<ConsultancyResponse>(res.data);
+};
+
+export const getMyConsultancies = async (): Promise<ConsultancyResponse[]> => {
+  const res = await api.get("/consultancies/me");
+  const payload = res.data as { data?: unknown };
+  return (payload?.data as ConsultancyResponse[]) ?? (res.data as ConsultancyResponse[]);
 };
 
 export const sendConsultancyConfirmation = async (consultancyId: string) => {
