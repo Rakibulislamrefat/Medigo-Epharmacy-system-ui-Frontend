@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { loginApi } from "../service/loginService";
 import { useDispatch } from "react-redux";
@@ -10,6 +10,7 @@ import SectionHeading from "../../../shared/section-heading/SectionHeading";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [identifier, setIdentifier] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [showPass, setShowPass] = useState<boolean>(false);
@@ -48,7 +49,9 @@ export default function LoginPage() {
 
       toast.success(message, { id: toastId });
       dispatch(setUser({ user, token }));
-      navigate("/", { replace: true });
+      const from = location.state?.from?.pathname || "/";
+      const redirectPath = user.role === "admin" ? "/admin" : from;
+      navigate(redirectPath, { replace: true });
     } catch (err: unknown) {
       const error = err as {
         response?: { data?: { message?: string }; status?: number };

@@ -36,6 +36,7 @@ import AdminDoctorsPage from "../../../features/admin/ui/AdminDoctorsPage";
 import AdminReadyDoctorsPage from "../../../features/admin/ui/AdminReadyDoctorsPage";
 import AdminConsultanciesPage from "../../../features/admin/ui/AdminConsultanciesPage";
 import AdminAnalyticsPage from "../../../features/admin/ui/AdminAnalyticsPage";
+import AdminLoginPage from "../../../features/admin/ui/AdminLoginPage";
 import OrderConfirmationPage from "../../../features/payment/ui/OrderConfirmationPage";
 import OrderHistoryPage from "../../../features/orderHistory/ui/OrderHistoryPage";
 import PaymentResultPage from "../../../features/payment/ui/PaymentResultPage";
@@ -202,6 +203,14 @@ export const router = createBrowserRouter([
         element: (
           <GuestRoute>
             <LoginPage />
+          </GuestRoute>
+        ),
+      },
+      {
+        path: "/admin/login",
+        element: (
+          <GuestRoute>
+            <AdminLoginPage />
           </GuestRoute>
         ),
       },

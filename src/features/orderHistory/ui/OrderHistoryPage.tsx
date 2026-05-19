@@ -1,12 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { NavLink, useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
+import toast from "react-hot-toast";
 import { Icons } from "../../../shared/icons/Icons";
 import CustomButton from "../../../shared/button/CustomButton";
 import MainContainer from "../../../shared/main-container/MainContainer";
 import SectionContainer from "../../../shared/section-container/SectionContainer";
-import { getMyOrders, getOrderTracking } from "../../payment/service/paymentApi";
+import { cancelOrder, getMyOrders, getOrderTracking } from "../../payment/service/paymentApi";
 import type { RootState } from "../../../redux/store";
+import type { PaymentOrder } from "../../payment/service/paymentApi";
+
+const CANCEL_WINDOW_HOURS = 2;
 
 const getStatusColor = (status?: string) => {
   switch (status?.toLowerCase()) {
@@ -38,9 +43,43 @@ const formatDateTime = (value?: string | null) => {
 const formatMoney = (value?: number) =>
   typeof value === "number" ? `BDT ${value.toLocaleString("en-BD")}` : "N/A";
 
+const getApiErrorMessage = (error: unknown, fallback: string) => {
+  if (axios.isAxiosError(error)) {
+    const message = (error.response?.data as { message?: string })?.message;
+    return message || fallback;
+  }
+
+  return error instanceof Error ? error.message : fallback;
+};
+
+const getOrderPlacedAt = (order: PaymentOrder) => order.createdAt ?? order.updatedAt;
+
+const getCancelEligibility = (order: PaymentOrder) => {
+  const status = order.status?.toLowerCase();
+  const paymentStatus = order.paymentStatus?.toLowerCase();
+  const placedAt = getOrderPlacedAt(order);
+  const placedTime = placedAt ? new Date(placedAt).getTime() : Number.NaN;
+  const deadline = Number.isFinite(placedTime)
+    ? placedTime + CANCEL_WINDOW_HOURS * 60 * 60 * 1000
+    : Number.NaN;
+  const inactiveStatuses = ["cancelled", "delivered", "shipped", "refunded"];
+  const canCancel =
+    Boolean(order._id) &&
+    !inactiveStatuses.includes(status ?? "") &&
+    paymentStatus !== "refunded" &&
+    Number.isFinite(deadline) &&
+    Date.now() <= deadline;
+
+  return {
+    canCancel,
+    deadline: Number.isFinite(deadline) ? new Date(deadline).toISOString() : null,
+  };
+};
+
 export default function OrderHistoryPage() {
   const user = useSelector((state: RootState) => state.user.user);
   const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const trackingId = searchParams.get("track")?.trim() ?? "";
 
   const {
@@ -54,6 +93,46 @@ export default function OrderHistoryPage() {
     enabled: Boolean(user) && !trackingId,
     retry: false,
   });
+
+  const cancelMutation = useMutation({
+    mutationFn: cancelOrder,
+    onSuccess: async (order) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["orders"] }),
+        trackingId
+          ? queryClient.invalidateQueries({ queryKey: ["order-tracking", trackingId] })
+          : Promise.resolve(),
+      ]);
+
+      const isRefunded = order.paymentStatus?.toLowerCase() === "refunded";
+      toast.success(
+        isRefunded
+          ? "Order cancelled. Refund processed and email sent."
+          : "Order cancelled. A confirmation email has been sent.",
+      );
+    },
+    onError: (err) => {
+      toast.error(getApiErrorMessage(err, "Unable to cancel this order."));
+    },
+  });
+
+  const handleCancelOrder = (order: PaymentOrder) => {
+    const { canCancel } = getCancelEligibility(order);
+
+    if (!canCancel) {
+      toast.error(`Orders can only be cancelled within ${CANCEL_WINDOW_HOURS} hours of placing.`);
+      return;
+    }
+
+    const isPaid = order.paymentStatus?.toLowerCase() === "paid";
+    const message = isPaid
+      ? "Cancel this order? The paid amount will be refunded automatically and an email will be sent."
+      : "Cancel this order? A cancellation email will be sent.";
+
+    if (window.confirm(message)) {
+      cancelMutation.mutate(order.orderNumber ?? order._id);
+    }
+  };
 
   const {
     data: tracking,
@@ -356,17 +435,27 @@ export default function OrderHistoryPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {orders.map((order) => (
-              <div
-                key={order._id}
-                className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:shadow-md"
-              >
+            {orders.map((order) => {
+              const cancelEligibility = getCancelEligibility(order);
+              const cancelKey = order.orderNumber ?? order._id;
+              const isCancelling = cancelMutation.isPending && cancelMutation.variables === cancelKey;
+
+              return (
+                <div
+                  key={order._id}
+                  className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:shadow-md"
+                >
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-slate-500">Order ID</p>
                     <p className="mt-1 break-all font-mono text-sm font-black text-dark">
                       {order.orderNumber || order._id}
                     </p>
+                    {cancelEligibility.deadline && (
+                      <p className="mt-2 text-xs font-semibold text-slate-500">
+                        Cancel available until {formatDateTime(cancelEligibility.deadline)}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
@@ -401,16 +490,36 @@ export default function OrderHistoryPage() {
                       </div>
                     )}
 
-                    <NavLink
-                      to={`/order-history?track=${encodeURIComponent(order.orderNumber ?? order._id)}`}
-                      className="mt-1 inline-flex shrink-0"
-                    >
-                      <CustomButton variant="outline" size="sm" radius="full">
-                        Track order
+                    <div className="mt-1 flex shrink-0 flex-wrap gap-2">
+                      <NavLink
+                        to={`/order-history?track=${encodeURIComponent(order.orderNumber ?? order._id)}`}
+                        className="inline-flex"
+                      >
+                        <CustomButton variant="outline" size="sm" radius="full">
+                          Track order
+                        </CustomButton>
+                      </NavLink>
+
+                      <CustomButton
+                        variant="danger"
+                        size="sm"
+                        radius="full"
+                        loading={isCancelling}
+                        disabled={!cancelEligibility.canCancel || cancelMutation.isPending}
+                        onClick={() => handleCancelOrder(order)}
+                      >
+                        Cancel order
                       </CustomButton>
-                    </NavLink>
+                    </div>
                   </div>
                 </div>
+
+                {cancelEligibility.canCancel && order.paymentStatus?.toLowerCase() === "paid" && (
+                  <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    Paid orders cancelled within {CANCEL_WINDOW_HOURS} hours are refunded automatically,
+                    and a cancellation/refund email is sent to your account email.
+                  </div>
+                )}
 
                 {order.deliveryAddress && (
                   <div className="mt-4 border-t border-gray-100 pt-4">
@@ -432,7 +541,8 @@ export default function OrderHistoryPage() {
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

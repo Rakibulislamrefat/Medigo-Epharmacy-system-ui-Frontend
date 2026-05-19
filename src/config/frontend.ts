@@ -11,6 +11,7 @@ export type FrontendConfig = {
     };
     auth: {
       login: string;
+      adminLogin: string;
     };
     payments: {
       sslcommerzInitiate: string;
@@ -48,6 +49,7 @@ const fallbackConfig: FrontendConfig = {
     },
     auth: {
       login: "/auth/login",
+      adminLogin: "/auth/admin-login",
     },
     payments: {
       sslcommerzInitiate: "/sslcommerz/initiate",
@@ -89,6 +91,10 @@ const normalizeConfig = (rawConfig: unknown): FrontendConfig => {
       },
       auth: {
         login: asString(raw.endpoints?.auth?.login, fallbackConfig.endpoints.auth.login),
+        adminLogin: asString(
+          raw.endpoints?.auth?.adminLogin,
+          fallbackConfig.endpoints.auth.adminLogin,
+        ),
       },
       payments: {
         sslcommerzInitiate: asString(

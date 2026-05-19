@@ -36,6 +36,8 @@ export type PaymentOrder = {
   status?: string;
   paymentStatus?: string;
   grandTotal?: number;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type PaymentInitiation = {
@@ -190,4 +192,9 @@ export const getOrderTracking = async (
 ): Promise<OrderTrackingDetails> => {
   const res = await api.get(buildTrackingEndpoint(idOrNumber));
   return unwrap<OrderTrackingDetails>(res.data);
+};
+
+export const cancelOrder = async (idOrNumber: string): Promise<PaymentOrder> => {
+  const res = await api.patch(`/orders/${encodeURIComponent(idOrNumber)}/cancel`);
+  return unwrap<PaymentOrder>(res.data);
 };
