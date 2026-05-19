@@ -18,6 +18,8 @@ const getApiErrorMessage = (err: unknown, fallback: string) => {
 };
 
 const bdPhonePattern = /^(?:\+?88)?01[3-9]\d{8}$/;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const fullNamePattern = /^[a-zA-Z][a-zA-Z\.\-\s]{1,}$/;
 
 const allowedImageTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
@@ -148,17 +150,28 @@ const buildPayload = (form: DoctorForm): AdminDoctorPayloadWithFile => {
 
 const validateForm = (form: DoctorForm) => {
   if (!form.fullName.trim()) return "Full name is required";
+  if (form.fullName.trim().length < 3) return "Full name must be at least 3 characters";
+  if (!fullNamePattern.test(form.fullName.trim())) return "Full name contains invalid characters";
   if (!form.specialization.trim()) return "Specialization is required";
   if (!form.city.trim()) return "City is required";
   if (!form.email.trim()) return "Email is required";
+  if (!emailPattern.test(form.email.trim())) return "Use a valid email address";
   if (!form.phone.trim()) return "Phone is required";
   if (!bdPhonePattern.test(form.phone.trim().replace(/[\s-]/g, ""))) {
     return "Use a valid Bangladeshi phone number";
   }
   if (!form.fee || Number(form.fee) < 0) return "Fee is required";
+  if (Number.isNaN(Number(form.fee))) return "Fee must be a number";
   if (form.experienceYears && Number(form.experienceYears) < 0) {
     return "Experience cannot be negative";
   }
+  if (form.experienceYears && Number.isNaN(Number(form.experienceYears))) {
+    return "Experience years must be a number";
+  }
+  if (!form.qualifications.trim()) return "Qualifications are required";
+  if (!form.languages.trim()) return "Languages are required";
+  if (!form.bio.trim()) return "Bio is required";
+  if (form.bio.trim().length < 20) return "Bio must be at least 20 characters";
   if (
     (form.availabilityStartTime && !form.availabilityEndTime) ||
     (!form.availabilityStartTime && form.availabilityEndTime)
