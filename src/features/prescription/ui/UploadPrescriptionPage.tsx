@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
+import Api from "../../../utilities/api";
 import { useLocation } from "../../../hooks/useLocation";
 import CustomButton from "../../../shared/button/CustomButton";
 import { Icons } from "../../../shared/icons/Icons";
@@ -8,6 +9,9 @@ import MainContainer from "../../../shared/main-container/MainContainer";
 import SectionContainer from "../../../shared/section-container/SectionContainer";
 import SectionHeading, { SectionParagraph } from "../../../shared/section-heading/SectionHeading";
 import type { RootState } from "../../../redux/store";
+import { defaultMedicineCatalog } from "../../home/service/medicineCatalog";
+import type { MedicineProduct } from "../../home/service/MedicineCategory.types";
+import { getMedicinesByCategory } from "../../home/service/medicineCategoryApi";
 
 type UploadPrescriptionForm = {
   fullName: string;
@@ -35,6 +39,30 @@ export default function UploadPrescriptionPage() {
   const { user } = useSelector((state: RootState) => state.user);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
+  type SelectedMedicine = MedicineProduct & { qty: number };
+
+  const [allMedicines, setAllMedicines] = useState<MedicineProduct[]>(() =>
+    defaultMedicineCatalog.flatMap((category) => category.products),
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const categories = await getMedicinesByCategory();
+        if (!mounted) return;
+        setAllMedicines(categories.flatMap((c) => c.products));
+      } catch (err) {
+        // keep default catalog on error
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedMedicines, setSelectedMedicines] = useState<SelectedMedicine[]>([]);
+
   const [form, setForm] = useState<UploadPrescriptionForm>({
     fullName: user?.name ?? "",
     phone: user?.phone ?? "",
@@ -45,6 +73,46 @@ export default function UploadPrescriptionPage() {
     notes: "",
     file: null,
   });
+
+  const filteredMedicines = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase();
+    return allMedicines.filter((medicine) =>
+      medicine.name.toLowerCase().includes(search),
+    );
+  }, [allMedicines, searchTerm]);
+
+  const totalAmount = useMemo(
+    () =>
+      selectedMedicines.reduce(
+        (sum, medicine) => sum + medicine.price * medicine.qty,
+        0,
+      ),
+    [selectedMedicines],
+  );
+
+  const addMedicine = (medicine: MedicineProduct) => {
+    setSelectedMedicines((prev) => {
+      const existing = prev.find((item) => item.id === medicine.id);
+      if (existing) {
+        return prev.map((item) =>
+          item.id === medicine.id ? { ...item, qty: item.qty + 1 } : item,
+        );
+      }
+      return [...prev, { ...medicine, qty: 1 }];
+    });
+  };
+
+  const updateMedicineQty = (id: string, qty: number) => {
+    setSelectedMedicines((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, qty: Math.max(1, qty) } : item,
+      ),
+    );
+  };
+
+  const removeMedicine = (id: string) => {
+    setSelectedMedicines((prev) => prev.filter((item) => item.id !== id));
+  };
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -112,7 +180,29 @@ export default function UploadPrescriptionPage() {
     if (!validate()) return;
     setSubmitting(true);
     try {
-      await new Promise((r) => setTimeout(r, 450));
+      const payload = new FormData();
+      if (form.file) payload.append("prescriptionFile", form.file);
+      payload.append("line1", form.deliveryAddress);
+      payload.append("city", form.city);
+      payload.append("country", form.country);
+      // Only send fields accepted by backend validation
+      payload.append(
+        "medicines",
+        JSON.stringify(selectedMedicines.map((item) => item.id)),
+      );
+      // quantities as an array aligned with `medicines` order: [2,1]
+      payload.append(
+        "quantities",
+        JSON.stringify(selectedMedicines.map((item) => item.qty)),
+      );
+      // optional notes
+      if (form.notes?.trim()) payload.append("notes", form.notes);
+
+
+      await Api.post("/prescription-orders", payload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
       toast.success("Prescription uploaded. We’ll confirm by phone shortly.");
       setForm({
         fullName: "",
@@ -124,6 +214,12 @@ export default function UploadPrescriptionPage() {
         notes: "",
         file: null,
       });
+      setSelectedMedicines([]);
+      setSearchTerm("");
+    } catch (err: unknown) {
+      const message =
+        (err as any)?.response?.data?.message || "Upload failed. Please try again.";
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -467,6 +563,126 @@ export default function UploadPrescriptionPage() {
                         accept="image/*,application/pdf"
                         onChange={(e) => setField("file", e.target.files?.[0] ?? null)}
                       />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 rounded-xl border border-gray-100 bg-white p-5">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-black text-dark">Select medicines</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Add medicines to your prescription order and review quantity and total.
+                      </p>
+                    </div>
+                    <p className="text-sm font-semibold text-dark">
+                      Total: ৳{totalAmount.toFixed(2)}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_320px]">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Search medicines
+                      </label>
+                      <input
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full rounded-sm border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        placeholder="Search medicine name"
+                      />
+
+                      <div className="mt-4 grid gap-3 max-h-64 overflow-y-auto">
+                        {(filteredMedicines.length ? filteredMedicines : allMedicines)
+                          .slice(0, 8)
+                          .map((medicine) => (
+                            <div
+                              key={medicine.id}
+                              className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3"
+                            >
+                              <div>
+                                <p className="text-sm font-semibold text-dark">
+                                  {medicine.name}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                  ৳{medicine.price.toFixed(2)} each
+                                </p>
+                              </div>
+                              <CustomButton
+                                variant="outline"
+                                size="xs"
+                                radius="xs"
+                                onClick={() => addMedicine(medicine)}
+                              >
+                                Add
+                              </CustomButton>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-black text-dark">Selected medicines</p>
+                        <p className="text-xs text-slate-500">{selectedMedicines.length} added</p>
+                      </div>
+
+                      {selectedMedicines.length ? (
+                        <div className="mt-4 space-y-3">
+                          {selectedMedicines.map((medicine) => (
+                            <div
+                              key={medicine.id}
+                              className="rounded-xl border border-gray-200 bg-white p-3"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-dark">
+                                    {medicine.name}
+                                  </p>
+                                  <p className="text-xs text-slate-500 mt-1">
+                                    ৳{medicine.price.toFixed(2)} each
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removeMedicine(medicine.id)}
+                                  className="text-xs font-semibold text-danger hover:text-danger/80"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                              <div className="mt-3 flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateMedicineQty(medicine.id, medicine.qty - 1)}
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-sm text-slate-700"
+                                  >
+                                    −
+                                  </button>
+                                  <span className="inline-flex h-9 min-w-[48px] items-center justify-center rounded-lg border border-gray-200 bg-white text-sm font-semibold">
+                                    {medicine.qty}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateMedicineQty(medicine.id, medicine.qty + 1)}
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-sm text-slate-700"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                                <p className="text-sm font-semibold text-dark">
+                                  Subtotal ৳{(medicine.price * medicine.qty).toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="mt-4 rounded-xl border border-dashed border-gray-200 bg-white p-4 text-sm text-slate-500">
+                          Add medicines from the left panel to build your prescription order.
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
