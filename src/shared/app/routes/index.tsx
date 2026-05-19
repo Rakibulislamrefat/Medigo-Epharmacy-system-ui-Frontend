@@ -104,7 +104,11 @@ export const router = createBrowserRouter([
       },
       {
         path: "/request-order",
-        element: <RequestOrderPage />,
+        element: (
+          <ProtectedRoute>
+            <RequestOrderPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "/cart",
@@ -132,7 +136,11 @@ export const router = createBrowserRouter([
       },
       {
         path: "/order",
-        element: <RequestOrderPage />,
+        element: (
+          <ProtectedRoute>
+            <RequestOrderPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "/prescription/history",

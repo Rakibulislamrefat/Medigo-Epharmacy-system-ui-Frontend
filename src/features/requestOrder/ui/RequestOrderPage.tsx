@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
-import { useLocation as useRouterLocation } from "react-router-dom";
+import { Navigate, useLocation as useRouterLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import Api from "../../../utilities/api";
 import { useLocation } from "../../../hooks/useLocation";
@@ -8,6 +9,8 @@ import { Icons } from "../../../shared/icons/Icons";
 import MainContainer from "../../../shared/main-container/MainContainer";
 import SectionContainer from "../../../shared/section-container/SectionContainer";
 import SectionHeading, { SectionParagraph } from "../../../shared/section-heading/SectionHeading";
+import BuildInLoader from "../../../shared/loader/BuildInLoader";
+import type { RootState } from "../../../redux/store";
 
 type OrderItem = {
   id: string;
@@ -45,7 +48,11 @@ const uid = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 export default function RequestOrderPage() {
   const { getLocation, loading: detectingLocation } = useLocation();
   const routerLocation = useRouterLocation();
+  const { user, isLoading } = useSelector((state: RootState) => state.user);
   const fileRef = useRef<HTMLInputElement | null>(null);
+
+  if (isLoading) return <BuildInLoader />;
+  if (!user) return <Navigate to="/login" state={{ from: routerLocation }} replace />;
 
   const initialItems = (() => {
     const state = routerLocation.state as

@@ -11,9 +11,11 @@ const GuestRoute = ({ children }: { children: JSX.Element }) => {
   if (isLoading) return <BuildInLoader />;
 
   if (user) {
-    // redirect back to previous page OR home
+    // redirect authenticated admins directly to admin panel,
+    // otherwise redirect back to previous page or home.
+    const adminRedirect = user.role === "admin" ? "/admin" : undefined;
     const from = location.state?.from?.pathname || "/";
-    return <Navigate to={from} replace />;
+    return <Navigate to={adminRedirect ?? from} replace />;
   }
 
   return children;

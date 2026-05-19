@@ -75,6 +75,16 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
   };
   // console.log(user)
 
+  const roleBadge = (role?: string) => {
+    const map: Record<string, { label: string; classes: string }> = {
+      admin: { label: "Admin", classes: "bg-amber-50 text-amber-700 border-amber-100" },
+      pharmacist: { label: "Pharmacist", classes: "bg-purple-50 text-purple-700 border-purple-100" },
+      user: { label: "Customer", classes: "bg-sky-50 text-sky-700 border-sky-100" },
+      donor: { label: "Donor", classes: "bg-emerald-50 text-emerald-700 border-emerald-100" },
+    };
+    return map[role ?? ""] ?? { label: role ?? "User", classes: "bg-gray-50 text-gray-700 border-gray-100" };
+  };
+
   // ── Close dropdown on outside click ─────────────────
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -147,9 +157,14 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
           </div>
         )}
 
-        {/* Name + blood type badge */}
+        {/* Name + role on separate lines */}
         <div className="hidden xl:flex flex-col items-start leading-tight">
           <span className="text-sm font-semibold text-dark">{user?.name}</span>
+          {user?.role && (
+            <span className="text-xxs font-semibold text-primary mt-0.5">
+              {roleBadge(user.role).label}
+            </span>
+          )}
           {user?.bloodType && (
             <span className="text-xxs font-bold text-primary">
               {user.bloodType}
@@ -174,7 +189,12 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
             <p className="text-sm font-semibold text-dark truncate">
               {user?.name}
             </p>
-            <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+            {user?.role && (
+              <p className="text-xxs font-semibold text-primary mt-1">
+                {roleBadge(user.role).label}
+              </p>
+            )}
+            <p className="text-xs text-gray-400 truncate mt-1">{user?.email}</p>
             {user?.location?.city && (
               <p className="text-xs text-primary mt-0.5">
                 📍 {user.location.city}
@@ -467,16 +487,22 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
                   <p className="text-sm font-semibold text-dark truncate">
                     {user.name}
                   </p>
-                  <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                  {user.role && (
+                    <p className="text-xs font-semibold text-primary mt-1">
+                      {roleBadge(user.role).label}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-400 truncate mt-1">{user.email}</p>
                 </div>
-                {user.bloodType && (
-                  <span
-                    className="ml-auto text-xs font-black text-primary
-                    bg-primary/10 px-2 py-1 rounded-xs shrink-0"
-                  >
-                    {user.bloodType}
-                  </span>
-                )}
+                <div className="ml-auto flex items-center gap-2">
+                  {user.bloodType && (
+                    <span
+                      className="text-xs font-black text-primary bg-primary/10 px-2 py-1 rounded-xs shrink-0"
+                    >
+                      {user.bloodType}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
 

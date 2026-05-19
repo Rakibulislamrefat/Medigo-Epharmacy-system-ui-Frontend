@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { loginApi } from "../service/loginService";
+import { adminLoginApi } from "../../admin/service/adminLoginService";
 import { useDispatch } from "react-redux";
 import { setUser } from "../../../redux/slices/userSlice";
 import CustomButton from "../../../shared/button/CustomButton";
@@ -11,6 +12,8 @@ import SectionHeading from "../../../shared/section-heading/SectionHeading";
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  type Actor = "user" | "admin" | "pharmacist";
+  const [actor, setActor] = useState<Actor>("user");
   const [identifier, setIdentifier] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [showPass, setShowPass] = useState<boolean>(false);
@@ -37,7 +40,11 @@ export default function LoginPage() {
     const toastId = toast.loading("Signing in...");
 
     try {
-      const res = await loginApi({ identifier, password });
+      const res =
+        actor === "admin"
+          ? await adminLoginApi({ identifier, password })
+          : await loginApi({ identifier, password });
+
       const message = res?.message ?? res?.data?.message ?? "Signed in";
       const user = res?.data?.user ?? res?.user;
       const token = res?.data?.accessToken ?? res?.accessToken;
@@ -47,10 +54,35 @@ export default function LoginPage() {
         return;
       }
 
+      const role = user.role as string | undefined;
+      const roleMap: Record<Actor, string> = {
+        user: "user",
+        admin: "admin",
+        pharmacist: "pharmacist",
+      };
+      const expectedRole = roleMap[actor];
+
+      if (role !== expectedRole) {
+        const userRoleLabel = role ? `your ${role} account` : "this account";
+        const errorMessage =
+          actor === "admin"
+            ? `Please log in with an admin account.`
+            : actor === "pharmacist"
+            ? `Please log in with a pharmacist account.`
+            : `Please log in with a customer account.`;
+
+        toast.error(errorMessage, { id: toastId });
+        setErrors({ identifier: errorMessage });
+        return;
+      }
+
       toast.success(message, { id: toastId });
       dispatch(setUser({ user, token }));
       const from = location.state?.from?.pathname || "/";
-      const redirectPath = user.role === "admin" ? "/admin" : from;
+      const redirectPath =
+        actor === "admin"
+          ? "/admin"
+          : from || "/";
       navigate(redirectPath, { replace: true });
     } catch (err: unknown) {
       const error = err as {
@@ -144,13 +176,41 @@ export default function LoginPage() {
             className="mb-6"
           />
 
+          <div className="mb-5 flex flex-wrap items-center gap-2 text-sm font-semibold">
+            {(
+              [
+                { value: "user", label: "User" },
+                { value: "admin", label: "Admin" },
+                { value: "pharmacist", label: "Pharmacist" },
+              ] as const
+            ).map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setActor(option.value)}
+                className={`rounded-full px-4 py-2 transition border text-sm ${
+                  actor === option.value
+                    ? "border-primary bg-primary text-white"
+                    : "border-gray-200 bg-white text-slate-700 hover:border-primary hover:text-primary"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
           <div className="bg-white border border-gray-100 rounded-xl p-6 sm:p-7 shadow-md">
             <div className="mb-4">
               <label
                 htmlFor="identifier"
                 className="block text-sm font-medium text-gray-700 mb-1.5"
               >
-                Email or phone <span className="text-danger ml-1">*</span>
+                {actor === "admin"
+                  ? "Admin email or phone"
+                  : actor === "pharmacist"
+                  ? "Pharmacist email or phone"
+                  : "Email or phone"}{" "}
+                <span className="text-danger ml-1">*</span>
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
