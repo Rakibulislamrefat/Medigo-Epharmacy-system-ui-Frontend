@@ -151,6 +151,10 @@ export const router = createBrowserRouter([
         element: <UploadPrescriptionPage />,
       },
       {
+        path: "/upload-prescription",
+        element: <UploadPrescriptionPage />,
+      },
+      {
         path: "/howToOrder",
         element: <HowToOrderPage />,
       },

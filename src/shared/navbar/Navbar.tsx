@@ -15,7 +15,7 @@ const navLinks = [
   { label: "Home", href: "/" },
   { label: "Special Offers", href: "/special-offers" },
   { label: "Branch Locations", href: "/branch-locations" },
-  { label: "Review", href: "/review" },
+  { label: "Upload Prescription", href: "/upload-prescription" },
   { label: "Doctor Consultancy", href: "/doctor-consultancy" },
   { label: "About Us", href: "/about" },
   { label: "Contact Us", href: "/contact-us" },
