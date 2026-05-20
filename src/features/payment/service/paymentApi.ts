@@ -45,6 +45,16 @@ export type PaymentInitiation = {
   transactionId?: string;
 };
 
+export type PaymentCustomerInfo = {
+  name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  postcode?: string;
+  country?: string;
+};
+
 export type PaymentValidation = {
   transaction?: {
     status?: string;
@@ -153,6 +163,26 @@ export const initiateSslcommerzPayment = async (
       postcode: order.deliveryAddress?.postcode,
       country: order.deliveryAddress?.country || "Bangladesh",
     },
+  });
+  return unwrap<PaymentInitiation>(res.data);
+};
+
+export const selectPrescriptionCashOnDelivery = async (
+  orderId: string,
+): Promise<PaymentOrder> => {
+  const res = await api.post(`/prescription-orders/${encodeURIComponent(orderId)}/payment`, {
+    method: "cash_on_delivery",
+  });
+  return unwrap<PaymentOrder>(res.data);
+};
+
+export const initiatePrescriptionSslcommerzPayment = async (
+  orderId: string,
+  customerInfo: PaymentCustomerInfo = {},
+): Promise<PaymentInitiation> => {
+  const res = await api.post(`/prescription-orders/${encodeURIComponent(orderId)}/payment`, {
+    method: "online",
+    customerInfo,
   });
   return unwrap<PaymentInitiation>(res.data);
 };

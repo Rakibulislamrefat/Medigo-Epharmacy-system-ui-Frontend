@@ -11,7 +11,11 @@ import SectionContainer from "../../../shared/section-container/SectionContainer
 import type { RootState } from "../../../redux/store";
 import api from "../../../utilities/api";
 import { getFrontendConfig } from "../../../config/frontend";
-import { initiateSslcommerzPayment, type PaymentOrder } from "../../payment/service/paymentApi";
+import {
+  initiatePrescriptionSslcommerzPayment,
+  selectPrescriptionCashOnDelivery,
+  type PaymentCustomerInfo,
+} from "../../payment/service/paymentApi";
 
 interface PrescriptionOrderMedicine {
   medicineId?: string;
@@ -55,6 +59,14 @@ const getOrderGrandTotal = (order: PrescriptionOrder) => {
   return 0;
 };
 
+const getApiErrorMessage = (error: unknown, fallback: string) => {
+  if (axios.isAxiosError(error)) {
+    return error.response?.data?.message ?? fallback;
+  }
+
+  return error instanceof Error ? error.message : fallback;
+};
+
 const fetchPrescribedOrders = async (): Promise<PrescriptionOrder[]> => {
   try {
     const res = await api.get("/prescription-orders/my");
@@ -69,31 +81,14 @@ const fetchPrescribedOrders = async (): Promise<PrescriptionOrder[]> => {
   }
 };
 
-const setPrescriptionCodPayment = async (orderId: string) => {
-  const res = await api.patch(`/prescription-orders/${encodeURIComponent(orderId)}`, {
-    paymentMethod: "cod",
-  });
-  return res.data;
-};
-
-const toPaymentOrder = (order: PrescriptionOrder): PaymentOrder => ({
-  _id: order._id ?? "",
-  contactName: order.user?.name,
-  contactPhone: order.user?.phone,
-  deliveryAddress: order.address
-    ? {
-        line1: order.address.line1 ?? "",
-        line2: order.address.line2,
-        city: order.address.city ?? "",
-        state: order.address.state ?? "",
-        postcode: order.address.postcode ?? "",
-        country: order.address.country || "Bangladesh",
-      }
-    : undefined,
-  grandTotal: getOrderGrandTotal(order),
-  status: order.status,
-  paymentStatus: order.paymentStatus,
-  createdAt: order.createdAt,
+const toPaymentCustomerInfo = (order: PrescriptionOrder): PaymentCustomerInfo => ({
+  name: order.user?.name,
+  email: order.user?.email,
+  phone: order.user?.phone,
+  address: order.address?.line1,
+  city: order.address?.city,
+  postcode: order.address?.postcode,
+  country: order.address?.country || "Bangladesh",
 });
 
 export default function PrescribedHistoryPage() {
@@ -110,7 +105,7 @@ export default function PrescribedHistoryPage() {
   });
 
   const codPaymentMutation = useMutation({
-    mutationFn: setPrescriptionCodPayment,
+    mutationFn: selectPrescriptionCashOnDelivery,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["prescribed-orders"] });
       toast.success("Cash on delivery selected for this order.");
@@ -151,11 +146,11 @@ export default function PrescribedHistoryPage() {
     setStartingPayment({ id, method: "online" });
 
     try {
-      const payment = await initiateSslcommerzPayment(toPaymentOrder(order));
+      const payment = await initiatePrescriptionSslcommerzPayment(id, toPaymentCustomerInfo(order));
       if (!payment.paymentUrl) throw new Error("Payment URL was not returned.");
       window.location.href = payment.paymentUrl;
-    } catch {
-      toast.error("Unable to start online payment. Please try again.", { id: toastId });
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Unable to start online payment. Please try again."), { id: toastId });
       setStartingPayment(null);
     }
   };
