@@ -48,6 +48,7 @@ import PharmacistRoute from "./PharmacistRoute";
 import PharmacistDashboardPage from "../../../features/pharmacist/ui/PharmacistDashboardPage";
 import RequestedOrdersPage from "../../../features/pharmacist/ui/RequestedOrdersPage";
 import PrescribedOrdersPage from "../../../features/pharmacist/ui/PrescribedOrdersPage";
+import PrescribedHistoryPage from "../../../features/orderHistory/ui/PrescribedHistoryPage";
 
 export const router = createBrowserRouter([
   {
@@ -76,6 +77,10 @@ export const router = createBrowserRouter([
       {
         path: "/review",
         element: <ReviewsPage />,
+      },
+      {
+        path: "/prescribed-orders",
+        element: <PrescribedHistoryPage />,
       },
       {
         path: "/reviews",

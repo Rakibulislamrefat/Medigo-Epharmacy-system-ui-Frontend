@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, useLocation as useRouterLocation } from "react-router-dom";
+import { useLocation as useRouterLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import Api from "../../../utilities/api";
@@ -9,7 +9,6 @@ import { Icons } from "../../../shared/icons/Icons";
 import MainContainer from "../../../shared/main-container/MainContainer";
 import SectionContainer from "../../../shared/section-container/SectionContainer";
 import SectionHeading, { SectionParagraph } from "../../../shared/section-heading/SectionHeading";
-import BuildInLoader from "../../../shared/loader/BuildInLoader";
 import type { RootState } from "../../../redux/store";
 
 type OrderItem = {
@@ -48,11 +47,8 @@ const uid = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 export default function RequestOrderPage() {
   const { getLocation, loading: detectingLocation } = useLocation();
   const routerLocation = useRouterLocation();
-  const { user, isLoading } = useSelector((state: RootState) => state.user);
+  const { user } = useSelector((state: RootState) => state.user);
   const fileRef = useRef<HTMLInputElement | null>(null);
-
-  if (isLoading) return <BuildInLoader />;
-  if (!user) return <Navigate to="/login" state={{ from: routerLocation }} replace />;
 
   const initialItems = (() => {
     const state = routerLocation.state as
@@ -250,8 +246,6 @@ export default function RequestOrderPage() {
         name: it.name.trim(),
         quantity: Number(it.quantity) || 0,
         notes: it.notes?.trim() || "",
-        imageUrl: it.imageUrl || null,
-        price: typeof it.price === "number" ? it.price : null,
       }));
 
       const fd = new FormData();
@@ -265,7 +259,7 @@ export default function RequestOrderPage() {
       fd.append("items", JSON.stringify(itemsPayload));
       if (form.prescriptionFile) fd.append("prescriptionFile", form.prescriptionFile);
 
-      const res = await Api.post("/api/v1/request-orders", fd, {
+      const res = await Api.post("/request-orders", fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -282,6 +276,7 @@ export default function RequestOrderPage() {
         prescriptionFile: null,
         items: [{ id: uid(), name: "", quantity: "1", notes: "" }],
       });
+      if (fileRef.current) fileRef.current.value = "";
     } catch (err: unknown) {
       const message = (err as any)?.response?.data?.message || (err as Error).message || "Submit failed";
       toast.error(message);

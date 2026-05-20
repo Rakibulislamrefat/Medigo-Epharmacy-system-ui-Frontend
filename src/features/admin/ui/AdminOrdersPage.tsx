@@ -199,19 +199,20 @@ export default function AdminOrdersPage() {
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
-                {items.map((order) => {
+                {items.map((order, index) => {
                   const statusColor = getStatusColor(order.status);
                   const paymentColor = getPaymentColor(order.paymentStatus);
-                  const isExpanded = expandedOrder === order._id;
+                  const orderKey = order._id ?? order.orderNumber ?? String(index);
+                  const isExpanded = expandedOrder === orderKey;
 
                   return (
                     <div
-                      key={order._id}
+                      key={orderKey}
                       className="bg-white hover:bg-gray-50/50 transition-colors"
                     >
                       <button
                         type="button"
-                        onClick={() => setExpandedOrder(isExpanded ? null : order._id)}
+                        onClick={() => setExpandedOrder(isExpanded ? null : orderKey)}
                         className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50"
                       >
                         <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -220,7 +221,7 @@ export default function AdminOrdersPage() {
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold text-dark truncate">
-                              {order.orderNumber || order._id.slice(-8).toUpperCase()}
+                              {order.orderNumber ?? (order._id ? order._id.slice(-8).toUpperCase() : "Unknown")}
                             </p>
                             <p className="text-xs text-slate-500 mt-0.5">
                               {formatDate(order.createdAt)}

@@ -56,22 +56,16 @@ export default function LoginPage() {
         return;
       }
 
-      const role = user.role as string | undefined;
-      const roleMap: Record<Actor, string> = {
-        user: "user",
-        admin: "admin",
-        pharmacist: "pharmacist",
-      };
-      const expectedRole = roleMap[actor];
+      const role = (user.role ?? "").toString().toLowerCase();
+      const expectedRole = actor === "admin" ? "admin" : actor === "pharmacist" ? "pharmacist" : "user";
 
       if (role !== expectedRole) {
-        const userRoleLabel = role ? `your ${role} account` : "this account";
         const errorMessage =
-          actor === "admin"
-            ? `Please log in with an admin account.`
-            : actor === "pharmacist"
-            ? `Please log in with a pharmacist account.`
-            : `Please log in with a customer account.`;
+          expectedRole === "admin"
+            ? "Please log in with an admin account."
+            : expectedRole === "pharmacist"
+            ? "Please log in with a pharmacist account."
+            : "Please log in with a user account.";
 
         toast.error(errorMessage, { id: toastId });
         setErrors({ identifier: errorMessage });
@@ -80,13 +74,12 @@ export default function LoginPage() {
 
       toast.success(message, { id: toastId });
       dispatch(setUser({ user, token }));
-      const from = location.state?.from?.pathname || "/";
       const redirectPath =
         actor === "admin"
           ? "/admin"
           : actor === "pharmacist"
           ? "/pharmacist"
-          : from || "/";
+          : location.state?.from?.pathname || "/";
       navigate(redirectPath, { replace: true });
     } catch (err: unknown) {
       const error = err as {

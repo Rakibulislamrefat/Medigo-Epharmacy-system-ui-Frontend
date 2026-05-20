@@ -220,27 +220,17 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
               <Icons.Cart className="!w-4 !h-4" />
               My Orders
             </NavLink>
+            <NavLink
+              to="/prescribed-orders"
+              onClick={() => setDropdownOpen(false)}
+              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-dark
+                hover:bg-gray-50 hover:text-primary transition-colors"
+            >
+              <Icons.Cart className="!w-4 !h-4" />
+              My Prescribed orders
+            </NavLink>
 
-            {isDonor && (
-              <NavLink
-                to="/my-donations"
-                onClick={() => setDropdownOpen(false)}
-                className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-dark
-                  hover:bg-gray-50 hover:text-primary transition-colors"
-              >
-                <Icons.Blood className="!w-4 !h-4" />
-                My Donations
-                {(user?.totalDonations ?? 0) > 0 && (
-                  <span
-                    className="ml-auto text-xxs font-bold bg-primary/10
-                    text-primary px-1.5 py-0.5 rounded-full"
-                  >
-                    {user?.totalDonations}
-                  </span>
-                )}
-              </NavLink>
-            )}
-
+            
             <NavLink
               to="/settings"
               onClick={() => setDropdownOpen(false)}

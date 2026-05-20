@@ -7,7 +7,8 @@ import { Icons } from "../../../shared/icons/Icons";
 import CustomButton from "../../../shared/button/CustomButton";
 import MainContainer from "../../../shared/main-container/MainContainer";
 import SectionContainer from "../../../shared/section-container/SectionContainer";
-import { cancelOrder, getMyOrders, getOrderTracking } from "../../payment/service/paymentApi";
+import { cancelOrder, getOrderTracking } from "../../payment/service/paymentApi";
+import api from "../../../utilities/api";
 import type { RootState } from "../../../redux/store";
 import type { PaymentOrder } from "../../payment/service/paymentApi";
 
@@ -42,6 +43,9 @@ const formatDateTime = (value?: string | null) => {
 
 const formatMoney = (value?: number) =>
   typeof value === "number" ? `BDT ${value.toLocaleString("en-BD")}` : "N/A";
+
+const getCurrency = (value?: number) =>
+  typeof value === "number" ? `৳ ${value.toLocaleString("en-BD")}` : "N/A";
 
 const getApiErrorMessage = (error: unknown, fallback: string) => {
   if (axios.isAxiosError(error)) {
@@ -89,10 +93,36 @@ export default function OrderHistoryPage() {
     error,
   } = useQuery({
     queryKey: ["orders"],
-    queryFn: getMyOrders,
+    queryFn: fetchPrescriptionOrders,
     enabled: Boolean(user) && !trackingId,
     retry: false,
   });
+
+  async function fetchPrescriptionOrders() {
+    try {
+      const res = await api.get("/prescription-orders/my");
+      const data = res.data?.data ?? res.data;
+      if (Array.isArray(data)) return data as any[];
+      if (Array.isArray(data.items)) return data.items as any[];
+      if (Array.isArray(data.rows)) return data.rows as any[];
+      return [] as any[];
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) return [];
+      throw err;
+    }
+  }
+
+  const getOrderGrandTotal = (order: any) => {
+    if (typeof order.grandTotal === "number") return order.grandTotal;
+    if (Array.isArray(order.medicines) && order.medicines.length > 0) {
+      return order.medicines.reduce((sum: number, m: any) => {
+        const qty = Number(m.quantity ?? m.qty ?? 0) || 0;
+        const price = typeof m.salePrice === "number" ? m.salePrice : typeof m.price === "number" ? m.price : 0;
+        return sum + price * qty;
+      }, 0);
+    }
+    return order.totalEstimate ?? order.estimate ?? 0;
+  };
 
   const cancelMutation = useMutation({
     mutationFn: cancelOrder,
@@ -281,53 +311,59 @@ export default function OrderHistoryPage() {
               <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
                 <h2 className="text-lg font-black text-dark">Tracking Timeline</h2>
                 <div className="mt-5 space-y-4">
-                  {tracking.timeline.map((step, index) => (
-                    <div key={`${step.status}-${index}`} className="flex gap-4">
-                      <div className="flex flex-col items-center">
-                        <span
-                          className={[
-                            "flex h-9 w-9 items-center justify-center rounded-full border text-white",
-                            step.completed ? "border-primary bg-primary" : "border-gray-200 bg-gray-200",
-                            step.current ? "ring-4 ring-primary/15" : "",
-                          ].join(" ")}
-                        >
-                          {step.completed ? <Icons.Check className="!h-4 !w-4" /> : index + 1}
-                        </span>
-                        {index < tracking.timeline.length - 1 && (
+                  {Array.isArray(tracking.timeline) && tracking.timeline.length > 0 ? (
+                    tracking.timeline.map((step, index) => (
+                      <div key={`${step.status ?? "step"}-${index}`} className="flex gap-4">
+                        <div className="flex flex-col items-center">
                           <span
-                            className={`mt-2 h-full min-h-8 w-0.5 ${
-                              step.completed ? "bg-primary/50" : "bg-gray-200"
-                            }`}
-                          />
-                        )}
-                      </div>
-
-                      <div className="min-w-0 flex-1 pb-3">
-                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                          <p className="text-base font-black capitalize text-dark">
-                            {step.status.replace(/_/g, " ")}
-                          </p>
-                          {step.current && (
-                            <span className="w-fit rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
-                              Current
-                            </span>
+                            className={[
+                              "flex h-9 w-9 items-center justify-center rounded-full border text-white",
+                              step.completed ? "border-primary bg-primary" : "border-gray-200 bg-gray-200",
+                              step.current ? "ring-4 ring-primary/15" : "",
+                            ].join(" ")}
+                          >
+                            {step.completed ? <Icons.Check className="!h-4 !w-4" /> : index + 1}
+                          </span>
+                          {index < tracking.timeline.length - 1 && (
+                            <span
+                              className={`mt-2 h-full min-h-8 w-0.5 ${
+                                step.completed ? "bg-primary/50" : "bg-gray-200"
+                              }`}
+                            />
                           )}
                         </div>
-                        <p className="mt-1 text-sm text-slate-500">
-                          {formatDateTime(step.timestamp)}
-                        </p>
+
+                        <div className="min-w-0 flex-1 pb-3">
+                          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="text-base font-black capitalize text-dark">
+                              {String(step.status ?? "Unknown").replace(/_/g, " ")}
+                            </p>
+                            {step.current && (
+                              <span className="w-fit rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                                Current
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {formatDateTime(step.timestamp)}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                        No tracking timeline is available for this order.
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
 
               <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
                 <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
                   <h2 className="text-lg font-black text-dark">Items</h2>
                   <div className="mt-4 divide-y divide-gray-100">
-                    {(tracking.items ?? []).length > 0 ? (
-                      tracking.items?.map((item, index) => (
+                    {Array.isArray(tracking.items) && tracking.items.length > 0 ? (
+                      tracking.items.map((item, index) => (
                         <div key={`${item.product?._id ?? item.nameSnapshot}-${index}`} className="py-3">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div>
@@ -435,21 +471,22 @@ export default function OrderHistoryPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {orders.map((order) => {
+            {orders.map((order, idx) => {
               const cancelEligibility = getCancelEligibility(order);
-              const cancelKey = order.orderNumber ?? order._id;
+              const cancelKey = order.orderNumber ?? order._id ?? String(idx);
               const isCancelling = cancelMutation.isPending && cancelMutation.variables === cancelKey;
+              const orderKey = order._id ?? order.orderNumber ?? `${idx}`;
 
               return (
                 <div
-                  key={order._id}
+                  key={orderKey}
                   className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:shadow-md"
                 >
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-slate-500">Order ID</p>
                     <p className="mt-1 break-all font-mono text-sm font-black text-dark">
-                      {order.orderNumber || order._id}
+                      {order.orderNumber ?? order._id ?? "Unknown order"}
                     </p>
                     {cancelEligibility.deadline && (
                       <p className="mt-2 text-xs font-semibold text-slate-500">
@@ -462,7 +499,7 @@ export default function OrderHistoryPage() {
                     <div>
                       <p className="text-sm font-semibold text-slate-500">Grand Total</p>
                       <p className="mt-1 text-lg font-black text-dark">
-                        {order.grandTotal ? `৳ ${order.grandTotal}` : "N/A"}
+                        {getCurrency(getOrderGrandTotal(order))}
                       </p>
                     </div>
 
@@ -521,19 +558,19 @@ export default function OrderHistoryPage() {
                   </div>
                 )}
 
-                {order.deliveryAddress && (
+                {(order.deliveryAddress || order.address) && (
                   <div className="mt-4 border-t border-gray-100 pt-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
                       Delivery Address
                     </p>
                     <p className="mt-2 text-sm text-slate-700">
                       {[
-                        order.deliveryAddress.line1,
-                        order.deliveryAddress.line2,
-                        order.deliveryAddress.city,
-                        order.deliveryAddress.state,
-                        order.deliveryAddress.postcode,
-                        order.deliveryAddress.country,
+                        (order.deliveryAddress?.line1 ?? order.address?.line1),
+                        (order.deliveryAddress?.line2 ?? order.address?.line2),
+                        (order.deliveryAddress?.city ?? order.address?.city),
+                        (order.deliveryAddress?.state ?? order.address?.state),
+                        (order.deliveryAddress?.postcode ?? order.address?.postcode),
+                        (order.deliveryAddress?.country ?? order.address?.country),
                       ]
                         .filter(Boolean)
                         .join(", ")}
@@ -550,6 +587,11 @@ export default function OrderHistoryPage() {
           <NavLink to="/shop">
             <CustomButton variant="primary" size="sm" radius="full">
               Continue shopping
+            </CustomButton>
+          </NavLink>
+          <NavLink to="/prescription/history">
+            <CustomButton variant="outline" size="sm" radius="full">
+              Prescribed order
             </CustomButton>
           </NavLink>
           <NavLink to="/">
