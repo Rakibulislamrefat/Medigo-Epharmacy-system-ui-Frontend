@@ -106,6 +106,8 @@ export default function AdminDashboardPage() {
     [revenueHistory],
   );
 
+  const revenueMax = useMemo(() => (revenueHistory.length ? Math.max(...revenueHistory.map((p) => p.value), 1) : 1), [revenueHistory]);
+
   const cardData = useMemo(
     () =>
       data
@@ -259,7 +261,16 @@ export default function AdminDashboardPage() {
           <div className="rounded-[28px] bg-slate-950/5 p-5">
             <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 p-4">
               <div className="absolute inset-x-0 top-0 h-2 bg-gradient-to-r from-sky-400 via-cyan-400 to-emerald-400 opacity-40 blur-2xl" />
-              <svg viewBox="0 0 100 40" className="relative h-48 w-full">
+              <div className="flex gap-4">
+                <div className="hidden sm:flex flex-col items-end gap-2 pr-3 text-xs text-slate-300 w-20">
+                  {[4, 3, 2, 1, 0].map((i) => (
+                    <div key={i} className="h-8 flex items-center w-full">
+                      {formatCurrency(Math.round((i / 4) * revenueMax))}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex-1">
+                  <svg viewBox="0 0 100 40" className="relative h-48 w-full">
                 <defs>
                   <linearGradient id="revenueGradient" x1="0%" y1="0%" x2="0%" y2="100%">
                     <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.55" />
@@ -285,37 +296,37 @@ export default function AdminDashboardPage() {
                   strokeLinecap="round"
                 />
                 {revenueHistory.length > 0 && (
-                  <path
-                    d={
-                      revenueHistory
-                        .map((point, index) => {
-                          const x = (index / (revenueHistory.length - 1)) * 100;
-                          const maxValue = Math.max(...revenueHistory.map((item) => item.value), 1);
-                          const y = 100 - (point.value / maxValue) * 80;
-                          return `${index === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
-                        })
-                        .join(" ") + ` L 100 100 L 0 100 Z`
-                    }
-                    fill="url(#revenueGradient)"
-                    opacity="0.9"
-                  />
-                )}
-                {revenueHistory.map((point, index) => {
-                  const x = (index / (revenueHistory.length - 1)) * 100;
-                  const maxValue = Math.max(...revenueHistory.map((item) => item.value), 1);
-                  const y = 100 - (point.value / maxValue) * 80;
-                  return (
-                    <circle
-                      key={point.label}
-                      cx={x}
-                      cy={y}
-                      r="1.8"
-                      fill="#38bdf8"
-                      stroke="#fff"
-                      strokeWidth="0.9"
+                  <>
+                    <path
+                      d={
+                        revenueHistory
+                          .map((point, index) => {
+                            const x = (index / (revenueHistory.length - 1)) * 100;
+                            const y = 100 - (point.value / revenueMax) * 80;
+                            return `${index === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
+                          })
+                          .join(" ") + ` L 100 100 L 0 100 Z`
+                      }
+                      fill="url(#revenueGradient)"
+                      opacity="0.9"
                     />
-                  );
-                })}
+                    {revenueHistory.map((point, index) => {
+                      const x = (index / (revenueHistory.length - 1)) * 100;
+                      const y = 100 - (point.value / revenueMax) * 80;
+                      return (
+                        <circle
+                          key={point.label}
+                          cx={x}
+                          cy={y}
+                          r="1.8"
+                          fill="#38bdf8"
+                          stroke="#fff"
+                          strokeWidth="0.9"
+                        />
+                      );
+                    })}
+                  </>
+                )}
               </svg>
               <div className="grid grid-cols-7 gap-2 text-[11px] uppercase tracking-[0.28em] text-slate-400">
                 {revenueHistory.map((point) => (
@@ -324,6 +335,9 @@ export default function AdminDashboardPage() {
                   </span>
                 ))}
               </div>
+              <div className="mt-2 text-xs text-slate-400 text-center">X axis: Day of week</div>
+            </div>
+          </div>
             </div>
           </div>
 

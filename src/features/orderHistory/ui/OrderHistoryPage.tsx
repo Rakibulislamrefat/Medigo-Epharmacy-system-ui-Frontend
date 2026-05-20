@@ -93,21 +93,28 @@ export default function OrderHistoryPage() {
     error,
   } = useQuery({
     queryKey: ["orders"],
-    queryFn: fetchPrescriptionOrders,
+    queryFn: fetchRegularOrders,
     enabled: Boolean(user) && !trackingId,
     retry: false,
   });
 
-  async function fetchPrescriptionOrders() {
+  async function fetchRegularOrders() {
     try {
-      const res = await api.get("/prescription-orders/my");
+      const res = await api.get("/orders/my");
       const data = res.data?.data ?? res.data;
       if (Array.isArray(data)) return data as any[];
       if (Array.isArray(data.items)) return data.items as any[];
       if (Array.isArray(data.rows)) return data.rows as any[];
       return [] as any[];
     } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 404) return [];
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        const fallbackRes = await api.get("/orders");
+        const fallbackData = fallbackRes.data?.data ?? fallbackRes.data;
+        if (Array.isArray(fallbackData)) return fallbackData as any[];
+        if (Array.isArray(fallbackData.items)) return fallbackData.items as any[];
+        if (Array.isArray(fallbackData.rows)) return fallbackData.rows as any[];
+        return [] as any[];
+      }
       throw err;
     }
   }

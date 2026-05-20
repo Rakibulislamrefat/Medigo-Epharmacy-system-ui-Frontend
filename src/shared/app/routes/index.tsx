@@ -17,6 +17,7 @@ import BranchLocationsPage from "../../../features/branchLocations/ui/BranchLoca
 import ReviewsPage from "../../../features/review/ui/ReviewsPage";
 import ContactUsPage from "../../../features/contactUs/ui/ContactUsPage";
 import RequestOrderPage from "../../../features/requestOrder/ui/RequestOrderPage";
+import MyRequestOrdersPage from "../../../features/requestOrder/ui/MyRequestOrdersPage";
 import CartPage from "../../../features/cart/ui/CartPage";
 import UploadPrescriptionPage from "../../../features/prescription/ui/UploadPrescriptionPage";
 import HowToOrderPage from "../../../features/howToOrder/ui/HowToOrderPage";
@@ -26,6 +27,7 @@ import TermsConditionPage from "../../../features/termsCondition/ui/TermsConditi
 import PrivacyPolicyPage from "../../../features/privacy/ui/PrivacyPolicyPage";
 import CategoryPage from "../../../features/category/ui/CategoryPage";
 import DoctorConsultancyPage from "../../../features/doctorConsultancy/ui/DoctorConsultancyPage";
+import ConsultancyHistoryPage from "../../../features/doctorConsultancy/ui/ConsultancyHistoryPage";
 import UsersPage from "../../../features/users/ui/UsersPage";
 import AdminLayout from "../../layout/AdminLayout";
 import AdminDashboardPage from "../../../features/admin/ui/AdminDashboardPage";
@@ -103,6 +105,14 @@ export const router = createBrowserRouter([
         element: <DoctorConsultancyPage />,
       },
       {
+        path: "/consultancies",
+        element: (
+          <ProtectedRoute>
+            <ConsultancyHistoryPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "/users",
         element: <UsersPage />,
       },
@@ -119,6 +129,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <RequestOrderPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/my-requests",
+        element: (
+          <ProtectedRoute>
+            <MyRequestOrdersPage />
           </ProtectedRoute>
         ),
       },

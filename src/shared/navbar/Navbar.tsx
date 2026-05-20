@@ -221,13 +221,32 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
               My Orders
             </NavLink>
             <NavLink
+              to="/my-requests"
+              onClick={() => setDropdownOpen(false)}
+              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-dark
+                hover:bg-gray-50 hover:text-primary transition-colors"
+            >
+              <Icons.Prescription className="!w-4 !h-4" />
+              My Requested Orders
+            </NavLink>
+            <NavLink
               to="/prescribed-orders"
               onClick={() => setDropdownOpen(false)}
               className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-dark
                 hover:bg-gray-50 hover:text-primary transition-colors"
             >
               <Icons.Cart className="!w-4 !h-4" />
-              My Prescribed orders
+              My Prescribed Orders
+            </NavLink>
+
+            <NavLink
+              to="/consultancies"
+              onClick={() => setDropdownOpen(false)}
+              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-dark
+                hover:bg-gray-50 hover:text-primary transition-colors"
+            >
+              <Icons.Time className="!w-4 !h-4" />
+              My Consultancy
             </NavLink>
 
             

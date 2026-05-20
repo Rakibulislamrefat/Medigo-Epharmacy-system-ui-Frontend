@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
 import { Icons } from "../../../shared/icons/Icons";
 import CustomButton from "../../../shared/button/CustomButton";
 import MainContainer from "../../../shared/main-container/MainContainer";
@@ -106,6 +107,10 @@ const getDeliveryText = (order: RequestOrder) =>
   order.deliveryAddress
     ? [order.deliveryAddress, order.city, order.country].filter(Boolean).join(", ")
     : [order.address?.line1, order.address?.city, order.address?.country].filter(Boolean).join(", ");
+
+const hasPricingButNotConfirmed = (order: RequestOrder) =>
+  order.status !== "confirmed" &&
+  getOrderItems(order).some((m: any) => (m.salePrice ?? m.price ?? 0) > 0);
 
 // ─── API ─────────────────────────────────────────────────────────────────────
 
@@ -217,6 +222,71 @@ function OrderDetailModal({
   const id = order._id ?? "-";
   const items = getOrderItems(order);
   const total = calcTotal(items);
+  const [priceMap, setPriceMap] = useState<Record<string, number>>({});
+  const [savingPrices, setSavingPrices] = useState(false);
+
+  const getItemKey = (item: any, index: number) => item.medicineId ?? item.name ?? String(index);
+  const getItemPrice = (item: any) => Number(item.salePrice ?? item.price ?? 0);
+
+  useEffect(() => {
+    const next = items.reduce<Record<string, number>>((acc, item, index) => {
+      const key = getItemKey(item, index);
+      acc[key] = getItemPrice(item);
+      return acc;
+    }, {});
+    setPriceMap(next);
+  }, [items]);
+
+  const setItemPrice = (key: string, value: number) => {
+    setPriceMap((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const buildUpdatedItems = () =>
+    items.map((item: any, index) => {
+      const key = getItemKey(item, index);
+      const price = priceMap[key] ?? getItemPrice(item);
+      return {
+        ...item,
+        price,
+        salePrice: price,
+      };
+    });
+
+  const saveOnlyPrices = async () => {
+    setSavingPrices(true);
+    try {
+      const updatedItems = buildUpdatedItems();
+      const payload = order.medicines ? { medicines: updatedItems } : { items: updatedItems };
+      await api.patch(`/request-orders/${id}`, payload);
+      toast.success("Prices saved.");
+      // refresh the list/modal
+      onStatusChange();
+    } catch (err) {
+      console.error("Unable to save prices", err);
+      toast.error("Failed to save item prices. Please try again.");
+    } finally {
+      setSavingPrices(false);
+    }
+  };
+
+  const confirmPrices = async () => {
+    setSavingPrices(true);
+    try {
+      const updatedItems = buildUpdatedItems();
+      const payload = order.medicines
+        ? { medicines: updatedItems, status: "confirmed" as OrderStatus }
+        : { items: updatedItems, status: "confirmed" as OrderStatus };
+
+      await api.patch(`/request-orders/${id}`, payload);
+      toast.success("Prices saved and order confirmed. The order is now ready for payment.");
+      onStatusChange();
+    } catch (err) {
+      console.error("Unable to save prices", err);
+      toast.error("Failed to save item prices. Please try again.");
+    } finally {
+      setSavingPrices(false);
+    }
+  };
 
   return (
     <div
@@ -317,25 +387,45 @@ function OrderDetailModal({
                 Medicines ({order.medicines!.length})
               </p>
               <div className="rounded-2xl border border-gray-100 overflow-hidden">
-                {order.medicines!.map((med, i) => (
-                  <div
-                    key={med.medicineId ?? i}
-                    className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-50 last:border-0 bg-white"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-dark truncate">{med.name ?? "Unknown"}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">Qty: {med.quantity ?? 1}</p>
+                {order.medicines!.map((med, i) => {
+                  const key = med.medicineId ?? med.name ?? String(i);
+                  const currentPrice = priceMap[key] ?? Number(med.salePrice ?? med.price ?? 0);
+
+                  return (
+                    <div
+                      key={key}
+                      className="flex flex-col gap-3 border-b border-gray-50 bg-white px-4 py-3 last:border-0"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-dark truncate">{med.name ?? "Unknown"}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">Qty: {med.quantity ?? 1}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-black text-dark">
+                            ৳{((med.salePrice ?? med.price ?? 0) * (med.quantity ?? 1)).toFixed(2)}
+                          </p>
+                          {med.salePrice && med.price && med.salePrice < med.price && (
+                            <p className="text-xs text-slate-400 line-through">৳{med.price.toFixed(2)}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-[1fr_140px] sm:items-end">
+                        <div className="text-xs text-slate-500">Set the actual available price for this medicine. The user will see this price when the order is ready.</div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-slate-500">Price</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={currentPrice}
+                            onChange={(e) => setItemPrice(key, Number(e.target.value))}
+                            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-sm font-black text-dark">
-                        ৳{((med.salePrice ?? med.price ?? 0) * (med.quantity ?? 1)).toFixed(2)}
-                      </p>
-                      {med.salePrice && med.price && med.salePrice < med.price && (
-                        <p className="text-xs text-slate-400 line-through">৳{med.price.toFixed(2)}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-100">
                   <p className="text-sm font-semibold text-slate-600">Total</p>
                   <p className="text-base font-black text-dark">৳{total.toFixed(2)}</p>
@@ -354,7 +444,7 @@ function OrderDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 rounded-b-3xl border-t border-gray-100 bg-white/90 backdrop-blur-md px-6 py-4 flex justify-end gap-3">
+          <div className="sticky bottom-0 rounded-b-3xl border-t border-gray-100 bg-white/90 backdrop-blur-md px-6 py-4 flex flex-wrap justify-end gap-3">
           {order.prescriptionFile && (
             <CustomButton
               variant="outline"
@@ -365,6 +455,24 @@ function OrderDetailModal({
               Open Prescription
             </CustomButton>
           )}
+          <CustomButton
+            variant="outline"
+            size="sm"
+            radius="full"
+            onClick={saveOnlyPrices}
+            disabled={savingPrices}
+          >
+            {savingPrices ? "Saving…" : "Save prices"}
+          </CustomButton>
+          <CustomButton
+            variant="secondary"
+            size="sm"
+            radius="full"
+            onClick={confirmPrices}
+            disabled={savingPrices}
+          >
+            {savingPrices ? "Saving…" : "Confirm & Save"}
+          </CustomButton>
           <CustomButton variant="primary" size="sm" radius="full" onClick={onClose}>
             Done
           </CustomButton>
@@ -491,11 +599,21 @@ export default function RequestOrdersPage() {
                           {userName} •{" "}
                           {formatDateTime(order.createdAt)}
                         </p>
+                        {orderItems.length > 0 ? (
+                          <p className="mt-2 text-sm text-slate-600">
+                            Medicines: {orderItems.map((item, i) => (item.name ?? (item as any).medicineId ?? `Item ${i + 1}`)).filter(Boolean).join(", ")}
+                          </p>
+                        ) : null}
 
                         <div className="mt-3 flex flex-wrap items-center gap-2">
                           <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-slate-700">
                             {meds} item{meds === 1 ? "" : "s"}
                           </span>
+                          {hasPricingButNotConfirmed(order) && (
+                            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                              Priced
+                            </span>
+                          )}
                           {total > 0 && (
                             <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-slate-700">
                               ৳{total.toFixed(2)}

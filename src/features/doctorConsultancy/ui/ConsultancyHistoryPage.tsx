@@ -66,7 +66,13 @@ export default function ConsultancyHistoryPage() {
     retry: false,
   });
 
-  const statusCounts = consultancies.reduce(
+  const consultanciesList: ConsultancyResponse[] = Array.isArray(consultancies)
+    ? consultancies
+    : Array.isArray((consultancies as any)?.items)
+    ? (consultancies as any).items
+    : [];
+
+  const statusCounts = consultanciesList.reduce(
     (acc, item) => {
       const status = item.status?.toLowerCase();
       if (status === "requested") acc.requested += 1;
@@ -156,10 +162,10 @@ export default function ConsultancyHistoryPage() {
             <p className="font-semibold">Unable to load consultancy history.</p>
             <p className="mt-2 text-sm text-red-700">{(error as Error)?.message ?? "Please try again later."}</p>
           </div>
-        ) : consultancies.length === 0 ? (
+        ) : consultanciesList.length === 0 ? (
           <div className="rounded-3xl border border-gray-100 bg-white p-10 text-center shadow-sm">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Icons.Calendar className="!h-7 !w-7" />
+                  <Icons.Time className="!h-7 !w-7" />
             </div>
             <h2 className="mt-5 text-2xl font-black text-dark">No booked consultancies yet</h2>
             <p className="mt-2 text-sm text-slate-600">
@@ -175,7 +181,7 @@ export default function ConsultancyHistoryPage() {
           </div>
         ) : (
           <div className="space-y-5">
-            {consultancies.map((consultancy) => (
+            {consultanciesList.map((consultancy) => (
               <div
                 key={consultancy._id ?? consultancy.id ?? consultancy.appointmentId ?? Math.random()}
                 className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm"
@@ -245,7 +251,7 @@ export default function ConsultancyHistoryPage() {
 
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="text-sm text-slate-500">
-                    Appointment ID: {consultancy.appointmentId ?? consultancy._id}
+                        Appointment ID: {consultancy.appointmentId ?? consultancy._id}
                   </div>
                   <div className="flex flex-wrap gap-3">
                     <NavLink to="/doctor-consultancy">

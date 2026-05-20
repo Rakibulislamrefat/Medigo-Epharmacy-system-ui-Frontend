@@ -11,11 +11,16 @@ const GuestRoute = ({ children }: { children: JSX.Element }) => {
   if (isLoading) return <BuildInLoader />;
 
   if (user) {
-    // redirect authenticated admins directly to admin panel,
+    // redirect authenticated admins and pharmacists directly to their dashboards,
     // otherwise redirect back to previous page or home.
-    const adminRedirect = user.role === "admin" ? "/admin" : undefined;
+    const roleRedirect =
+      user.role === "admin"
+        ? "/admin"
+        : user.role === "pharmacist"
+        ? "/pharmacist"
+        : undefined;
     const from = location.state?.from?.pathname || "/";
-    return <Navigate to={adminRedirect ?? from} replace />;
+    return <Navigate to={roleRedirect ?? from} replace />;
   }
 
   return children;

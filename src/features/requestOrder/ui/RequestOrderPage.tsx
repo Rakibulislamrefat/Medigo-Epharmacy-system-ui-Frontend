@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation as useRouterLocation } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation as useRouterLocation, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import Api from "../../../utilities/api";
@@ -28,8 +28,8 @@ type RequestOrderForm = {
   city: string;
   country: string;
   deliveryNotes: string;
-  prescriptionFile: File | null;
   items: OrderItem[];
+  isRare?: boolean;
 };
 
 const inputClass = (hasError: boolean) =>
@@ -48,7 +48,6 @@ export default function RequestOrderPage() {
   const { getLocation, loading: detectingLocation } = useLocation();
   const routerLocation = useRouterLocation();
   const { user } = useSelector((state: RootState) => state.user);
-  const fileRef = useRef<HTMLInputElement | null>(null);
 
   const initialItems = (() => {
     const state = routerLocation.state as
@@ -93,8 +92,8 @@ export default function RequestOrderPage() {
     city: "",
     country: "",
     deliveryNotes: "",
-    prescriptionFile: null,
     items: initialItems,
+    isRare: false,
   });
 
   useEffect(() => {
@@ -248,20 +247,20 @@ export default function RequestOrderPage() {
         notes: it.notes?.trim() || "",
       }));
 
-      const fd = new FormData();
-      fd.append("fullName", form.fullName);
-      fd.append("phone", form.phone);
-      fd.append("email", form.email);
-      fd.append("deliveryAddress", form.deliveryAddress);
-      fd.append("city", form.city);
-      fd.append("country", form.country);
-      fd.append("deliveryNotes", form.deliveryNotes || "");
-      fd.append("items", JSON.stringify(itemsPayload));
-      if (form.prescriptionFile) fd.append("prescriptionFile", form.prescriptionFile);
+      const payload = {
+        fullName: form.fullName,
+        phone: form.phone,
+        email: form.email,
+        deliveryAddress: form.deliveryAddress,
+        city: form.city,
+        country: form.country,
+        deliveryNotes: form.deliveryNotes || "",
+        items: itemsPayload,
+        rare: !!form.isRare,
+      };
 
-      const res = await Api.post("/request-orders", fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await Api.post("/request-orders", payload);
+
 
       toast.success(res?.data?.message ?? "Order request submitted. We’ll contact you shortly.");
 
@@ -273,10 +272,10 @@ export default function RequestOrderPage() {
         city: "",
         country: "",
         deliveryNotes: "",
-        prescriptionFile: null,
         items: [{ id: uid(), name: "", quantity: "1", notes: "" }],
+        isRare: false,
       });
-      if (fileRef.current) fileRef.current.value = "";
+      navigate("/my-requests");
     } catch (err: unknown) {
       const message = (err as any)?.response?.data?.message || (err as Error).message || "Submit failed";
       toast.error(message);
@@ -285,6 +284,8 @@ export default function RequestOrderPage() {
       setSubmitting(false);
     }
   };
+
+  const navigate = useNavigate();
 
   return (
     <SectionContainer>
@@ -297,9 +298,8 @@ export default function RequestOrderPage() {
               align="left"
             />
             <SectionParagraph className="mt-3">
-              Upload your prescription for prescription items, or list the
-              medicine names and quantities. Our team will confirm availability
-              and pricing before dispatch.
+              List the medicine names and quantities. Our team will confirm
+              availability and pricing before dispatch.
             </SectionParagraph>
           </div>
 
@@ -308,15 +308,6 @@ export default function RequestOrderPage() {
               <Icons.Cart className="!w-4 !h-4 text-primary" />
               {itemCount} items
             </div>
-            <CustomButton
-              variant="outline"
-              size="sm"
-              radius="xs"
-              onClick={() => fileRef.current?.click()}
-              leftIcon={<Icons.Prescription className="!w-4 !h-4" />}
-            >
-              Upload prescription
-            </CustomButton>
           </div>
         </div>
 
@@ -347,11 +338,6 @@ export default function RequestOrderPage() {
                       title: "Add items",
                       desc: "Enter medicine names & quantity",
                       Icon: Icons.Cart,
-                    },
-                    {
-                      title: "Upload prescription",
-                      desc: "Optional but recommended",
-                      Icon: Icons.Prescription,
                     },
                     {
                       title: "Confirm by phone",
@@ -575,7 +561,18 @@ export default function RequestOrderPage() {
                         Add items you want to order.
                       </p>
                     </div>
-                    <CustomButton
+                    <div className="flex items-center gap-3">
+                      <label className="inline-flex items-center text-sm gap-2 mr-3">
+                        <input
+                          type="checkbox"
+                          checked={!!form.isRare}
+                          onChange={(e) => setField("isRare", e.target.checked)}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">Rare medicine (not available locally)</span>
+                      </label>
+
+                      <CustomButton
                       variant="primary"
                       size="sm"
                       radius="xs"
@@ -584,6 +581,7 @@ export default function RequestOrderPage() {
                     >
                       Add item
                     </CustomButton>
+                    </div>
                   </div>
 
                   {errors.items && (
@@ -601,16 +599,16 @@ export default function RequestOrderPage() {
                       >
                         <div className="flex flex-col gap-4 border-b border-gray-100 bg-white p-4 sm:flex-row sm:items-start sm:justify-between">
                           <div className="flex items-start gap-3">
-                            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-gray-50 center-flex">
+                            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-gray-100 center-flex pointer-events-none cursor-default">
                               {it.imageUrl ? (
                                 <img
                                   src={it.imageUrl}
                                   alt={it.name || `Medicine item ${index + 1}`}
-                                  className="h-full w-full object-contain p-2"
+                                  className="h-full w-full object-contain p-2 pointer-events-none"
                                   loading="lazy"
                                 />
                               ) : (
-                                <Icons.Pill className="!h-8 !w-8 text-primary" />
+                                <Icons.Pill className="!h-8 !w-8 text-primary/80 pointer-events-none" />
                               )}
                             </div>
                             <div className="min-w-0">
@@ -691,63 +689,7 @@ export default function RequestOrderPage() {
                   </div>
                 </div>
 
-                <div className="mt-6 rounded-xl border border-gray-100 bg-white p-5">
-                  <div className="flex items-start gap-3">
-                    <Icons.Prescription className="!w-5 !h-5 text-primary mt-0.5" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-black text-dark">
-                        Prescription (optional)
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                        Upload a clear photo or PDF to speed up verification for
-                        prescription medicines.
-                      </p>
-
-                      <div className="mt-4 flex flex-wrap items-center gap-2">
-                        <CustomButton
-                          variant="outline"
-                          size="sm"
-                          radius="xs"
-                          onClick={() => fileRef.current?.click()}
-                          leftIcon={<Icons.Plus className="!w-4 !h-4" />}
-                        >
-                          Choose file
-                        </CustomButton>
-                        {form.prescriptionFile ? (
-                          <button
-                            type="button"
-                            onClick={() => setField("prescriptionFile", null)}
-                            className="text-xs font-semibold text-slate-600 hover:text-danger"
-                          >
-                            Remove
-                          </button>
-                        ) : (
-                          <span className="text-xs text-slate-500">
-                            PNG/JPG/PDF
-                          </span>
-                        )}
-                      </div>
-                      {form.prescriptionFile && (
-                        <p className="mt-2 text-xs text-slate-600 break-all">
-                          {form.prescriptionFile.name}
-                        </p>
-                      )}
-                      <input
-                        ref={fileRef}
-                        type="file"
-                        className="hidden"
-                        accept="image/*,application/pdf"
-                        onChange={(e) =>
-                          setField(
-                            "prescriptionFile",
-                            e.target.files?.[0] ?? null,
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-
+  
                 <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="text-xs text-slate-500">
                     By submitting, you agree that Medigo may contact you to

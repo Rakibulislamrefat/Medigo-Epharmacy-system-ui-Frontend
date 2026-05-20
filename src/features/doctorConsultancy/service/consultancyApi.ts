@@ -115,8 +115,11 @@ export const createConsultancy = async (
 
 export const getMyConsultancies = async (): Promise<ConsultancyResponse[]> => {
   const res = await api.get("/consultancies/me");
-  const payload = res.data as { data?: unknown };
-  return (payload?.data as ConsultancyResponse[]) ?? (res.data as ConsultancyResponse[]);
+  const payload = unwrap<ConsultancyResponse[] | { items?: ConsultancyResponse[] }>(res.data);
+
+  if (Array.isArray(payload)) return payload;
+  if (payload && Array.isArray((payload as any).items)) return (payload as any).items;
+  return [];
 };
 
 export const sendConsultancyConfirmation = async (consultancyId: string) => {

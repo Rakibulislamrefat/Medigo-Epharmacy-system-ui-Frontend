@@ -253,25 +253,52 @@ export const getAdminOrders = async (params?: {
   status?: string;
   paymentStatus?: string;
 }): Promise<AdminPaged<AdminOrder>> => {
-  const res = await api.get("/admin/orders", { params });
-  const raw = res.data as unknown;
-  const payload = (raw as { data?: unknown })?.data ?? raw;
-  const pagination =
-    (payload as { pagination?: AdminPagination })?.pagination ??
-    (payload as { meta?: AdminPagination })?.meta ??
-    (raw as { pagination?: AdminPagination })?.pagination ??
-    (raw as { meta?: AdminPagination })?.meta;
+  try {
+    const res = await api.get("/admin/orders", { params });
+    const raw = res.data as unknown;
+    const payload = (raw as { data?: unknown })?.data ?? raw;
+    const pagination =
+      (payload as { pagination?: AdminPagination })?.pagination ??
+      (payload as { meta?: AdminPagination })?.meta ??
+      (raw as { pagination?: AdminPagination })?.pagination ??
+      (raw as { meta?: AdminPagination })?.meta;
 
-  const items = Array.isArray(payload)
-    ? (payload as AdminOrder[])
-    : Array.isArray((payload as { items?: unknown })?.items)
-    ? ((payload as { items?: AdminOrder[] }).items as AdminOrder[])
-    : [];
+    const items = Array.isArray(payload)
+      ? (payload as AdminOrder[])
+      : Array.isArray((payload as { items?: unknown })?.items)
+      ? ((payload as { items?: AdminOrder[] }).items as AdminOrder[])
+      : [];
 
-  return {
-    items,
-    meta: pagination ?? { page: 1, limit: params?.limit ?? 10, total: items.length, totalPages: 1 },
-  };
+    return {
+      items,
+      meta: pagination ?? { page: 1, limit: params?.limit ?? 10, total: items.length, totalPages: 1 },
+    };
+  } catch (err) {
+    // Fallback: some backends expose orders at /orders instead of /admin/orders
+    try {
+      const res = await api.get("/orders", { params });
+      const raw = res.data as unknown;
+      const payload = (raw as { data?: unknown })?.data ?? raw;
+      const pagination =
+        (payload as { pagination?: AdminPagination })?.pagination ??
+        (payload as { meta?: AdminPagination })?.meta ??
+        (raw as { pagination?: AdminPagination })?.pagination ??
+        (raw as { meta?: AdminPagination })?.meta;
+
+      const items = Array.isArray(payload)
+        ? (payload as AdminOrder[])
+        : Array.isArray((payload as { items?: unknown })?.items)
+        ? ((payload as { items?: AdminOrder[] }).items as AdminOrder[])
+        : [];
+
+      return {
+        items,
+        meta: pagination ?? { page: 1, limit: params?.limit ?? 10, total: items.length, totalPages: 1 },
+      };
+    } catch (err2) {
+      throw err2;
+    }
+  }
 };
 
 export const getAdminReadyOrders = async (params?: {
