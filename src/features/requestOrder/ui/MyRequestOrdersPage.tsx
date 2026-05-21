@@ -26,6 +26,8 @@ interface RequestOrderItem {
   phone?: string;
   email?: string;
   items?: { name: string; quantity: number; price?: number | null }[];
+  medicines?: { name: string; quantity: number; price?: number | null }[];
+  notes?: string;
   status?: string;
   paymentMethod?: string;
   paymentStatus?: string;
@@ -95,6 +97,8 @@ const getPaymentLabel = (method?: string) => {
     : method;
 };
 
+const getRequestOrderItems = (order: RequestOrderItem) => order.items ?? order.medicines ?? [];
+
 const getOrderTotal = (items?: { name?: string; quantity?: number; price?: number | null }[]) =>
   (items ?? []).reduce((sum, item) => sum + (item.price ?? 0) * (item.quantity ?? 1), 0);
 
@@ -113,18 +117,24 @@ const getOrderContactInfo = (order: RequestOrderItem): PaymentCustomerInfo => ({
     (typeof order.customer === "object" ? order.customer?.phone : undefined),
 });
 
-const getRequestOrderPaymentPayload = (order: RequestOrderItem) => ({
-  customerInfo: getOrderContactInfo(order),
-  items: order.items,
-  totalAmount: getOrderTotal(order.items),
-});
+const getRequestOrderPaymentPayload = (order: RequestOrderItem) => {
+  const items = getRequestOrderItems(order);
+  return {
+    orderId: order._id ?? order.id,
+    status: order.status,
+    pharmacistNotes: order.notes,
+    customerInfo: getOrderContactInfo(order),
+    items,
+    totalAmount: getOrderTotal(items),
+  };
+};
 
 const hasOrderPricing = (items?: { name?: string; quantity?: number; price?: number | null }[]) =>
   !!items?.some((item) => (item.price ?? 0) > 0);
 
 const isReadyForPayment = (order: RequestOrderItem) =>
   order.status === "confirmed" ||
-  hasOrderPricing(order.items as { name?: string; quantity?: number; price?: number | null }[]);
+  hasOrderPricing(getRequestOrderItems(order));
 
 export default function MyRequestOrdersPage() {
   const [page] = useState(1);
@@ -207,14 +217,14 @@ export default function MyRequestOrdersPage() {
                     <div className="mt-3 text-sm text-slate-700">
                       <div className="font-semibold">Items:</div>
                       <ul className="list-disc pl-5 mt-1">
-                        {(o.items ?? []).map((it, i) => (
+                        {getRequestOrderItems(o).map((it, i) => (
                           <li key={i}>{it.name} — Qty {it.quantity}</li>
                         ))}
                       </ul>
                       {(o.isRare || o.rare) && <div className="mt-2 text-xs text-danger font-semibold">Marked as rare (not available locally)</div>}
-                      {o.items?.length ? (
+                      {getRequestOrderItems(o).length ? (
                         <div className="mt-2 text-xs text-slate-500">
-                          Total: ৳{getOrderTotal(o.items).toFixed(2)}
+                          Total: ৳{getOrderTotal(getRequestOrderItems(o)).toFixed(2)}
                         </div>
                       ) : null}
                       {o.paymentMethod ? (
