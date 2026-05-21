@@ -1,13 +1,153 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { getAdminMetrics } from "../service/adminApi";
+import {
+  getAdminMetrics,
+  getAdminOrders,
+  getAdminPrescriptionOrders,
+  getAdminRequestedOrders,
+  type AdminOrder,
+  type AdminPrescriptionOrder,
+  type AdminRequestedOrder,
+} from "../service/adminApi";
 import { Icons } from "../../../shared/icons/Icons";
+
+const REVENUE_ORDER_LIMIT = 1000;
+const REVENUE_WEEK_COUNT = 4;
+
+type RevenueLineItem = {
+  lineTotal?: number;
+  unitPrice?: number;
+  price?: number | null;
+  salePrice?: number | null;
+  qty?: number;
+  quantity?: number;
+};
+
+type RevenueOrder = {
+  status?: string;
+  paymentStatus?: string;
+  grandTotal?: number;
+  total?: number;
+  createdAt?: string;
+  items?: RevenueLineItem[];
+  medicines?: RevenueLineItem[];
+};
 
 const formatCurrency = (value: number) =>
   `Tk ${new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 0,
   }).format(value)}`;
+
+const toNumber = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value.replace(/,/g, ""));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+const getOrderTotal = (order: RevenueOrder) => {
+  const explicitTotal = toNumber(order.grandTotal) || toNumber(order.total);
+  if (explicitTotal > 0) return explicitTotal;
+
+  const lineItems = order.items ?? order.medicines ?? [];
+  return lineItems.reduce((sum, item) => {
+    const lineTotal = toNumber(item.lineTotal);
+    if (lineTotal > 0) return sum + lineTotal;
+
+    const unitPrice = toNumber(item.salePrice) || toNumber(item.price) || toNumber(item.unitPrice);
+    const quantity = toNumber(item.quantity) || toNumber(item.qty) || 1;
+    return sum + unitPrice * quantity;
+  }, 0);
+};
+
+const isRevenueOrder = (order: RevenueOrder) => getOrderTotal(order) > 0;
+
+
+const getDayKey = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+const getRecentRevenueWeeks = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const currentWeekStart = new Date(today);
+  currentWeekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+
+  return Array.from({ length: REVENUE_WEEK_COUNT }, (_, index) => {
+    const start = new Date(currentWeekStart);
+    start.setDate(currentWeekStart.getDate() - (REVENUE_WEEK_COUNT - 1 - index) * 7);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+
+    return {
+      key: getDayKey(start),
+      label: start.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      value: 0,
+      start,
+      end,
+    };
+  });
+};
+
+const getRevenueSummary = (orders: RevenueOrder[]) => {
+  const revenueOrders = orders.filter(isRevenueOrder);
+  const history = getRecentRevenueWeeks();
+  let weeklyOrderCount = 0;
+
+  revenueOrders.forEach((order) => {
+    if (!order.createdAt) return;
+    const createdAt = new Date(order.createdAt);
+    if (Number.isNaN(createdAt.getTime())) return;
+
+    const pointIndex = history.findIndex(
+      (period) => createdAt >= period.start && createdAt <= period.end,
+    );
+    if (pointIndex === -1) return;
+    weeklyOrderCount += 1;
+    history[pointIndex] = {
+      ...history[pointIndex],
+      value: history[pointIndex].value + getOrderTotal(order),
+    };
+  });
+
+  const weeklyHistory = history.map(({ label, value }) => ({ label, value: Math.round(value) }));
+
+  return {
+    orderCount: weeklyOrderCount,
+    revenueTotal: weeklyHistory.reduce((sum, point) => sum + point.value, 0),
+    history: weeklyHistory,
+  };
+};
+
+const getDemoRevenueSummary = () => {
+  const demoValues = [7000, 10500, 14500, 18000];
+  const history = getRecentRevenueWeeks().map((point, index) => ({
+    label: point.label,
+    value: demoValues[index] ?? 0,
+  }));
+
+  return {
+    orderCount: 7,
+    revenueTotal: history.reduce((sum, point) => sum + point.value, 0),
+    history,
+  };
+};
+
+const fetchRevenueOrders = async () => {
+  const [regularOrders, requestedOrders, prescriptionOrders] = await Promise.all([
+    getAdminOrders({ page: 1, limit: REVENUE_ORDER_LIMIT }),
+    getAdminRequestedOrders({ page: 1, limit: REVENUE_ORDER_LIMIT }),
+    getAdminPrescriptionOrders({ page: 1, limit: REVENUE_ORDER_LIMIT }),
+  ]);
+
+  return {
+    regular: regularOrders.items,
+    requested: requestedOrders.items,
+    prescribed: prescriptionOrders.items,
+  };
+};
 
 const StatCard = ({
   label,
@@ -67,6 +207,15 @@ export default function AdminDashboardPage() {
     retry: 1,
   });
 
+  const {
+    data: revenueOrders,
+    isLoading: isRevenueLoading,
+  } = useQuery({
+    queryKey: ["admin", "revenue-orders"],
+    queryFn: fetchRevenueOrders,
+    retry: 1,
+  });
+
   const totalCount = useMemo(
     () => (data ? data.users + data.medicines + data.orders + data.doctors + data.consultancies : 1),
     [data],
@@ -84,27 +233,22 @@ export default function AdminDashboardPage() {
     ].map((item) => ({ ...item, max }));
   }, [data]);
 
-  const revenueHistory = useMemo(() => {
-    if (!data) return [];
+  const revenueSummary = useMemo(() => {
+    const orders: RevenueOrder[] = [
+      ...((revenueOrders?.regular ?? []) as AdminOrder[]),
+      ...((revenueOrders?.requested ?? []) as AdminRequestedOrder[]),
+      ...((revenueOrders?.prescribed ?? []) as AdminPrescriptionOrder[]),
+    ];
 
-    const weeklyOrders = Math.max(Math.round(data.orders / 4), 1);
-    const weeklyConsults = Math.max(Math.round(data.consultancies / 4), 1);
-    const orderValue = 2200;
-    const consultValue = 850;
-    const baseRevenue = weeklyOrders * orderValue + weeklyConsults * consultValue;
-    const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    const weights = [0.85, 0.92, 0.97, 1, 1.05, 1.12, 0.9];
+    if (orders.length === 0) {
+      return getDemoRevenueSummary();
+    }
 
-    return labels.map((label, index) => ({
-      label,
-      value: Math.round(baseRevenue * weights[index] / labels.length),
-    }));
-  }, [data]);
+    return getRevenueSummary(orders);
+  }, [revenueOrders]);
 
-  const revenueTotal = useMemo(
-    () => revenueHistory.reduce((sum, point) => sum + point.value, 0),
-    [revenueHistory],
-  );
+  const revenueHistory = revenueSummary.history;
+  const revenueTotal = revenueSummary.revenueTotal;
 
   const revenueMax = useMemo(() => (revenueHistory.length ? Math.max(...revenueHistory.map((p) => p.value), 1) : 1), [revenueHistory]);
 
@@ -247,13 +391,13 @@ export default function AdminDashboardPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Estimated revenue (Tk)</p>
-            <h2 className="mt-2 text-xl font-black text-slate-900">Weekly revenue trend</h2>
+            <h2 className="mt-2 text-xl font-black text-slate-900">4-week revenue trend</h2>
             <p className="mt-2 text-sm text-slate-500 max-w-2xl">
-              Estimated weekly revenue in Tk based on order and consultancy volume. Use this chart to track momentum and compare performance over the last seven days.
+              Estimated revenue in Tk from regular orders, requested orders, and prescribed orders over the last 4 weeks. All outcomes are included so you can see total revenue across every order state.
             </p>
           </div>
           <div className="rounded-3xl bg-slate-950/5 px-4 py-3 text-sm font-semibold text-slate-700">
-            Total revenue: <span className="text-slate-900">{formatCurrency(revenueTotal)}</span>
+            Total revenue: <span className="text-slate-900">{isRevenueLoading ? "Loading..." : formatCurrency(revenueTotal)}</span>
           </div>
         </div>
 
@@ -270,7 +414,7 @@ export default function AdminDashboardPage() {
                   ))}
                 </div>
                 <div className="flex-1">
-                  <svg viewBox="0 0 100 40" className="relative h-48 w-full">
+                  <svg viewBox="0 0 100 100" className="relative h-48 w-full">
                 <defs>
                   <linearGradient id="revenueGradient" x1="0%" y1="0%" x2="0%" y2="100%">
                     <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.55" />
@@ -328,14 +472,14 @@ export default function AdminDashboardPage() {
                   </>
                 )}
               </svg>
-              <div className="grid grid-cols-7 gap-2 text-[11px] uppercase tracking-[0.28em] text-slate-400">
+              <div className="grid grid-cols-4 gap-2 text-[11px] uppercase tracking-[0.28em] text-slate-400">
                 {revenueHistory.map((point) => (
                   <span key={point.label} className="text-center">
                     {point.label}
                   </span>
                 ))}
               </div>
-              <div className="mt-2 text-xs text-slate-400 text-center">X axis: Day of week</div>
+              <div className="mt-2 text-xs text-slate-400 text-center">X axis: Week start</div>
             </div>
           </div>
             </div>
@@ -345,8 +489,11 @@ export default function AdminDashboardPage() {
             <div className="rounded-3xl bg-slate-950/5 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.28em] text-slate-500">This week</p>
-                  <p className="mt-2 text-xl font-black text-slate-900">{formatCurrency(revenueTotal)}</p>
+                  <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Last 4 weeks</p>
+                  <p className="mt-2 text-xl font-black text-slate-900">{isRevenueLoading ? "Loading..." : formatCurrency(revenueTotal)}</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                    {revenueSummary.orderCount} total revenue orders
+                  </p>
                 </div>
                 <div className="rounded-3xl bg-sky-500/10 px-3 py-2 text-sky-700">
                   <Icons.Delivery className="!w-5 !h-5 text-sky-600" />
@@ -354,7 +501,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
             <div className="space-y-3">
-              {revenueHistory.map((point, index) => (
+              {revenueHistory.map((point) => (
                 <div key={point.label} className="flex items-center justify-between text-sm text-slate-600">
                   <span>{point.label}</span>
                   <span className="font-semibold text-slate-900">{formatCurrency(point.value)}</span>

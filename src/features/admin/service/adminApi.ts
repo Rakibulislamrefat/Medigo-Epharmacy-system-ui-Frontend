@@ -66,6 +66,48 @@ export type AdminOrder = {
   updatedAt?: string;
 };
 
+export type AdminRequestedOrder = {
+  _id?: string;
+  status?: string;
+  paymentStatus?: string;
+  grandTotal?: number;
+  total?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  medicines?: {
+    medicineId?: string;
+    name?: string;
+    quantity?: number;
+    price?: number | null;
+    salePrice?: number | null;
+  }[];
+  items?: {
+    name?: string;
+    quantity?: number;
+    qty?: number;
+    price?: number | null;
+    salePrice?: number | null;
+    lineTotal?: number;
+  }[];
+};
+
+export type AdminPrescriptionOrder = {
+  _id?: string;
+  status?: string;
+  paymentStatus?: string;
+  grandTotal?: number;
+  total?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  medicines?: {
+    medicineId?: string;
+    name?: string;
+    quantity?: number;
+    price?: number;
+    salePrice?: number;
+  }[];
+};
+
 export type AdminDoctor = {
   _id: string;
   fullName: string;
@@ -326,6 +368,61 @@ export const getAdminReadyOrders = async (params?: {
     items,
     meta: pagination ?? { page: 1, limit: params?.limit ?? 10, total: items.length, totalPages: 1 },
   };
+};
+
+const toPagedResponse = <T,>(
+  raw: unknown,
+  fallback: { page: number; limit: number },
+): AdminPaged<T> => {
+  const payload = (raw as { data?: unknown })?.data ?? raw;
+  const pagination =
+    (payload as { pagination?: AdminPagination })?.pagination ??
+    (payload as { meta?: AdminPagination })?.meta ??
+    (raw as { pagination?: AdminPagination })?.pagination ??
+    (raw as { meta?: AdminPagination })?.meta;
+
+  const items = Array.isArray(payload)
+    ? (payload as T[])
+    : Array.isArray((payload as { items?: unknown })?.items)
+    ? ((payload as { items?: T[] }).items as T[])
+    : Array.isArray((payload as { rows?: unknown })?.rows)
+    ? ((payload as { rows?: T[] }).rows as T[])
+    : [];
+
+  return {
+    items,
+    meta: pagination ?? {
+      page: fallback.page,
+      limit: fallback.limit,
+      total: items.length,
+      totalPages: 1,
+    },
+  };
+};
+
+export const getAdminRequestedOrders = async (params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+}): Promise<AdminPaged<AdminRequestedOrder>> => {
+  const res = await api.get("/request-orders", { params });
+  return toPagedResponse<AdminRequestedOrder>(res.data, {
+    page: params?.page ?? 1,
+    limit: params?.limit ?? 10,
+  });
+};
+
+export const getAdminPrescriptionOrders = async (params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  user?: string;
+}): Promise<AdminPaged<AdminPrescriptionOrder>> => {
+  const res = await api.get("/prescription-orders", { params });
+  return toPagedResponse<AdminPrescriptionOrder>(res.data, {
+    page: params?.page ?? 1,
+    limit: params?.limit ?? 10,
+  });
 };
 
 export const getAdminReadyDoctors = async (params?: {

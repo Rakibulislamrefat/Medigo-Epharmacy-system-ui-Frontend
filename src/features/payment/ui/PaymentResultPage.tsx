@@ -4,7 +4,11 @@ import CustomButton from "../../../shared/button/CustomButton";
 import { Icons } from "../../../shared/icons/Icons";
 import MainContainer from "../../../shared/main-container/MainContainer";
 import SectionContainer from "../../../shared/section-container/SectionContainer";
-import { validateSslcommerzPayment, type PaymentValidation } from "../service/paymentApi";
+import {
+  validateSslcommerzPayment,
+  sendRequestOrderInvoice,
+  type PaymentValidation,
+} from "../service/paymentApi";
 
 type PaymentResultPageProps = {
   mode: "success" | "failed" | "cancelled";
@@ -47,6 +51,7 @@ export default function PaymentResultPage({ mode }: PaymentResultPageProps) {
   const [result, setResult] = useState<PaymentValidation | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(mode === "success");
+  const [invoiceSent, setInvoiceSent] = useState(false);
 
   useEffect(() => {
     if (mode !== "success") return;
@@ -75,6 +80,33 @@ export default function PaymentResultPage({ mode }: PaymentResultPageProps) {
       mounted = false;
     };
   }, [mode, transactionId]);
+
+  useEffect(() => {
+    if (!result?.order?._id || invoiceSent) return;
+
+    const paymentSuccess =
+      result.transaction?.status === "success" ||
+      result.order.paymentStatus === "paid" ||
+      result.order.paymentStatus === "success";
+
+    if (!paymentSuccess) return;
+
+    let mounted = true;
+    const sendInvoice = async () => {
+      try {
+        await sendRequestOrderInvoice(result.order!._id);
+        if (mounted) setInvoiceSent(true);
+      } catch (error) {
+        console.error("Could not send invoice after payment", error);
+      }
+    };
+
+    void sendInvoice();
+
+    return () => {
+      mounted = false;
+    };
+  }, [invoiceSent, result]);
 
   const transactionStatus = result?.transaction?.status;
   const paymentStatus = result?.order?.paymentStatus;

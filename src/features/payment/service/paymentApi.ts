@@ -55,6 +55,26 @@ export type PaymentCustomerInfo = {
   country?: string;
 };
 
+export type RequestOrderPaymentItem = {
+  name?: string;
+  quantity?: number;
+  price?: number | null;
+};
+
+export type RequestOrderPaymentPayload = {
+  method: "online" | "cash_on_delivery";
+  paymentMethod?: "sslcommerz" | "cod";
+  customerInfo?: PaymentCustomerInfo;
+  items?: RequestOrderPaymentItem[];
+  totalAmount?: number;
+};
+
+export type RequestOrderInvoicePayload = {
+  customerInfo?: PaymentCustomerInfo;
+  items?: RequestOrderPaymentItem[];
+  totalAmount?: number;
+};
+
 export type PaymentValidation = {
   transaction?: {
     status?: string;
@@ -185,6 +205,40 @@ export const initiatePrescriptionSslcommerzPayment = async (
     customerInfo,
   });
   return unwrap<PaymentInitiation>(res.data);
+};
+
+export const initiateRequestOrderSslcommerzPayment = async (
+  orderId: string,
+  payload: RequestOrderPaymentPayload,
+): Promise<PaymentInitiation> => {
+  const res = await api.post(`/request-orders/${encodeURIComponent(orderId)}/payment`, {
+    ...payload,
+    method: "online",
+    paymentMethod: "sslcommerz",
+  });
+  return unwrap<PaymentInitiation>(res.data);
+};
+
+export const selectRequestOrderCashOnDelivery = async (
+  orderId: string,
+  payload: RequestOrderPaymentPayload,
+): Promise<PaymentOrder> => {
+  const res = await api.post(`/request-orders/${encodeURIComponent(orderId)}/payment`, {
+    ...payload,
+    method: "cash_on_delivery",
+    paymentMethod: "cod",
+  });
+  return unwrap<PaymentOrder>(res.data);
+};
+
+export const sendRequestOrderInvoice = async (
+  orderId: string,
+  payload: RequestOrderInvoicePayload = {},
+): Promise<PaymentOrder> => {
+  const res = await api.post(`/request-orders/${encodeURIComponent(orderId)}/invoice`, {
+    ...payload,
+  });
+  return unwrap<PaymentOrder>(res.data);
 };
 
 export const validateSslcommerzPayment = async (

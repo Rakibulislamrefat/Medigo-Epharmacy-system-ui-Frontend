@@ -381,15 +381,17 @@ function OrderDetailModal({
           )}
 
           {/* Medicines */}
-          {(order.medicines?.length ?? 0) > 0 && (
+          {items.length > 0 && (
             <div>
               <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Medicines ({order.medicines!.length})
+                Medicines / Items ({items.length})
               </p>
               <div className="rounded-2xl border border-gray-100 overflow-hidden">
-                {order.medicines!.map((med, i) => {
-                  const key = med.medicineId ?? med.name ?? String(i);
-                  const currentPrice = priceMap[key] ?? Number(med.salePrice ?? med.price ?? 0);
+                {items.map((item, i) => {
+                  const key = getItemKey(item, i);
+                  const currentPrice = priceMap[key] ?? Number(item.salePrice ?? item.price ?? 0);
+                  const quantity = item.quantity ?? item.qty ?? 1;
+                  const itemName = item.name ?? item.medicineId ?? `Item ${i + 1}`;
 
                   return (
                     <div
@@ -398,15 +400,15 @@ function OrderDetailModal({
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-dark truncate">{med.name ?? "Unknown"}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">Qty: {med.quantity ?? 1}</p>
+                          <p className="text-sm font-semibold text-dark truncate">{itemName}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">Qty: {quantity}</p>
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-sm font-black text-dark">
-                            ৳{((med.salePrice ?? med.price ?? 0) * (med.quantity ?? 1)).toFixed(2)}
+                            ৳{((item.salePrice ?? item.price ?? 0) * quantity).toFixed(2)}
                           </p>
-                          {med.salePrice && med.price && med.salePrice < med.price && (
-                            <p className="text-xs text-slate-400 line-through">৳{med.price.toFixed(2)}</p>
+                          {item.salePrice != null && item.price != null && item.salePrice < item.price && (
+                            <p className="text-xs text-slate-400 line-through">৳{item.price.toFixed(2)}</p>
                           )}
                         </div>
                       </div>

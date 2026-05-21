@@ -1,11 +1,18 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
+import toast from "react-hot-toast";
 import api from "../../../utilities/api";
 import MainContainer from "../../../shared/main-container/MainContainer";
 import SectionHeading from "../../../shared/section-heading/SectionHeading";
 import SectionContainer from "../../../shared/section-container/SectionContainer";
 import { Icons } from "../../../shared/icons/Icons";
+import {
+  initiateRequestOrderSslcommerzPayment,
+  selectRequestOrderCashOnDelivery,
+  sendRequestOrderInvoice,
+  type PaymentCustomerInfo,
+} from "../../payment/service/paymentApi";
 import type { RootState } from "../../../redux/store";
 
 interface RequestOrderItem {
@@ -91,11 +98,32 @@ const getPaymentLabel = (method?: string) => {
 const getOrderTotal = (items?: { name?: string; quantity?: number; price?: number | null }[]) =>
   (items ?? []).reduce((sum, item) => sum + (item.price ?? 0) * (item.quantity ?? 1), 0);
 
+const getOrderContactInfo = (order: RequestOrderItem): PaymentCustomerInfo => ({
+  name:
+    order.fullName ??
+    (typeof order.user === "object" ? order.user?.name : undefined) ??
+    (typeof order.customer === "object" ? order.customer?.name : undefined),
+  email:
+    order.email ??
+    (typeof order.user === "object" ? order.user?.email : undefined) ??
+    (typeof order.customer === "object" ? order.customer?.email : undefined),
+  phone:
+    order.phone ??
+    (typeof order.user === "object" ? order.user?.phone : undefined) ??
+    (typeof order.customer === "object" ? order.customer?.phone : undefined),
+});
+
+const getRequestOrderPaymentPayload = (order: RequestOrderItem) => ({
+  customerInfo: getOrderContactInfo(order),
+  items: order.items,
+  totalAmount: getOrderTotal(order.items),
+});
+
 const hasOrderPricing = (items?: { name?: string; quantity?: number; price?: number | null }[]) =>
   !!items?.some((item) => (item.price ?? 0) > 0);
 
 const isReadyForPayment = (order: RequestOrderItem) =>
-  (order.status === "confirmed") ||
+  order.status === "confirmed" ||
   hasOrderPricing(order.items as { name?: string; quantity?: number; price?: number | null }[]);
 
 export default function MyRequestOrdersPage() {
@@ -113,13 +141,33 @@ export default function MyRequestOrdersPage() {
     : data?.items ?? [];
   const items = requestItems.filter((order) => isOwnRequest(order, user));
 
-  const updatePaymentMethod = async (orderId: string, method: "cod" | "sslcommerz") => {
+  const updatePaymentMethod = async (orderId: string, method: "cod" | "sslcommerz", order?: RequestOrderItem) => {
     setSettingPaymentFor(orderId);
+    const payload = getRequestOrderPaymentPayload(order ?? ({} as RequestOrderItem));
+
     try {
-      await api.patch(`/request-orders/${orderId}`, { paymentMethod: method });
+      if (method === "sslcommerz") {
+        const payment = await initiateRequestOrderSslcommerzPayment(orderId, payload);
+
+        if (payment.paymentUrl) {
+          window.location.assign(payment.paymentUrl);
+          return;
+        }
+
+        toast.error("Unable to open the payment gateway. Please try again.");
+        return;
+      }
+
+      if (method === "cod") {
+        await selectRequestOrderCashOnDelivery(orderId, payload);
+        await sendRequestOrderInvoice(orderId, payload);
+        toast.success("Cash on delivery selected and invoice email sent.");
+      }
+
       await queryClient.invalidateQueries({ queryKey: ["my-request-orders"] });
     } catch (err) {
       console.error("Unable to set payment method", err);
+      toast.error("Unable to process payment method. Please try again.");
     } finally {
       setSettingPaymentFor(null);
     }
@@ -179,7 +227,7 @@ export default function MyRequestOrdersPage() {
                           <button
                             type="button"
                             disabled={settingPaymentFor === (o._id ?? o.id ?? "")}
-                            onClick={() => updatePaymentMethod(o._id ?? o.id ?? "", "cod")}
+                            onClick={() => updatePaymentMethod(o._id ?? o.id ?? "", "cod", o)}
                             className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-gray-50 transition"
                           >
                             Cash on delivery
@@ -187,7 +235,7 @@ export default function MyRequestOrdersPage() {
                           <button
                             type="button"
                             disabled={settingPaymentFor === (o._id ?? o.id ?? "")}
-                            onClick={() => updatePaymentMethod(o._id ?? o.id ?? "", "sslcommerz")}
+                            onClick={() => updatePaymentMethod(o._id ?? o.id ?? "", "sslcommerz", o)}
                             className="rounded-full border border-primary bg-primary/10 px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/20 transition"
                           >
                             Pay online (SSLCommerz)
