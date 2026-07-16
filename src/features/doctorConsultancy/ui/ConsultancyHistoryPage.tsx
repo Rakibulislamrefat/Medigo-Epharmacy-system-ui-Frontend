@@ -1,7 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
-import toast from "react-hot-toast";
 import { Icons } from "../../../shared/icons/Icons";
 import CustomButton from "../../../shared/button/CustomButton";
 import MainContainer from "../../../shared/main-container/MainContainer";
@@ -49,7 +48,14 @@ const getModeLabel = (mode?: string) => {
 };
 
 const getDoctorName = (consultancy: ConsultancyResponse) =>
-  consultancy.doctor?.fullName || consultancy.doctor?.name || "Doctor";
+  typeof consultancy.doctor === "string"
+    ? consultancy.doctor
+    : consultancy.doctor?.fullName || consultancy.doctor?.name || "Doctor";
+
+const getDoctorSpecialization = (consultancy: ConsultancyResponse) =>
+  typeof consultancy.doctor === "string"
+    ? "General consultation"
+    : consultancy.doctor?.specialization ?? "General consultation";
 
 export default function ConsultancyHistoryPage() {
   const user = useSelector((state: RootState) => state.user.user);
@@ -159,7 +165,7 @@ export default function ConsultancyHistoryPage() {
         ) : consultancies.length === 0 ? (
           <div className="rounded-3xl border border-gray-100 bg-white p-10 text-center shadow-sm">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Icons.Calendar className="!h-7 !w-7" />
+              <Icons.Clock className="!h-7 !w-7" />
             </div>
             <h2 className="mt-5 text-2xl font-black text-dark">No booked consultancies yet</h2>
             <p className="mt-2 text-sm text-slate-600">
@@ -187,7 +193,7 @@ export default function ConsultancyHistoryPage() {
                       {getDoctorName(consultancy)}
                     </h2>
                     <p className="mt-2 text-sm text-slate-600">
-                      {consultancy.doctor?.specialization ?? "General consultation"}
+                      {getDoctorSpecialization(consultancy)}
                     </p>
                   </div>
 

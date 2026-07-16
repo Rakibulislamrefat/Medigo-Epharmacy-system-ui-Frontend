@@ -115,29 +115,6 @@ export default function AdminConsultanciesPage() {
     }, 0);
   }, [items]);
 
-  const revenueByStatus = useMemo(() => {
-    const totals = {
-      requested: 0,
-      confirmed: 0,
-      ready: 0,
-      completed: 0,
-      cancelled: 0,
-      other: 0,
-    };
-
-    items.forEach((consultancy) => {
-      const status = String(consultancy?.status ?? "other").toLowerCase();
-      const revenue = consultancy?.paymentStatus ? getConsultancyFee(consultancy) : 0;
-      if (Object.prototype.hasOwnProperty.call(totals, status)) {
-        (totals as any)[status] += revenue;
-      } else {
-        totals.other += revenue;
-      }
-    });
-
-    return totals;
-  }, [items]);
-
   const revenueChartDays = useMemo(() => {
     const dailyRevenue = new Map<string, { label: string; value: number; timestamp: number }>();
     items.forEach((consultancy) => {
@@ -160,27 +137,6 @@ export default function AdminConsultanciesPage() {
       .slice(-7)
       .map(({ label, value }) => ({ label, value }));
   }, [items]);
-
-  const revenueStatusChart = useMemo(() => {
-    const groups = [
-      { label: "Confirmed", status: "confirmed", color: "#10B981" },
-      { label: "Ready", status: "ready", color: "#8B5CF6" },
-      { label: "Completed", status: "completed", color: "#2563EB" },
-      { label: "Cancelled", status: "cancelled", color: "#EF4444" },
-      { label: "Requested", status: "requested", color: "#0EA5E9" },
-    ];
-    const totalRevenue = groups.reduce(
-      (sum, group) => sum + Number((revenueByStatus as any)[group.status] ?? 0),
-      0,
-    );
-    return groups
-      .map((group) => ({
-        ...group,
-        value: Number((revenueByStatus as any)[group.status] ?? 0),
-        percent: totalRevenue ? Math.round(((revenueByStatus as any)[group.status] ?? 0) / totalRevenue * 100) : 0,
-      }))
-      .filter((group) => group.value > 0);
-  }, [revenueByStatus]);
 
   const statusCounts = useMemo(() => {
     const counts = {

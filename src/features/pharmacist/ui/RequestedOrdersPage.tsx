@@ -12,6 +12,10 @@ import {
 } from "../service/pharmacistService";
 import { Icons } from "../../../shared/icons/Icons";
 import CustomButton from "../../../shared/button/CustomButton";
+import { updateLocalPharmacistOrder } from "../service/pharmacistStorage";
+
+const orderStatuses = ["all", "pending_ocr", "pending_verification", "verified", "rejected"] as const;
+type OrderStatusFilter = (typeof orderStatuses)[number];
 
 export default function RequestedOrdersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -21,14 +25,17 @@ export default function RequestedOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<PrescriptionOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>("pending_verification");
+  const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>("pending_verification");
 
   useEffect(() => {
     const fetchOrders = async () => {
       try {
         setLoading(true);
-        const data = await getRequestedOrders({ status: statusFilter });
-        setOrders(data.data);
+        const data = await getRequestedOrders(
+          statusFilter === "all" ? undefined : { status: statusFilter },
+        );
+        const fetchedOrders = Array.isArray(data?.data) ? data.data : [];
+        setOrders(fetchedOrders);
       } catch (err) {
         toast.error("Failed to load orders");
       } finally {
@@ -68,7 +75,7 @@ export default function RequestedOrdersPage() {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-2">
-          {(["pending_verification", "verified", "rejected"] as const).map((status) => (
+          {orderStatuses.map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
@@ -78,7 +85,7 @@ export default function RequestedOrdersPage() {
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
             >
-              {status.replace("_", " ").toUpperCase()}
+              {status.replace(/_/g, " ").toUpperCase()}
             </button>
           ))}
         </div>
@@ -123,7 +130,12 @@ export default function RequestedOrdersPage() {
             {selectedOrder ? (
               <OrderDetails
                 order={selectedOrder}
-                onOrderUpdated={(updated) => setSelectedOrder(updated)}
+                onOrderUpdated={(updated) => {
+                  setSelectedOrder(updated);
+                  setOrders((prev) =>
+                    prev.map((item) => (item._id === updated._id ? updated : item)),
+                  );
+                }}
                 loading={detailsLoading}
               />
             ) : (
@@ -156,6 +168,7 @@ function OrderListItem({
     rejected: "bg-red-100 text-red-800",
     pending_ocr: "bg-blue-100 text-blue-800",
   };
+  const suggestedCount = Array.isArray(order?.suggestedMedicines) ? order.suggestedMedicines.length : 0;
 
   return (
     <button
@@ -170,10 +183,10 @@ function OrderListItem({
           <p className="text-xs text-slate-500 mt-1">{order.customerPhone}</p>
           <div className="mt-2 flex gap-2">
             <span className={`text-xs px-2 py-1 rounded font-medium ${statusColors[order.status]}`}>
-              {order.status.replace("_", " ")}
+              {order.status.replace(/_/g, " ")}
             </span>
             <span className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">
-              {order.suggestedMedicines.length} meds
+              {suggestedCount} meds
             </span>
           </div>
         </div>
@@ -196,21 +209,43 @@ function OrderDetails({
   onOrderUpdated: (updated: PrescriptionOrder) => void;
   loading: boolean;
 }) {
-  const [medicines, setMedicines] = useState<Medicine[]>(order.suggestedMedicines);
-  const [notes, setNotes] = useState(order.pharmacistNotes || "");
+  const [medicines, setMedicines] = useState<Medicine[]>(() => Array.isArray(order?.suggestedMedicines) ? order.suggestedMedicines : []);
+  const [notes, setNotes] = useState(order?.pharmacistNotes || "");
   const [verifying, setVerifying] = useState(false);
 
+  useEffect(() => {
+    setMedicines(Array.isArray(order?.suggestedMedicines) ? order.suggestedMedicines : []);
+    setNotes(order?.pharmacistNotes || "");
+  }, [order]);
+
   const handleVerify = async () => {
+    setVerifying(true);
     try {
-      setVerifying(true);
       const updated = await verifyPrescriptionOrder(order._id, {
         verifiedMedicines: medicines,
         pharmacistNotes: notes,
       });
-      onOrderUpdated(updated);
+      const nextOrder = updated ?? {
+        ...order,
+        status: "verified" as const,
+        pharmacistNotes: notes,
+        suggestedMedicines: medicines,
+        updatedAt: new Date().toISOString(),
+      };
+      onOrderUpdated(nextOrder);
       toast.success("Order verified successfully!");
-    } catch (err) {
-      toast.error("Failed to verify order");
+    } catch {
+      const fallback = updateLocalPharmacistOrder(order._id, {
+        status: "verified",
+        pharmacistNotes: notes,
+        suggestedMedicines: medicines,
+      });
+      if (fallback) {
+        onOrderUpdated(fallback);
+        toast.success("Order verified locally and updated in the pharmacist view.");
+      } else {
+        toast.error("Failed to verify order");
+      }
     } finally {
       setVerifying(false);
     }
@@ -222,13 +257,28 @@ function OrderDetails({
       return;
     }
 
+    setVerifying(true);
     try {
-      setVerifying(true);
       const updated = await rejectPrescriptionOrder(order._id, notes);
-      onOrderUpdated(updated);
+      const nextOrder = updated ?? {
+        ...order,
+        status: "rejected" as const,
+        pharmacistNotes: notes,
+        updatedAt: new Date().toISOString(),
+      };
+      onOrderUpdated(nextOrder);
       toast.success("Order rejected");
-    } catch (err) {
-      toast.error("Failed to reject order");
+    } catch {
+      const fallback = updateLocalPharmacistOrder(order._id, {
+        status: "rejected",
+        pharmacistNotes: notes,
+      });
+      if (fallback) {
+        onOrderUpdated(fallback);
+        toast.success("Order rejected locally and updated in the pharmacist view.");
+      } else {
+        toast.error("Failed to reject order");
+      }
     } finally {
       setVerifying(false);
     }
@@ -236,16 +286,53 @@ function OrderDetails({
 
   return (
     <div className="space-y-4">
+      {loading && (
+        <div className="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">
+          Loading latest OCR details...
+        </div>
+      )}
+
       {/* Prescription Image */}
       {order.prescriptionImageUrl && (
         <div className="rounded-2xl border border-slate-200 overflow-hidden">
           <img
             src={order.prescriptionImageUrl}
             alt="Prescription"
-            className="w-full h-auto max-h-[300px] object-cover"
+            className="w-full h-auto max-h-[360px] object-contain bg-slate-50"
           />
         </div>
       )}
+
+      {/* OCR Status */}
+      <div className="rounded-2xl border border-slate-200 p-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="font-semibold text-slate-900">OCR Processing</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              {order.status === "pending_ocr"
+                ? "The prescription is uploaded and waiting for text extraction."
+                : "OCR output is available for pharmacist review."}
+            </p>
+          </div>
+          <span className="self-start rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase text-slate-700">
+            {order.status.replace(/_/g, " ")}
+          </span>
+        </div>
+      </div>
+
+      {/* Extracted OCR Text */}
+      <div className="rounded-2xl border border-slate-200 p-4">
+        <h3 className="font-semibold text-slate-900 mb-3">Extracted OCR Text</h3>
+        {order.extractedText?.trim() ? (
+          <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">
+            {order.extractedText}
+          </pre>
+        ) : (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+            No OCR text has been returned yet.
+          </div>
+        )}
+      </div>
 
       {/* Customer Info */}
       <div className="rounded-2xl border border-slate-200 p-4">
@@ -272,10 +359,11 @@ function OrderDetails({
 
       {/* Extracted Medicines */}
       <div className="rounded-2xl border border-slate-200 p-4">
-        <h3 className="font-semibold text-slate-900 mb-3">Medicines</h3>
-        <div className="space-y-3">
-          {medicines.map((med, idx) => (
-            <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+        <h3 className="font-semibold text-slate-900 mb-3">Suggested Medicines</h3>
+        {medicines.length ? (
+          <div className="space-y-3">
+            {medicines.map((med, idx) => (
+              <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
               <div className="flex-1">
                 <p className="font-medium text-slate-900">{med.name}</p>
                 <p className="text-xs text-slate-500">{med.dosage}</p>
@@ -295,8 +383,13 @@ function OrderDetails({
                 <span className="text-sm text-slate-600">qty</span>
               </div>
             </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+            No suggested medicines are available yet.
+          </div>
+        )}
       </div>
 
       {/* Pharmacist Notes */}

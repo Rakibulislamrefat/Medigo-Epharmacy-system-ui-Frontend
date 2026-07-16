@@ -27,7 +27,8 @@ export default function PrescribedOrdersPage() {
       try {
         setLoading(true);
         const data = await getPrescribedOrders({ status: statusFilter });
-        setOrders(data.data);
+        const fetchedOrders = Array.isArray(data?.data) ? data.data : [];
+        setOrders(fetchedOrders);
       } catch (err) {
         toast.error("Failed to load orders");
       } finally {
@@ -190,7 +191,7 @@ function OrderListItem({
 function OrderDetails({
   order,
   onOrderUpdated,
-  loading,
+  loading: _loading,
 }: {
   order: FulfilledOrder;
   onOrderUpdated: (updated: FulfilledOrder) => void;
@@ -215,7 +216,7 @@ function OrderDetails({
     delivered: "bg-slate-100 text-slate-800",
   };
 
-  const currentStatusIndex = statusOptions.indexOf(order.status);
+  const currentStatusIndex = statusOptions.indexOf(order?.status ?? "pending_pickup");
 
   const handleStatusUpdate = async (newStatus: FulfilledOrder["status"]) => {
     try {
@@ -274,7 +275,7 @@ function OrderDetails({
           ))}
         </div>
         <p className="text-sm text-slate-600 mt-4">
-          Current: <span className="font-medium">{order.status.replace("_", " ").toUpperCase()}</span>
+          Current: <span className="font-medium">{(order?.status ?? "pending_pickup").replace("_", " ").toUpperCase()}</span>
         </p>
       </div>
 
@@ -288,7 +289,7 @@ function OrderDetails({
           </div>
           <div className="flex justify-between">
             <span className="text-slate-600">Total Amount</span>
-            <span className="font-semibold text-lg">${order.totalAmount.toFixed(2)}</span>
+            <span className="font-semibold text-lg">${Number(order?.totalAmount ?? 0).toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-slate-600">Created</span>
@@ -320,15 +321,15 @@ function OrderDetails({
       <div className="rounded-2xl border border-slate-200 p-4">
         <h3 className="font-semibold text-slate-900 mb-3">Medicines</h3>
         <div className="space-y-2">
-          {order.medicines.map((med, idx) => (
+          {(Array.isArray(order?.medicines) ? order.medicines : []).map((med, idx) => (
             <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
               <div className="flex-1">
                 <p className="font-medium text-slate-900">{med.name}</p>
                 <p className="text-xs text-slate-500">{med.dosage}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm font-medium">{med.quantity}x</p>
-                {med.price && <p className="text-xs text-slate-500">${(med.price * med.quantity).toFixed(2)}</p>}
+                <p className="text-sm font-medium">{med.quantity ?? 0}x</p>
+                {typeof med.price === "number" && <p className="text-xs text-slate-500">${((med.price ?? 0) * (med.quantity ?? 0)).toFixed(2)}</p>}
               </div>
             </div>
           ))}

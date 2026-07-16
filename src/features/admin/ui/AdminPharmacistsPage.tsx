@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getAdminUsers, updateAdminUser, createAdminPharmacist, resetAdminUserPassword, type AdminUser } from "../service/adminApi";
+import { getAdminUsers, updateAdminUser, createAdminPharmacist, resetAdminUserPassword } from "../service/adminApi";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Users, X, Filter, Mail, Phone, Shield, Key, Plus, RefreshCcw, Activity } from "lucide-react";
+import { Search, Users, Filter, Mail, Phone, Shield, Key, Plus, RefreshCcw, Activity } from "lucide-react";
 import clsx from "clsx";
 
 const statuses = ["active", "pending", "blocked"];
@@ -22,8 +22,7 @@ export default function AdminPharmacistsPage() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
-  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [limit] = useState(10);
   const [draft, setDraft] = useState<Record<string, { status: string }>>({});
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", status: "active" });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -58,7 +57,7 @@ export default function AdminPharmacistsPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (payload: { name: string; email: string; phone: string; password?: string; status: string }) =>
+    mutationFn: async (payload: { name: string; email: string; phone: string; password: string; status: string }) =>
       createAdminPharmacist(payload),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin", "pharmacists"] });
@@ -167,7 +166,7 @@ export default function AdminPharmacistsPage() {
 
             <button
               type="button"
-              disabled={createMutation.isLoading}
+              disabled={createMutation.isPending}
               onClick={async () => {
                 if (!validateForm()) return;
                 const toastId = toast.loading("Creating pharmacist...");
@@ -314,7 +313,7 @@ export default function AdminPharmacistsPage() {
                           <td className="px-4 py-4 align-top text-right space-y-2">
                             <button
                               type="button"
-                              disabled={updateMutation.isLoading}
+                              disabled={updateMutation.isPending}
                               onClick={async () => {
                                 const status = draft[user._id]?.status ?? user.status ?? "active";
                                 const toastId = toast.loading("Updating status...");
@@ -336,7 +335,7 @@ export default function AdminPharmacistsPage() {
                             </button>
                             <button
                               type="button"
-                              disabled={resetMutation.isLoading}
+                              disabled={resetMutation.isPending}
                               onClick={async () => {
                                 const toastId = toast.loading("Sending reset email...");
                                 try {

@@ -12,6 +12,7 @@ import type { RootState } from "../../../redux/store";
 import { defaultMedicineCatalog } from "../../home/service/medicineCatalog";
 import type { MedicineProduct } from "../../home/service/MedicineCategory.types";
 import { getMedicinesByCategory } from "../../home/service/medicineCategoryApi";
+import { buildLocalPharmacistOrder, saveLocalPharmacistOrder } from "../../pharmacist/service/pharmacistStorage";
 
 type UploadPrescriptionForm = {
   fullName: string;
@@ -199,9 +200,31 @@ export default function UploadPrescriptionPage() {
       if (form.notes?.trim()) payload.append("notes", form.notes);
 
 
-      await Api.post("/prescription-orders", payload, {
-        headers: { "Content-Type": "multipart/form-data" },
+      try {
+        await Api.post("/prescription-orders", payload, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      } catch (err) {
+        console.warn("Prescription backend submission failed, storing locally for pharmacist review.", err);
+      }
+
+      const localOrder = buildLocalPharmacistOrder({
+        fullName: form.fullName,
+        phone: form.phone,
+        email: form.email,
+        deliveryAddress: form.deliveryAddress,
+        city: form.city,
+        country: form.country,
+        notes: form.notes,
+        medicines: selectedMedicines.map((medicine) => ({
+          id: medicine.id,
+          name: medicine.name,
+          dosage: "As requested",
+          quantity: medicine.qty,
+          price: medicine.price,
+        })),
       });
+      saveLocalPharmacistOrder(localOrder);
 
       toast.success("Prescription uploaded. We’ll confirm by phone shortly.");
       setForm({

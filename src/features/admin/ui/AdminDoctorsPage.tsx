@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type AdminDoctor,
-  type AdminDoctorPayload,
   type AdminDoctorPayloadWithFile,
   createAdminDoctor,
   deleteAdminDoctor,
@@ -265,6 +264,7 @@ export default function AdminDoctorsPage() {
       email: doctor.email ?? "",
       phone: doctor.phone ?? "",
       status: doctor.status ?? "active",
+      profileImageFile: null,
     });
   };
 

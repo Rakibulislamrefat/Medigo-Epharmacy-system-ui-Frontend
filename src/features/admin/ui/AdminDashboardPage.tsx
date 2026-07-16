@@ -340,7 +340,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
             <div className="space-y-3">
-              {revenueHistory.map((point, index) => (
+              {revenueHistory.map((point) => (
                 <div key={point.label} className="flex items-center justify-between text-sm text-slate-600">
                   <span>{point.label}</span>
                   <span className="font-semibold text-slate-900">{formatCurrency(point.value)}</span>

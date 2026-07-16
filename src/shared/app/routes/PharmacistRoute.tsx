@@ -22,7 +22,9 @@ const PharmacistRoute = ({ children }: { children: JSX.Element }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (user.role !== "pharmacist") {
+  const normalizedRole = user.role?.toLowerCase();
+
+  if (normalizedRole !== "pharmacist") {
     return <Navigate to="/" replace />;
   }
 

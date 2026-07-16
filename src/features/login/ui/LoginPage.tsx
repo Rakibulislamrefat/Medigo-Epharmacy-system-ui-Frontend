@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { loginApi, pharmacistLoginApi } from "../service/loginService";
@@ -56,7 +56,7 @@ export default function LoginPage() {
         return;
       }
 
-      const role = user.role as string | undefined;
+      const role = user.role?.toLowerCase() as string | undefined;
       const roleMap: Record<Actor, string> = {
         user: "user",
         admin: "admin",
@@ -65,7 +65,6 @@ export default function LoginPage() {
       const expectedRole = roleMap[actor];
 
       if (role !== expectedRole) {
-        const userRoleLabel = role ? `your ${role} account` : "this account";
         const errorMessage =
           actor === "admin"
             ? `Please log in with an admin account.`

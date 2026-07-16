@@ -175,8 +175,16 @@ function RecentOrderCard({ order }: { order: PrescriptionOrder }) {
     pending_ocr: "bg-blue-100 text-blue-800",
   };
 
+  const medicineCount = Array.isArray(order?.suggestedMedicines)
+    ? order.suggestedMedicines.length
+    : 0;
+  const status = order?.status ?? "pending_verification";
+  const customerName = order?.customerName || "Customer";
+  const customerPhone = order?.customerPhone || "Phone not available";
+  const createdAt = order?.createdAt ? new Date(order.createdAt) : null;
+
   return (
-    <Link to={`/pharmacist/requested-orders?id=${order._id}`}>
+    <Link to={`/pharmacist/requested-orders?id=${order?._id ?? ""}`}>
       <div className="rounded-xl border border-slate-200 p-4 hover:border-primary hover:bg-slate-50 transition cursor-pointer">
         <div className="flex items-start justify-between">
           <div className="flex-1">
@@ -185,25 +193,27 @@ function RecentOrderCard({ order }: { order: PrescriptionOrder }) {
                 <Icons.Prescription className="w-5 h-5 text-primary" />
               </div>
               <div className="flex-1">
-                <p className="font-semibold text-slate-900">{order.customerName}</p>
-                <p className="text-xs text-slate-500 mt-1">{order.customerPhone}</p>
+                <p className="font-semibold text-slate-900">{customerName}</p>
+                <p className="text-xs text-slate-500 mt-1">{customerPhone}</p>
               </div>
             </div>
             <div className="mt-3 flex items-center gap-2 flex-wrap">
               <span className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">
-                {order.suggestedMedicines.length} medicines
+                {medicineCount} medicines
               </span>
-              <span className={`text-xs px-2 py-1 rounded font-medium ${statusColors[order.status] || "bg-slate-100 text-slate-700"}`}>
-                {order.status.replace("_", " ").toUpperCase()}
+              <span className={`text-xs px-2 py-1 rounded font-medium ${statusColors[status] || "bg-slate-100 text-slate-700"}`}>
+                {status.replace("_", " ").toUpperCase()}
               </span>
             </div>
           </div>
           <div className="text-right">
             <p className="text-xs text-slate-500">
-              {new Date(order.createdAt).toLocaleDateString()}
+              {createdAt ? createdAt.toLocaleDateString() : "Unknown date"}
             </p>
             <p className="text-xs text-slate-500 mt-1">
-              {new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              {createdAt
+                ? createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                : "--:--"}
             </p>
           </div>
         </div>
