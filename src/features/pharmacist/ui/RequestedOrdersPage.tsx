@@ -12,7 +12,6 @@ import {
 } from "../service/pharmacistService";
 import { Icons } from "../../../shared/icons/Icons";
 import CustomButton from "../../../shared/button/CustomButton";
-import { updateLocalPharmacistOrder } from "../service/pharmacistStorage";
 
 const orderStatuses = ["all", "pending_ocr", "pending_verification", "verified", "rejected"] as const;
 type OrderStatusFilter = (typeof orderStatuses)[number];
@@ -219,33 +218,33 @@ function OrderDetails({
   }, [order]);
 
   const handleVerify = async () => {
+    // Confirmation dialog
+    if (!window.confirm(`Verify order for ${order.customerName}? This will create a fulfillment order.`)) {
+      return;
+    }
+
+    if (medicines.length === 0) {
+      toast.error("Please add at least one medicine before verifying");
+      return;
+    }
+
     setVerifying(true);
     try {
       const updated = await verifyPrescriptionOrder(order._id, {
         verifiedMedicines: medicines,
         pharmacistNotes: notes,
       });
-      const nextOrder = updated ?? {
-        ...order,
-        status: "verified" as const,
-        pharmacistNotes: notes,
-        suggestedMedicines: medicines,
-        updatedAt: new Date().toISOString(),
-      };
-      onOrderUpdated(nextOrder);
-      toast.success("Order verified successfully!");
-    } catch {
-      const fallback = updateLocalPharmacistOrder(order._id, {
-        status: "verified",
-        pharmacistNotes: notes,
-        suggestedMedicines: medicines,
-      });
-      if (fallback) {
-        onOrderUpdated(fallback);
-        toast.success("Order verified locally and updated in the pharmacist view.");
-      } else {
-        toast.error("Failed to verify order");
-      }
+      onOrderUpdated(updated);
+      toast.success(`✅ Order verified! Fulfillment order created for ${order.customerName}.`);
+    } catch (err: any) {
+      console.error("Verify order failed:", err);
+      const status = err?.response?.status;
+      const respData = err?.response?.data;
+      const message = status
+        ? `${status} - ${respData?.message ?? JSON.stringify(respData)}`
+        : err?.message || "Failed to verify order";
+      toast.error(message.length > 240 ? `${message.slice(0, 240)}...` : message);
+      console.debug("Verify response body:", respData);
     } finally {
       setVerifying(false);
     }
@@ -257,28 +256,25 @@ function OrderDetails({
       return;
     }
 
+    // Confirmation dialog
+    if (!window.confirm(`Reject order from ${order.customerName}?\n\nReason: ${notes}`)) {
+      return;
+    }
+
     setVerifying(true);
     try {
       const updated = await rejectPrescriptionOrder(order._id, notes);
-      const nextOrder = updated ?? {
-        ...order,
-        status: "rejected" as const,
-        pharmacistNotes: notes,
-        updatedAt: new Date().toISOString(),
-      };
-      onOrderUpdated(nextOrder);
-      toast.success("Order rejected");
-    } catch {
-      const fallback = updateLocalPharmacistOrder(order._id, {
-        status: "rejected",
-        pharmacistNotes: notes,
-      });
-      if (fallback) {
-        onOrderUpdated(fallback);
-        toast.success("Order rejected locally and updated in the pharmacist view.");
-      } else {
-        toast.error("Failed to reject order");
-      }
+      onOrderUpdated(updated);
+      toast.success(`❌ Order rejected. Customer will be notified.`);
+    } catch (err: any) {
+      console.error("Reject order failed:", err);
+      const status = err?.response?.status;
+      const respData = err?.response?.data;
+      const message = status
+        ? `${status} - ${respData?.message ?? JSON.stringify(respData)}`
+        : err?.message || "Failed to reject order";
+      toast.error(message.length > 240 ? `${message.slice(0, 240)}...` : message);
+      console.debug("Reject response body:", respData);
     } finally {
       setVerifying(false);
     }

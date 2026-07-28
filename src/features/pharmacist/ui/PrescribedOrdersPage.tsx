@@ -219,13 +219,31 @@ function OrderDetails({
   const currentStatusIndex = statusOptions.indexOf(order?.status ?? "pending_pickup");
 
   const handleStatusUpdate = async (newStatus: FulfilledOrder["status"]) => {
+    const statusLabel = newStatus.replace("_", " ").toUpperCase();
+    
+    // Confirmation for final status
+    if (newStatus === "delivered" && !window.confirm(`Mark order as DELIVERED to ${order.customerName}? This action cannot be undone.`)) {
+      return;
+    }
+
     try {
       setUpdating(true);
       const updated = await updateOrderStatus(order._id, newStatus);
       onOrderUpdated(updated);
-      toast.success(`Order marked as ${newStatus.replace("_", " ")}`);
-    } catch (err) {
-      toast.error("Failed to update status");
+      
+      const statusEmoji = {
+        pending_pickup: "⏳",
+        picked: "📦",
+        packed: "🎁",
+        ready_for_delivery: "🚚",
+        delivered: "✅"
+      }[newStatus] || "📋";
+      
+      toast.success(`${statusEmoji} Order marked as ${statusLabel}`);
+    } catch (err: any) {
+      console.error("Status update failed:", err);
+      const message = (err as any)?.response?.data?.message || "Failed to update status";
+      toast.error(message);
     } finally {
       setUpdating(false);
     }

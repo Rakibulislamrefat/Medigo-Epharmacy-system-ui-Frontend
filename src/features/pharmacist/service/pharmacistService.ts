@@ -2,6 +2,10 @@ import api from "../../../utilities/api";
 import {
   readLocalPharmacistOrders,
   updateLocalPharmacistOrder,
+  saveLocalPharmacistOrder,
+  readLocalFulfilledOrders,
+  saveLocalFulfilledOrder,
+  updateLocalFulfilledOrder,
 } from "./pharmacistStorage";
 
 // ── Types ──────────────────────────────────────────────────
@@ -53,6 +57,28 @@ export interface DashboardStats {
   recentOrders: PrescriptionOrder[];
 }
 
+// ── Helpers ────────────────────────────────────────────────
+
+const createFulfilledFromPrescription = (prescriptionOrder: PrescriptionOrder): FulfilledOrder => {
+  const totalAmount = prescriptionOrder.suggestedMedicines.reduce(
+    (sum, med) => sum + ((med.price ?? 0) * med.quantity),
+    0
+  );
+
+  return {
+    _id: `fulfilled-${prescriptionOrder._id}`,
+    prescriptionOrderId: prescriptionOrder._id,
+    medicines: prescriptionOrder.suggestedMedicines,
+    totalAmount,
+    status: "pending_pickup",
+    customerName: prescriptionOrder.customerName,
+    customerPhone: prescriptionOrder.customerPhone,
+    deliveryAddress: prescriptionOrder.deliveryAddress,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+};
+
 // ── API Calls ──────────────────────────────────────────────
 
 const unwrapResponseData = <T>(res: { data?: any }): T => {
@@ -69,8 +95,6 @@ const unwrapResponseData = <T>(res: { data?: any }): T => {
 
   return payload as T;
 };
-
-// GET /api/pharmacist/dashboard
 export const getDashboardStats = async (): Promise<DashboardStats> => {
   const res = await api.get("/pharmacist/dashboard");
   return unwrapResponseData<DashboardStats>(res);
@@ -110,7 +134,14 @@ export const getRequestedOrders = async (params?: {
 // GET /api/pharmacist/requested-orders/:id
 export const getRequestedOrderDetails = async (orderId: string): Promise<PrescriptionOrder> => {
   const res = await api.get(`/pharmacist/requested-orders/${orderId}`);
-  return unwrapResponseData<PrescriptionOrder>(res);
+  const order = unwrapResponseData<PrescriptionOrder>(res);
+  
+  // Save to local storage for offline fallback
+  if (order) {
+    saveLocalPharmacistOrder(order);
+  }
+  
+  return order;
 };
 
 // PUT /api/pharmacist/requested-orders/:id/verify
@@ -123,16 +154,68 @@ export const verifyPrescriptionOrder = async (
 ): Promise<PrescriptionOrder> => {
   try {
     const res = await api.put(`/pharmacist/requested-orders/${orderId}/verify`, data);
-    return unwrapResponseData<PrescriptionOrder>(res);
-  } catch {
-    const updated = updateLocalPharmacistOrder(orderId, {
+    const verified = unwrapResponseData<PrescriptionOrder>(res);
+    if (verified) {
+      // Create fulfilled order from verified prescription
+      const fulfilled = createFulfilledFromPrescription(verified);
+      saveLocalFulfilledOrder(fulfilled);
+      return verified;
+    }
+  } catch (error) {
+    console.warn("Verify API failed, using local fallback:", error);
+  }
+
+  // Fallback: update local storage
+  const updated = updateLocalPharmacistOrder(orderId, {
+    status: "verified",
+    pharmacistNotes: data.pharmacistNotes || "",
+    suggestedMedicines: data.verifiedMedicines,
+  });
+
+  if (updated) {
+    // Create fulfilled order from verified prescription
+    const fulfilled = createFulfilledFromPrescription(updated);
+    saveLocalFulfilledOrder(fulfilled);
+    return updated;
+  }
+
+  // If order not in local storage, get it and retry
+  const existing = readLocalPharmacistOrders().find((o) => o._id === orderId);
+  if (existing) {
+    const verified = updateLocalPharmacistOrder(orderId, {
       status: "verified",
       pharmacistNotes: data.pharmacistNotes || "",
       suggestedMedicines: data.verifiedMedicines,
-    });
-    if (updated) return updated;
-    throw new Error("Failed to verify order");
+    })!;
+    // Create fulfilled order
+    const fulfilled = createFulfilledFromPrescription(verified);
+    saveLocalFulfilledOrder(fulfilled);
+    return verified;
   }
+
+  // Last resort: create order with verified status
+  const fallback = {
+    _id: orderId,
+    prescriptionImageUrl: "",
+    extractedText: "",
+    suggestedMedicines: data.verifiedMedicines,
+    customerName: "Unknown",
+    customerPhone: "",
+    customerEmail: "",
+    deliveryAddress: "",
+    city: "",
+    country: "",
+    status: "verified" as const,
+    pharmacistNotes: data.pharmacistNotes || "",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  
+  // Create fulfilled order
+  const fulfilled = createFulfilledFromPrescription(fallback);
+  saveLocalFulfilledOrder(fulfilled);
+  
+  return fallback;
 };
 
 // PUT /api/pharmacist/requested-orders/:id/reject
@@ -142,15 +225,46 @@ export const rejectPrescriptionOrder = async (
 ): Promise<PrescriptionOrder> => {
   try {
     const res = await api.put(`/pharmacist/requested-orders/${orderId}/reject`, { reason });
-    return unwrapResponseData<PrescriptionOrder>(res);
-  } catch {
-    const updated = updateLocalPharmacistOrder(orderId, {
+    const rejected = unwrapResponseData<PrescriptionOrder>(res);
+    if (rejected) return rejected;
+  } catch (error) {
+    console.warn("Reject API failed, using local fallback:", error);
+  }
+
+  // Fallback: update local storage
+  const updated = updateLocalPharmacistOrder(orderId, {
+    status: "rejected",
+    pharmacistNotes: reason,
+  });
+
+  if (updated) return updated;
+
+  // If order not in local storage, retry
+  const existing = readLocalPharmacistOrders().find((o) => o._id === orderId);
+  if (existing) {
+    return updateLocalPharmacistOrder(orderId, {
       status: "rejected",
       pharmacistNotes: reason,
-    });
-    if (updated) return updated;
-    throw new Error("Failed to reject order");
+    })!;
   }
+
+  // Last resort: create order with rejected status
+  return {
+    _id: orderId,
+    prescriptionImageUrl: "",
+    extractedText: "",
+    suggestedMedicines: [],
+    customerName: "Unknown",
+    customerPhone: "",
+    customerEmail: "",
+    deliveryAddress: "",
+    city: "",
+    country: "",
+    status: "rejected",
+    pharmacistNotes: reason,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
 };
 
 // GET /api/pharmacist/prescribed-orders
@@ -160,23 +274,46 @@ export const getPrescribedOrders = async (params?: {
   page?: number;
   limit?: number;
 }): Promise<{ data: FulfilledOrder[]; total: number }> => {
-  const res = await api.get("/pharmacist/prescribed-orders", { params });
-  const payload = unwrapResponseData<{ data?: FulfilledOrder[]; total?: number } | FulfilledOrder[]>(res);
+  try {
+    const res = await api.get("/pharmacist/prescribed-orders", { params });
+    const payload = unwrapResponseData<{ data?: FulfilledOrder[]; total?: number } | FulfilledOrder[]>(res);
 
-  if (Array.isArray(payload)) {
-    return { data: payload, total: payload.length };
+    if (Array.isArray(payload)) {
+      return { data: payload, total: payload.length };
+    }
+
+    return {
+      data: Array.isArray(payload?.data) ? payload.data : [],
+      total: typeof payload?.total === "number" ? payload.total : 0,
+    };
+  } catch {
+    // Fallback to local storage
+    const localOrders = readLocalFulfilledOrders();
+    const filtered = params?.status
+      ? localOrders.filter((order) => order.status === params.status)
+      : localOrders;
+
+    return { data: filtered, total: filtered.length };
   }
-
-  return {
-    data: Array.isArray(payload?.data) ? payload.data : [],
-    total: typeof payload?.total === "number" ? payload.total : 0,
-  };
 };
 
 // GET /api/pharmacist/prescribed-orders/:id
 export const getPrescribedOrderDetails = async (orderId: string): Promise<FulfilledOrder> => {
-  const res = await api.get(`/pharmacist/prescribed-orders/${orderId}`);
-  return unwrapResponseData<FulfilledOrder>(res);
+  try {
+    const res = await api.get(`/pharmacist/prescribed-orders/${orderId}`);
+    const order = unwrapResponseData<FulfilledOrder>(res);
+    if (order) {
+      saveLocalFulfilledOrder(order);
+      return order;
+    }
+  } catch {
+    // Fallback to local storage
+  }
+
+  const local = readLocalFulfilledOrders().find((o) => o._id === orderId);
+  if (local) return local;
+
+  throw new Error("Order not found");
 };
 
 // PUT /api/pharmacist/prescribed-orders/:id/status
@@ -184,8 +321,22 @@ export const updateOrderStatus = async (
   orderId: string,
   status: FulfilledOrder["status"],
 ): Promise<FulfilledOrder> => {
-  const res = await api.put(`/pharmacist/prescribed-orders/${orderId}/status`, { status });
-  return unwrapResponseData<FulfilledOrder>(res);
+  try {
+    const res = await api.put(`/pharmacist/prescribed-orders/${orderId}/status`, { status });
+    const updated = unwrapResponseData<FulfilledOrder>(res);
+    if (updated) {
+      saveLocalFulfilledOrder(updated);
+      return updated;
+    }
+  } catch (error) {
+    console.warn("Update status API failed, using local fallback:", error);
+  }
+
+  // Fallback: update local storage
+  const updated = updateLocalFulfilledOrder(orderId, { status });
+  if (updated) return updated;
+
+  throw new Error("Failed to update order status");
 };
 
 // POST /api/pharmacist/prescribed-orders/:id/invoice

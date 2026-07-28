@@ -1,12 +1,13 @@
-import type { PrescriptionOrder } from "./pharmacistService";
+import type { PrescriptionOrder, FulfilledOrder } from "./pharmacistService";
 
-const STORAGE_KEY = "medigo_pharmacist_orders";
+const PRESCRIPTION_STORAGE_KEY = "medigo_pharmacist_orders";
+const FULFILLED_STORAGE_KEY = "medigo_fulfilled_orders";
 
 export const readLocalPharmacistOrders = (): PrescriptionOrder[] => {
   if (typeof window === "undefined") return [];
 
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(PRESCRIPTION_STORAGE_KEY);
     if (!raw) return [];
 
     const parsed = JSON.parse(raw);
@@ -20,7 +21,31 @@ export const writeLocalPharmacistOrders = (orders: PrescriptionOrder[]) => {
   if (typeof window === "undefined") return;
 
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+    window.localStorage.setItem(PRESCRIPTION_STORAGE_KEY, JSON.stringify(orders));
+  } catch {
+    // ignore storage errors
+  }
+};
+
+export const readLocalFulfilledOrders = (): FulfilledOrder[] => {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(FULFILLED_STORAGE_KEY);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+export const writeLocalFulfilledOrders = (orders: FulfilledOrder[]) => {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(FULFILLED_STORAGE_KEY, JSON.stringify(orders));
   } catch {
     // ignore storage errors
   }
@@ -43,6 +68,27 @@ export const updateLocalPharmacistOrder = (
   );
 
   writeLocalPharmacistOrders(updated);
+  return updated.find((item) => item._id === orderId) ?? null;
+};
+
+// Fulfilled orders management
+export const saveLocalFulfilledOrder = (order: FulfilledOrder) => {
+  const existing = readLocalFulfilledOrders();
+  const next = [order, ...existing.filter((item) => item._id !== order._id)];
+  writeLocalFulfilledOrders(next);
+  return order;
+};
+
+export const updateLocalFulfilledOrder = (
+  orderId: string,
+  patch: Partial<FulfilledOrder>,
+) => {
+  const existing = readLocalFulfilledOrders();
+  const updated = existing.map((item) =>
+    item._id === orderId ? { ...item, ...patch, updatedAt: new Date().toISOString() } : item,
+  );
+
+  writeLocalFulfilledOrders(updated);
   return updated.find((item) => item._id === orderId) ?? null;
 };
 
