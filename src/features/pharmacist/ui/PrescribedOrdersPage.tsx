@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import MainContainer from "../../../shared/main-container/MainContainer";
+import { getFrontendConfig } from "../../../config/frontend";
 import {
   getPrescribedOrders,
   getPrescribedOrderDetails,
@@ -250,12 +251,38 @@ function OrderDetails({
   };
 
   const handleGenerateInvoice = async () => {
+    const popup = window.open("about:blank", "_blank");
+    if (!popup) {
+      toast.error("Please allow popups to download the invoice.");
+      return;
+    }
+
     try {
       setGeneratingInvoice(true);
       const result = await generateInvoice(order._id);
-      window.open(result.invoiceUrl, "_blank");
-      toast.success("Invoice generated");
+      const invoiceUrl = (() => {
+        if (!result) return undefined;
+        if (typeof result === "string") return result;
+        if (typeof result.invoiceUrl === "string") return result.invoiceUrl;
+        if (typeof (result as any)?.data === "string") return (result as any).data;
+        if (typeof (result as any)?.data?.invoiceUrl === "string") return (result as any).data.invoiceUrl;
+        if (typeof (result as any)?.url === "string") return (result as any).url;
+        return undefined;
+      })();
+
+      if (invoiceUrl) {
+        const resolvedInvoiceUrl = invoiceUrl.startsWith("http")
+          ? invoiceUrl
+          : `${getFrontendConfig().apiBaseUrl.replace(/\/api\/?$/, "")}${invoiceUrl}`;
+
+        popup.location.href = resolvedInvoiceUrl;
+        toast.success("Invoice generated");
+      } else {
+        popup.close();
+        toast.error("Invoice URL is missing from response.");
+      }
     } catch (err) {
+      popup.close();
       toast.error("Failed to generate invoice");
     } finally {
       setGeneratingInvoice(false);

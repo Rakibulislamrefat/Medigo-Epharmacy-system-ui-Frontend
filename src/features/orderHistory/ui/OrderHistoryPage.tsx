@@ -7,7 +7,13 @@ import { Icons } from "../../../shared/icons/Icons";
 import CustomButton from "../../../shared/button/CustomButton";
 import MainContainer from "../../../shared/main-container/MainContainer";
 import SectionContainer from "../../../shared/section-container/SectionContainer";
-import { cancelOrder, getMyOrders, getOrderTracking } from "../../payment/service/paymentApi";
+import {
+  cancelOrder,
+  getMyOrders,
+  getMyRequestedOrders,
+  getMyPrescriptionOrders,
+  getOrderTracking,
+} from "../../payment/service/paymentApi";
 import type { RootState } from "../../../redux/store";
 import type { PaymentOrder } from "../../payment/service/paymentApi";
 
@@ -90,6 +96,20 @@ export default function OrderHistoryPage() {
   } = useQuery({
     queryKey: ["orders"],
     queryFn: getMyOrders,
+    enabled: Boolean(user) && !trackingId,
+    retry: false,
+  });
+
+  const { data: requestedOrders = [] } = useQuery({
+    queryKey: ["requested-orders"],
+    queryFn: getMyRequestedOrders,
+    enabled: Boolean(user) && !trackingId,
+    retry: false,
+  });
+
+  const { data: prescriptionOrders = [] } = useQuery({
+    queryKey: ["prescription-orders"],
+    queryFn: getMyPrescriptionOrders,
     enabled: Boolean(user) && !trackingId,
     retry: false,
   });
@@ -399,7 +419,7 @@ export default function OrderHistoryPage() {
             <Icons.Loading className="!h-8 !w-8 mx-auto animate-spin text-primary" />
             <p className="mt-4 text-slate-600">Loading your orders...</p>
           </div>
-        ) : isError ? (
+        ) : isError && orders.length === 0 && requestedOrders.length === 0 && prescriptionOrders.length === 0 ? (
           <div className="mx-auto max-w-4xl rounded-2xl border border-red-100 bg-red-50 p-6 text-center shadow-sm">
             <p className="font-semibold text-red-700">Unable to load orders</p>
             <p className="mt-2 text-sm text-red-600">
@@ -411,14 +431,14 @@ export default function OrderHistoryPage() {
               </CustomButton>
             </div>
           </div>
-        ) : orders.length === 0 ? (
+        ) : orders.length === 0 && requestedOrders.length === 0 && prescriptionOrders.length === 0 ? (
           <div className="mx-auto max-w-2xl rounded-2xl border border-gray-100 bg-white p-6 text-center shadow-sm sm:p-8">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
               <Icons.Clock className="!h-7 !w-7" />
             </div>
             <h2 className="mt-5 text-2xl font-black text-dark">No orders yet</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
-              You haven't placed any orders yet. Start shopping to see your orders here.
+              You haven't placed any orders yet. Start shopping to see your order history here.
             </p>
             <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
               <NavLink to="/shop">
@@ -434,116 +454,205 @@ export default function OrderHistoryPage() {
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            {orders.map((order) => {
-              const cancelEligibility = getCancelEligibility(order);
-              const cancelKey = order.orderNumber ?? order._id;
-              const isCancelling = cancelMutation.isPending && cancelMutation.variables === cancelKey;
-
-              return (
-                <div
-                  key={order._id}
-                  className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:shadow-md"
-                >
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-slate-500">Order ID</p>
-                    <p className="mt-1 break-all font-mono text-sm font-black text-dark">
-                      {order.orderNumber || order._id}
-                    </p>
-                    {cancelEligibility.deadline && (
-                      <p className="mt-2 text-xs font-semibold text-slate-500">
-                        Cancel available until {formatDateTime(cancelEligibility.deadline)}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-500">Grand Total</p>
-                      <p className="mt-1 text-lg font-black text-dark">
-                        {order.grandTotal ? `৳ ${order.grandTotal}` : "N/A"}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-semibold text-slate-500">Payment Status</p>
-                      <p
-                        className={`mt-1 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold capitalize ${getStatusColor(
-                          order.paymentStatus,
-                        )}`}
-                      >
-                        {order.paymentStatus || "Unknown"}
-                      </p>
-                    </div>
-
-                    {order.status && (
-                      <div>
-                        <p className="text-sm font-semibold text-slate-500">Order Status</p>
-                        <p
-                          className={`mt-1 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold capitalize ${getStatusColor(
-                            order.status,
-                          )}`}
-                        >
-                          {order.status}
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="mt-1 flex shrink-0 flex-wrap gap-2">
-                      <NavLink
-                        to={`/order-history?track=${encodeURIComponent(order.orderNumber ?? order._id)}`}
-                        className="inline-flex"
-                      >
-                        <CustomButton variant="outline" size="sm" radius="full">
-                          Track order
-                        </CustomButton>
-                      </NavLink>
-
-                      <CustomButton
-                        variant="danger"
-                        size="sm"
-                        radius="full"
-                        loading={isCancelling}
-                        disabled={!cancelEligibility.canCancel || cancelMutation.isPending}
-                        onClick={() => handleCancelOrder(order)}
-                      >
-                        Cancel order
-                      </CustomButton>
-                    </div>
-                  </div>
-                </div>
-
-                {cancelEligibility.canCancel && order.paymentStatus?.toLowerCase() === "paid" && (
-                  <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    Paid orders cancelled within {CANCEL_WINDOW_HOURS} hours are refunded automatically,
-                    and a cancellation/refund email is sent to your account email.
-                  </div>
-                )}
-
-                {order.deliveryAddress && (
-                  <div className="mt-4 border-t border-gray-100 pt-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
-                      Delivery Address
-                    </p>
-                    <p className="mt-2 text-sm text-slate-700">
-                      {[
-                        order.deliveryAddress.line1,
-                        order.deliveryAddress.line2,
-                        order.deliveryAddress.city,
-                        order.deliveryAddress.state,
-                        order.deliveryAddress.postcode,
-                        order.deliveryAddress.country,
-                      ]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </p>
-                  </div>
-                )}
+          <div>
+            {isError && (
+              <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                Some order history data could not be loaded. Refresh the page if the issue persists.
               </div>
-              );
-            })}
+            )}
+            <div className="space-y-6">
+            {orders.length > 0 && (
+              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <h2 className="text-2xl font-black text-dark">My Online Orders</h2>
+                <p className="mt-2 text-sm text-slate-500">
+                  Orders placed through the website checkout.
+                </p>
+                <div className="mt-6 space-y-4">
+                  {orders.map((order) => {
+                    const cancelEligibility = getCancelEligibility(order);
+                    const cancelKey = order.orderNumber ?? order._id;
+                    const isCancelling = cancelMutation.isPending && cancelMutation.variables === cancelKey;
+
+                    return (
+                      <div
+                        key={order._id}
+                        className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:shadow-md"
+                      >
+                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-slate-500">Order ID</p>
+                            <p className="mt-1 break-all font-mono text-sm font-black text-dark">
+                              {order.orderNumber || order._id}
+                            </p>
+                            {cancelEligibility.deadline && (
+                              <p className="mt-2 text-xs font-semibold text-slate-500">
+                                Cancel available until {formatDateTime(cancelEligibility.deadline)}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-500">Grand Total</p>
+                              <p className="mt-1 text-lg font-black text-dark">
+                                {order.grandTotal ? `৳ ${order.grandTotal}` : "N/A"}
+                              </p>
+                            </div>
+
+                            <div>
+                              <p className="text-sm font-semibold text-slate-500">Payment Status</p>
+                              <p
+                                className={`mt-1 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold capitalize ${getStatusColor(
+                                  order.paymentStatus,
+                                )}`}
+                              >
+                                {order.paymentStatus || "Unknown"}
+                              </p>
+                            </div>
+
+                            {order.status && (
+                              <div>
+                                <p className="text-sm font-semibold text-slate-500">Order Status</p>
+                                <p
+                                  className={`mt-1 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold capitalize ${getStatusColor(
+                                    order.status,
+                                  )}`}
+                                >
+                                  {order.status}
+                                </p>
+                              </div>
+                            )}
+
+                            <div className="mt-1 flex shrink-0 flex-wrap gap-2">
+                              <NavLink
+                                to={`/order-history?track=${encodeURIComponent(order.orderNumber ?? order._id)}`}
+                                className="inline-flex"
+                              >
+                                <CustomButton variant="outline" size="sm" radius="full">
+                                  Track order
+                                </CustomButton>
+                              </NavLink>
+
+                              <CustomButton
+                                variant="danger"
+                                size="sm"
+                                radius="full"
+                                loading={isCancelling}
+                                disabled={!cancelEligibility.canCancel || cancelMutation.isPending}
+                                onClick={() => handleCancelOrder(order)}
+                              >
+                                Cancel order
+                              </CustomButton>
+                            </div>
+                          </div>
+                        </div>
+
+                        {cancelEligibility.canCancel && order.paymentStatus?.toLowerCase() === "paid" && (
+                          <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                            Paid orders cancelled within {CANCEL_WINDOW_HOURS} hours are refunded automatically,
+                            and a cancellation/refund email is sent to your account email.
+                          </div>
+                        )}
+
+                        {order.deliveryAddress && (
+                          <div className="mt-4 border-t border-gray-100 pt-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                              Delivery Address
+                            </p>
+                            <p className="mt-2 text-sm text-slate-700">
+                              {[
+                                order.deliveryAddress.line1,
+                                order.deliveryAddress.line2,
+                                order.deliveryAddress.city,
+                                order.deliveryAddress.state,
+                                order.deliveryAddress.postcode,
+                                order.deliveryAddress.country,
+                              ]
+                                .filter(Boolean)
+                                .join(", ")}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {requestedOrders.length > 0 && (
+              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <h2 className="text-2xl font-black text-dark">Requested Orders</h2>
+                <p className="mt-2 text-sm text-slate-500">
+                  Orders submitted through the request order form.
+                </p>
+                <div className="mt-6 space-y-4">
+                  {requestedOrders.map((order) => (
+                    <div key={order._id} className="rounded-2xl border border-gray-100 bg-slate-50 p-4">
+                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-500">Request ID</p>
+                          <p className="mt-1 break-all font-mono text-sm font-black text-dark">{order._id}</p>
+                          <p className="mt-2 text-sm text-slate-600">{order.status ?? "Pending"}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-slate-500">Requested At</p>
+                          <p className="mt-1 text-sm font-black text-dark">{formatDateTime(order.createdAt)}</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-500">Customer</p>
+                          <p className="mt-1 text-sm font-medium text-dark">{order.fullName ?? order.email ?? "-"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-500">Phone</p>
+                          <p className="mt-1 text-sm font-medium text-dark">{order.phone ?? "-"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {prescriptionOrders.length > 0 && (
+              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <h2 className="text-2xl font-black text-dark">Prescription Orders</h2>
+                <p className="mt-2 text-sm text-slate-500">
+                  Prescription-based orders processed by pharmacy staff.
+                </p>
+                <div className="mt-6 space-y-4">
+                  {prescriptionOrders.map((order) => (
+                    <div key={order._id} className="rounded-2xl border border-gray-100 bg-slate-50 p-4">
+                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-500">Prescription ID</p>
+                          <p className="mt-1 break-all font-mono text-sm font-black text-dark">{order._id}</p>
+                          <p className="mt-2 text-sm text-slate-600">{order.status ?? "Pending"}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-slate-500">Submitted At</p>
+                          <p className="mt-1 text-sm font-black text-dark">{formatDateTime(order.createdAt)}</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-500">Customer</p>
+                          <p className="mt-1 text-sm font-medium text-dark">{order.customerName ?? "-"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-500">Phone</p>
+                          <p className="mt-1 text-sm font-medium text-dark">{order.customerPhone ?? "-"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
+        </div>
         )}
 
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">

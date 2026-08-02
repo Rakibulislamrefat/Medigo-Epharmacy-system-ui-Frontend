@@ -67,6 +67,33 @@ export type OrderTrackingStep = {
   timestamp: string | null;
 };
 
+export type RequestOrderHistory = {
+  _id: string;
+  fullName?: string;
+  phone?: string;
+  email?: string;
+  deliveryAddress?: string;
+  city?: string;
+  country?: string;
+  deliveryNotes?: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  items?: { name?: string; quantity?: number; notes?: string }[];
+};
+
+export type PrescriptionOrderHistory = {
+  _id: string;
+  prescriptionOrderId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  deliveryAddress?: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  totalAmount?: number;
+};
+
 export type OrderTrackingDetails = {
   orderId: string;
   orderNumber?: string;
@@ -179,10 +206,68 @@ export const getMyOrders = async (): Promise<PaymentOrder[]> => {
     return unwrapArray<PaymentOrder>(res.data);
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 404) {
-      const fallbackRes = await api.get("/orders");
-      return unwrapArray<PaymentOrder>(fallbackRes.data);
+      try {
+        const fallbackRes = await api.get("/api/v1/orders/me");
+        return unwrapArray<PaymentOrder>(fallbackRes.data);
+      } catch (fallbackError) {
+        if (
+          axios.isAxiosError(fallbackError) &&
+          fallbackError.response?.status === 404
+        ) {
+          const listRes = await api.get("/orders");
+          return unwrapArray<PaymentOrder>(listRes.data);
+        }
+        throw fallbackError;
+      }
     }
 
+    throw error;
+  }
+};
+
+export const getMyRequestedOrders = async (): Promise<RequestOrderHistory[]> => {
+  try {
+    const res = await api.get("/request-orders");
+    return unwrapArray<RequestOrderHistory>(res.data);
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      try {
+        const fallbackRes = await api.get("/api/v1/request-orders");
+        return unwrapArray<RequestOrderHistory>(fallbackRes.data);
+      } catch (fallbackError) {
+        if (
+          axios.isAxiosError(fallbackError) &&
+          fallbackError.response?.status === 404
+        ) {
+          return [];
+        }
+        throw fallbackError;
+      }
+    }
+    throw error;
+  }
+};
+
+export const getMyPrescriptionOrders = async (): Promise<PrescriptionOrderHistory[]> => {
+  try {
+    const res = await api.get("/prescription-orders/me");
+    return unwrapArray<PrescriptionOrderHistory>(res.data);
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      try {
+        const fallbackRes = await api.get("/api/v1/prescription-orders/me");
+        return unwrapArray<PrescriptionOrderHistory>(fallbackRes.data);
+      } catch (fallbackError) {
+        if (
+          axios.isAxiosError(fallbackError) &&
+          fallbackError.response?.status === 404
+        ) {
+          const listRes = await api.get("/prescription-orders");
+          return unwrapArray<PrescriptionOrderHistory>(listRes.data);
+        }
+        throw fallbackError;
+      }
+    }
     throw error;
   }
 };

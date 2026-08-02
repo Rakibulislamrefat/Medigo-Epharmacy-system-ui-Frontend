@@ -89,10 +89,6 @@ const unwrapResponseData = <T>(res: { data?: any }): T => {
     return payload.data as T;
   }
 
-  if (payload?.success !== undefined && payload?.message !== undefined) {
-    return payload.data as T;
-  }
-
   return payload as T;
 };
 export const getDashboardStats = async (): Promise<DashboardStats> => {
