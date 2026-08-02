@@ -216,7 +216,33 @@ function OrderDetails({
     setMedicines(Array.isArray(order?.suggestedMedicines) ? order.suggestedMedicines : []);
     setNotes(order?.pharmacistNotes || "");
   }, [order]);
+  const hasUnavailableMedicine = medicines.some((med) => med.available === false);
+  const hasNoMedicines = medicines.length === 0;
+  const canVerify = order.status === "pending_verification" && !hasUnavailableMedicine && !hasNoMedicines;
 
+  const handleReplaceMedicine = (index: number) => {
+    const existing = medicines[index];
+    const replacementName = window.prompt("Replace medicine with:", existing.name);
+    if (!replacementName?.trim()) {
+      return;
+    }
+
+    const replacementDosage = window.prompt("Dosage / instructions:", existing.dosage || "As requested");
+    const updatedMedicines = [...medicines];
+    updatedMedicines[index] = {
+      ...existing,
+      name: replacementName.trim(),
+      dosage: replacementDosage?.trim() || existing.dosage,
+      available: true,
+      matchConfidence: undefined,
+    };
+    setMedicines(updatedMedicines);
+  };
+
+  const handleRemoveMedicine = (index: number) => {
+    const updatedMedicines = medicines.filter((_, idx) => idx !== index);
+    setMedicines(updatedMedicines);
+  };
   const handleVerify = async () => {
     // Confirmation dialog
     if (!window.confirm(`Verify order for ${order.customerName}? This will create a fulfillment order.`)) {
@@ -358,28 +384,124 @@ function OrderDetails({
         <h3 className="font-semibold text-slate-900 mb-3">Suggested Medicines</h3>
         {medicines.length ? (
           <div className="space-y-3">
-            {medicines.map((med, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-              <div className="flex-1">
-                <p className="font-medium text-slate-900">{med.name}</p>
-                <p className="text-xs text-slate-500">{med.dosage}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="1"
-                  value={med.quantity}
-                  onChange={(e) => {
-                    const updated = [...medicines];
-                    updated[idx].quantity = parseInt(e.target.value) || 1;
-                    setMedicines(updated);
-                  }}
-                  className="w-16 px-2 py-1 border border-slate-200 rounded text-sm"
-                />
-                <span className="text-sm text-slate-600">qty</span>
-              </div>
-            </div>
-            ))}
+            {medicines.map((med, idx) => {
+              const priceLabel = med.price != null && !Number.isNaN(med.price) ? `৳${med.price.toFixed(2)}` : "—";
+              const isLowConfidence = med.matchConfidence != null && med.matchConfidence < 0.75;
+              const lineTotal = (med.price ?? 0) * (med.quantity || 0);
+
+              return (
+                <div key={idx} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="font-medium text-slate-900">{med.name}</p>
+                          <p className="text-xs text-slate-500 mt-1">{med.dosage}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-slate-900">{priceLabel}</p>
+                          {med.stockQty != null && (
+                            <p className="text-xs text-slate-500">Stock {med.stockQty}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {med.rawText ? (
+                        <p className="mt-2 text-xs text-slate-600">OCR text: {med.rawText}</p>
+                      ) : (
+                        <p className="mt-2 text-xs text-slate-500">No detailed OCR match text available.</p>
+                      )}
+
+                      {med.suggestions && med.suggestions.length > 0 && (
+                        <div className="mt-3">
+                          <label className="block text-xs text-slate-500 mb-1">Match suggestions</label>
+                          <select
+                            value={(med as any).selectedMedicineId ?? ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const sel = med.suggestions!.find((s) => String(s._id) === val) as any | undefined;
+                              const updated = [...medicines];
+                              updated[idx] = {
+                                ...updated[idx],
+                                selectedMedicineId: sel?._id ?? null,
+                                name: sel?.name ?? updated[idx].name,
+                                price: sel?.price ?? updated[idx].price ?? null,
+                                stockQty: sel?.stockQty ?? updated[idx].stockQty,
+                                available: sel ? (typeof sel.stockQty === 'number' ? sel.stockQty > 0 : true) : updated[idx].available,
+                              } as Medicine;
+                              setMedicines(updated);
+                            }}
+                            className="w-full mt-1 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                          >
+                            <option value="">Use suggested / original</option>
+                            {med.suggestions.map((s) => (
+                              <option key={String(s._id)} value={String(s._id)}>
+                                {s.name} · ৳{(s.price ?? 0).toFixed(2)} · stock {s.stockQty ?? 0}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {med.available === false && (
+                          <span className="rounded-full bg-red-100 text-red-800 px-2 py-1 text-[11px] font-semibold uppercase">
+                            Unavailable
+                          </span>
+                        )}
+                        {isLowConfidence && (
+                          <span className="rounded-full bg-yellow-100 text-yellow-800 px-2 py-1 text-[11px] font-semibold uppercase">
+                            Low confidence
+                          </span>
+                        )}
+                        {med.matchConfidence != null && med.available !== false && !isLowConfidence && (
+                          <span className="rounded-full bg-emerald-100 text-emerald-800 px-2 py-1 text-[11px] font-semibold uppercase">
+                            OCR match {Math.round(med.matchConfidence * 100)}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                      <div className="flex flex-col gap-3 sm:items-end">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          value={med.quantity}
+                          disabled={med.available === false}
+                          onChange={(e) => {
+                            const updated = [...medicines];
+                            updated[idx].quantity = parseInt(e.target.value) || 1;
+                            setMedicines(updated);
+                          }}
+                          className="w-20 px-2 py-1 border border-slate-200 rounded text-sm disabled:cursor-not-allowed disabled:bg-slate-100"
+                        />
+                        <span className="text-sm text-slate-600">qty</span>
+                      </div>
+                      <div className="text-sm text-slate-700 mt-2">
+                        Line total: <span className="font-semibold">৳{lineTotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleReplaceMedicine(idx)}
+                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                        >
+                          Replace
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMedicine(idx)}
+                          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
@@ -389,6 +511,14 @@ function OrderDetails({
       </div>
 
       {/* Pharmacist Notes */}
+      {/* Order totals */}
+      <div className="rounded-2xl border border-slate-200 p-4">
+        <h3 className="font-semibold text-slate-900 mb-3">Order Summary</h3>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-slate-600">Subtotal</span>
+          <span className="font-semibold">৳{medicines.reduce((s, m) => s + ((m.price ?? 0) * (m.quantity || 0)), 0).toFixed(2)}</span>
+        </div>
+      </div>
       <div className="rounded-2xl border border-slate-200 p-4">
         <label className="block font-semibold text-slate-900 mb-2">
           Pharmacist Notes
@@ -402,14 +532,20 @@ function OrderDetails({
         />
       </div>
 
+      {hasUnavailableMedicine && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          Some suggested medicines are unavailable. Replace or remove unavailable items before verifying.
+        </div>
+      )}
+
       {/* Actions */}
       {order.status === "pending_verification" && (
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <CustomButton
             variant="primary"
             onClick={handleVerify}
             loading={verifying}
-            disabled={verifying}
+            disabled={verifying || !canVerify}
             className="flex-1"
           >
             <Icons.Shield className="w-4 h-4" />

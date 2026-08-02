@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import Api from "../../../utilities/api";
@@ -9,9 +9,7 @@ import MainContainer from "../../../shared/main-container/MainContainer";
 import SectionContainer from "../../../shared/section-container/SectionContainer";
 import SectionHeading, { SectionParagraph } from "../../../shared/section-heading/SectionHeading";
 import type { RootState } from "../../../redux/store";
-import { defaultMedicineCatalog } from "../../home/service/medicineCatalog";
 import type { MedicineProduct } from "../../home/service/MedicineCategory.types";
-import { getMedicinesByCategory } from "../../home/service/medicineCategoryApi";
 import { buildLocalPharmacistOrder, saveLocalPharmacistOrder } from "../../pharmacist/service/pharmacistStorage";
 
 type UploadPrescriptionForm = {
@@ -41,27 +39,6 @@ export default function UploadPrescriptionPage() {
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   type SelectedMedicine = MedicineProduct & { qty: number };
-
-  const [allMedicines, setAllMedicines] = useState<MedicineProduct[]>(() =>
-    defaultMedicineCatalog.flatMap((category) => category.products),
-  );
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const categories = await getMedicinesByCategory();
-        if (!mounted) return;
-        setAllMedicines(categories.flatMap((c) => c.products));
-      } catch (err) {
-        // keep default catalog on error
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-  const [searchTerm, setSearchTerm] = useState("");
   const [selectedMedicines, setSelectedMedicines] = useState<SelectedMedicine[]>([]);
 
   const [form, setForm] = useState<UploadPrescriptionForm>({
@@ -75,45 +52,6 @@ export default function UploadPrescriptionPage() {
     file: null,
   });
 
-  const filteredMedicines = useMemo(() => {
-    const search = searchTerm.trim().toLowerCase();
-    return allMedicines.filter((medicine) =>
-      medicine.name.toLowerCase().includes(search),
-    );
-  }, [allMedicines, searchTerm]);
-
-  const totalAmount = useMemo(
-    () =>
-      selectedMedicines.reduce(
-        (sum, medicine) => sum + medicine.price * medicine.qty,
-        0,
-      ),
-    [selectedMedicines],
-  );
-
-  const addMedicine = (medicine: MedicineProduct) => {
-    setSelectedMedicines((prev) => {
-      const existing = prev.find((item) => item.id === medicine.id);
-      if (existing) {
-        return prev.map((item) =>
-          item.id === medicine.id ? { ...item, qty: item.qty + 1 } : item,
-        );
-      }
-      return [...prev, { ...medicine, qty: 1 }];
-    });
-  };
-
-  const updateMedicineQty = (id: string, qty: number) => {
-    setSelectedMedicines((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, qty: Math.max(1, qty) } : item,
-      ),
-    );
-  };
-
-  const removeMedicine = (id: string) => {
-    setSelectedMedicines((prev) => prev.filter((item) => item.id !== id));
-  };
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -128,11 +66,12 @@ export default function UploadPrescriptionPage() {
     }));
   }, [user]);
 
-  const fileMeta = useMemo(() => {
-    if (!form.file) return null;
-    const sizeMb = (form.file.size / (1024 * 1024)).toFixed(2);
-    return { name: form.file.name, sizeMb };
-  }, [form.file]);
+  const fileMeta = form.file
+    ? {
+        name: form.file.name,
+        sizeMb: (form.file.size / (1024 * 1024)).toFixed(2),
+      }
+    : null;
 
   const setField = <K extends keyof UploadPrescriptionForm>(
     key: K,
@@ -238,7 +177,6 @@ export default function UploadPrescriptionPage() {
         file: null,
       });
       setSelectedMedicines([]);
-      setSearchTerm("");
     } catch (err: unknown) {
       const message =
         (err as any)?.response?.data?.message || "Upload failed. Please try again.";
@@ -590,7 +528,7 @@ export default function UploadPrescriptionPage() {
                   </div>
                 </div>
 
-                <div className="mt-6 rounded-xl border border-gray-100 bg-white p-5">
+                {/* <div className="mt-6 rounded-xl border border-gray-100 bg-white p-5">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-sm font-black text-dark">Select medicines</p>
@@ -720,7 +658,7 @@ export default function UploadPrescriptionPage() {
                     className={`${inputClass(false)} min-h-[90px] resize-y`}
                     placeholder="Brand preference, delivery time, nearby landmark..."
                   />
-                </div>
+                </div> */}
 
                 <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <p className="text-xs text-slate-500">

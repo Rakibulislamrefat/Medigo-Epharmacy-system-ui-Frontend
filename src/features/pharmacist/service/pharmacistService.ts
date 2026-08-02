@@ -15,7 +15,13 @@ export interface Medicine {
   name: string;
   dosage: string;
   quantity: number;
-  price?: number;
+  price: number | null;
+  rawText?: string;
+  stockQty?: number;
+  available?: boolean;
+  matchConfidence?: number;
+  suggestions?: Array<{ _id?: string; name?: string; price?: number | null; stockQty?: number; score?: number }>;
+  selectedMedicineId?: string | null;
 }
 
 export interface PrescriptionOrder {
@@ -130,13 +136,82 @@ export const getRequestedOrders = async (params?: {
 // GET /api/pharmacist/requested-orders/:id
 export const getRequestedOrderDetails = async (orderId: string): Promise<PrescriptionOrder> => {
   const res = await api.get(`/pharmacist/requested-orders/${orderId}`);
-  const order = unwrapResponseData<PrescriptionOrder>(res);
-  
-  // Save to local storage for offline fallback
-  if (order) {
+  const payload = unwrapResponseData<any>(res);
+
+  // If backend returns the OCR-style payload (with suggestedMatches), map it to our PrescriptionOrder shape
+  if (payload && (payload.suggestedMatches || payload.data?.suggestedMatches)) {
+    const data = payload.data ?? payload;
+
+    const matches: any[] = Array.isArray(data.suggestedMatches) ? data.suggestedMatches : [];
+    const baseList: any[] = Array.isArray(data.suggestedMedicines) ? data.suggestedMedicines : [];
+
+    const suggestedMedicines: Medicine[] = matches.map((m, idx) => {
+      const line = m.ocrLine ?? m.parsedName ?? `line_${idx}`;
+      let base = baseList[idx] ?? {};
+      if ((!base || Object.keys(base).length === 0) && m.parsedName) {
+        const parsed = String(m.parsedName).toLowerCase();
+        const found = baseList.find((b: any) => b?.name && String(b.name).toLowerCase().includes(parsed));
+        if (found) base = found;
+      }
+
+      // normalize suggestions
+      const suggestions = (Array.isArray(m.suggestions) ? m.suggestions : []).map((s: any) => ({
+        _id: s._id ?? s.id,
+        name: s.name,
+        price: s.price ?? s.salePrice ?? null,
+        stockQty: s.stock ?? s.stockQty ?? 0,
+        score: s.score ?? s.matchScore ?? 0,
+      }));
+
+      const chosen = suggestions.find((s: any) => String(s._id) === String(m.selectedMedicineId)) ?? suggestions[0] ?? null;
+
+      const quantity = typeof m.quantity === "number" && m.quantity > 0 ? m.quantity : (base.quantity ?? 1);
+      const price = chosen?.price ?? base.price ?? base.salePrice ?? null;
+      const stockQty = chosen?.stockQty ?? base.stock ?? base.stockQty ?? undefined;
+      const available = chosen ? (typeof stockQty === 'number' ? stockQty > 0 : true) : (base.available !== undefined ? base.available : (price != null && price > 0));
+      const matchConfidence = chosen?.score ?? m.score ?? m.matchScore ?? undefined;
+
+      return {
+        id: base.id ?? base._id ?? `line_${idx}`,
+        name: chosen?.name ?? base.name ?? m.parsedName ?? line,
+        dosage: base.dosage ?? m.parsedDosage ?? base?.dosage ?? "As requested",
+        quantity,
+        price,
+        rawText: m.ocrLine ?? undefined,
+        stockQty,
+        available: !!available,
+        matchConfidence,
+        suggestions,
+        selectedMedicineId: chosen?._id ?? null,
+      } as Medicine;
+    });
+
+    const order: PrescriptionOrder = {
+      _id: data.prescriptionId ?? data._id ?? orderId,
+      prescriptionImageUrl: data.prescriptionImageUrl ?? data.imageUrl ?? "",
+      extractedText: data.extractedText ?? data.extracted_text ?? "",
+      suggestedMedicines,
+      customerName: data.customerName ?? data.fullName ?? "Customer",
+      customerPhone: data.customerPhone ?? data.phone ?? "",
+      customerEmail: data.customerEmail ?? data.email ?? "",
+      deliveryAddress: data.deliveryAddress ?? data.address ?? "",
+      city: data.city ?? "",
+      country: data.country ?? "",
+      status: (data.status as PrescriptionOrder["status"]) ?? (data.verificationStatus === "pending" ? "pending_verification" : (data.status ?? "pending_verification")),
+      notes: data.notes ?? data.verificationNotes ?? "",
+      pharmacistNotes: data.pharmacistNotes ?? "",
+      createdAt: data.createdAt ?? data.ocrProcessedAt ?? new Date().toISOString(),
+      updatedAt: data.updatedAt ?? new Date().toISOString(),
+    };
+
+    // Save to local storage for offline fallback
     saveLocalPharmacistOrder(order);
+    return order;
   }
-  
+
+  // Fallback: assume payload is already in our PrescriptionOrder shape
+  const order = unwrapResponseData<PrescriptionOrder>(res);
+  if (order) saveLocalPharmacistOrder(order);
   return order;
 };
 

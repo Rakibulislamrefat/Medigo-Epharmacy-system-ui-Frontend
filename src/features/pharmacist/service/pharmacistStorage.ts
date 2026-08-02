@@ -111,7 +111,7 @@ export const buildLocalPharmacistOrder = ({
   city: string;
   country: string;
   notes?: string;
-  medicines: Array<{ id: string; name: string; dosage?: string; quantity: number; price?: number }>;
+  medicines: Array<{ id: string; name: string; dosage?: string; quantity: number; price?: number | null }>;
   status?: PrescriptionOrder["status"];
   id?: string;
 }): PrescriptionOrder => ({
@@ -123,7 +123,8 @@ export const buildLocalPharmacistOrder = ({
     name: medicine.name,
     dosage: medicine.dosage ?? "As requested",
     quantity: medicine.quantity || 1,
-    price: medicine.price,
+    price: medicine.price ?? null,
+    available: true,
   })),
   customerName: fullName || "Customer",
   customerPhone: phone || "",
