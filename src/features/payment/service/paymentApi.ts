@@ -200,76 +200,70 @@ const unwrapArray = <T>(data: unknown): T[] => {
   return Array.isArray(items) ? (items as T[]) : [];
 };
 
-export const getMyOrders = async (): Promise<PaymentOrder[]> => {
-  try {
-    const res = await api.get("/orders/me");
-    return unwrapArray<PaymentOrder>(res.data);
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.status === 404) {
-      try {
-        const fallbackRes = await api.get("/api/v1/orders/me");
-        return unwrapArray<PaymentOrder>(fallbackRes.data);
-      } catch (fallbackError) {
-        if (
-          axios.isAxiosError(fallbackError) &&
-          fallbackError.response?.status === 404
-        ) {
-          const listRes = await api.get("/orders");
-          return unwrapArray<PaymentOrder>(listRes.data);
-        }
-        throw fallbackError;
-      }
-    }
+const buildApiPaths = (paths: string[]): string[] => {
+  const apiBaseUrl = getFrontendConfig().apiBaseUrl.replace(/\/+$/, "");
+  const usesApiV1 = apiBaseUrl.endsWith("/api/v1");
 
-    throw error;
+  return paths.flatMap((path) => {
+    if (usesApiV1 && path.startsWith("/api/v1/")) {
+      return path.replace(/^\/api\/v1/, "");
+    }
+    return path;
+  });
+};
+
+const tryApiGet = async <T>(paths: string[]): Promise<T> => {
+  let lastError: unknown;
+  const resolvedPaths = buildApiPaths(paths);
+
+  for (const path of resolvedPaths) {
+    try {
+      const res = await api.get(path);
+      return unwrap<T>(res.data);
+    } catch (error) {
+      lastError = error;
+      if (
+        axios.isAxiosError(error) &&
+        [401, 403, 404, 500].includes(error.response?.status ?? 0)
+      ) {
+        continue;
+      }
+      throw error;
+    }
   }
+
+  throw lastError;
+};
+
+export const getMyOrders = async (): Promise<PaymentOrder[]> => {
+  const paths = [
+    "/orders/me",
+    "/api/v1/orders/me",
+    "/orders",
+    "/api/v1/orders",
+  ];
+
+  return unwrapArray<PaymentOrder>(await tryApiGet<PaymentOrder[]>(paths));
 };
 
 export const getMyRequestedOrders = async (): Promise<RequestOrderHistory[]> => {
-  try {
-    const res = await api.get("/request-orders");
-    return unwrapArray<RequestOrderHistory>(res.data);
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.status === 404) {
-      try {
-        const fallbackRes = await api.get("/api/v1/request-orders");
-        return unwrapArray<RequestOrderHistory>(fallbackRes.data);
-      } catch (fallbackError) {
-        if (
-          axios.isAxiosError(fallbackError) &&
-          fallbackError.response?.status === 404
-        ) {
-          return [];
-        }
-        throw fallbackError;
-      }
-    }
-    throw error;
-  }
+  const paths = [
+    "/request-orders",
+    "/api/v1/request-orders",
+  ];
+
+  return unwrapArray<RequestOrderHistory>(await tryApiGet<RequestOrderHistory[]>(paths));
 };
 
 export const getMyPrescriptionOrders = async (): Promise<PrescriptionOrderHistory[]> => {
-  try {
-    const res = await api.get("/prescription-orders/me");
-    return unwrapArray<PrescriptionOrderHistory>(res.data);
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.status === 404) {
-      try {
-        const fallbackRes = await api.get("/api/v1/prescription-orders/me");
-        return unwrapArray<PrescriptionOrderHistory>(fallbackRes.data);
-      } catch (fallbackError) {
-        if (
-          axios.isAxiosError(fallbackError) &&
-          fallbackError.response?.status === 404
-        ) {
-          const listRes = await api.get("/prescription-orders");
-          return unwrapArray<PrescriptionOrderHistory>(listRes.data);
-        }
-        throw fallbackError;
-      }
-    }
-    throw error;
-  }
+  const paths = [
+    "/prescription-orders/me",
+    "/api/v1/prescription-orders/me",
+    "/prescription-orders",
+    "/api/v1/prescription-orders",
+  ];
+
+  return unwrapArray<PrescriptionOrderHistory>(await tryApiGet<PrescriptionOrderHistory[]>(paths));
 };
 
 export const getOrderTracking = async (

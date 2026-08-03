@@ -120,6 +120,18 @@ export default function AdminOrdersPage() {
             <div>
               <p className="text-sm font-semibold text-red-700">Failed to load orders</p>
               <p className="text-xs text-red-600 mt-1">Try refreshing the page or check your connection.</p>
+              {process.env.NODE_ENV !== "production" && error && (
+                <pre className="text-xs text-red-600 mt-2 whitespace-pre-wrap">{JSON.stringify(
+                  {
+                    message: (error as any)?.message,
+                    status: (error as any)?.response?.status,
+                    url: (error as any)?.config?.url,
+                    data: (error as any)?.response?.data,
+                  },
+                  null,
+                  2,
+                )}</pre>
+              )}
             </div>
           </div>
         </div>
@@ -270,6 +282,13 @@ export default function AdminOrdersPage() {
                                 {statusOptions.map((s) => {
                                   const sColor = getStatusColor(s);
                                   const isActive = order.status === s;
+                                  const ringColor =
+                                    s === "delivered"
+                                      ? "ring-emerald-400"
+                                      : s === "pending"
+                                      ? "ring-amber-400"
+                                      : "ring-primary-400";
+
                                   return (
                                     <button
                                       key={s}
@@ -284,11 +303,13 @@ export default function AdminOrdersPage() {
                                           toast.error("Failed to update status", { id: t });
                                         }
                                       }}
-                                      className={`inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold border transition ${
-                                        isActive
-                                          ? `${sColor.bg} ${sColor.text} ${sColor.border} ring-2 ring-offset-2 ring-${s === "delivered" ? "green" : s === "pending" ? "yellow" : "primary"}-400`
-                                          : "border-gray-200 bg-white text-slate-600 hover:bg-gray-50"
-                                      } disabled:opacity-50`}
+                                      className={
+                                        `inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold border transition ` +
+                                        (isActive
+                                          ? `${sColor.bg} ${sColor.text} ${sColor.border} ring-2 ring-offset-2 ${ringColor}`
+                                          : "border-gray-200 bg-white text-slate-600 hover:bg-gray-50") +
+                                        " disabled:opacity-50"
+                                      }
                                     >
                                       {s.charAt(0).toUpperCase() + s.slice(1)}
                                     </button>
@@ -305,14 +326,18 @@ export default function AdminOrdersPage() {
                                 {paymentOptions.map((p) => {
                                   const pColor = getPaymentColor(p);
                                   const isActive = order.paymentStatus === p;
+                                  const ringColor =
+                                    p === "paid" ? "ring-emerald-400" : p === "unpaid" ? "ring-red-400" : p === "failed" ? "ring-orange-400" : "ring-purple-400";
+
                                   return (
                                     <span
                                       key={p}
-                                      className={`inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold border ${
-                                        isActive
-                                          ? `${pColor.bg} ${pColor.text} ${pColor.border} ring-2 ring-offset-2 ring-${p === "paid" ? "green" : p === "unpaid" ? "red" : "orange"}-400`
-                                          : "border-gray-200 bg-white text-slate-600"
-                                      }`}
+                                      className={
+                                        `inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold border ` +
+                                        (isActive
+                                          ? `${pColor.bg} ${pColor.text} ${pColor.border} ring-2 ring-offset-2 ${ringColor}`
+                                          : "border-gray-200 bg-white text-slate-600")
+                                      }
                                     >
                                       {p.charAt(0).toUpperCase() + p.slice(1)}
                                     </span>

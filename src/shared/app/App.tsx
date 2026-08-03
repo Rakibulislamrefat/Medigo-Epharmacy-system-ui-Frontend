@@ -27,7 +27,36 @@ export default function App() {
     const initAuth = async () => {
       dispatch(setLoading(true));
 
+      // Development helper: if DEV_ADMIN is set in localStorage, seed a fake admin user
       try {
+        const dev = typeof window !== "undefined" && window.localStorage.getItem("DEV_ADMIN");
+        if (dev === "1") {
+          const fakeAdmin = {
+            _id: "dev-admin",
+            name: "Dev Admin",
+            email: "admin@local",
+            phone: "",
+            age: null,
+            gender: null,
+            avatar: "",
+            bloodType: null,
+            weight: null,
+            location: { city: "", country: "", country_code: "", county: "", postcode: "", state: "", state_district: "", coordinates: { lat: null, lng: null } },
+            socialLinks: { facebook: null, instagram: null, twitter: null },
+            role: "admin",
+            isVerified: true,
+            isActive: true,
+            communityFlags: 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+
+          dispatch(setAuthUser(fakeAdmin));
+          dispatch(setLoading(false));
+          if (mounted) setIsBooting(false);
+          return;
+        }
+
         const res = await Api.post("/auth/refresh-token");
         const accessToken = res?.data?.data?.accessToken;
 

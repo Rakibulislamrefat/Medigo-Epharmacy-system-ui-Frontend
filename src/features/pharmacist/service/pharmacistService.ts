@@ -17,6 +17,7 @@ export interface Medicine {
   quantity: number;
   price: number | null;
   rawText?: string;
+  ocrName?: string;
   stockQty?: number;
   available?: boolean;
   matchConfidence?: number;
@@ -64,6 +65,53 @@ export interface DashboardStats {
 }
 
 // ── Helpers ────────────────────────────────────────────────
+
+const normalizeVerifiedMedicines = (medicines: Medicine[]): Medicine[] =>
+  (Array.isArray(medicines) ? medicines : []).map((med) => ({
+    ...med,
+    name: typeof med.name === "string" ? med.name.trim() || "Medicine" : "Medicine",
+    dosage: typeof med.dosage === "string" ? med.dosage.trim() || "As requested" : "As requested",
+    quantity: Number.isFinite(med.quantity) && med.quantity > 0 ? med.quantity : 1,
+  }));
+
+const notifyVerifiedOrder = async (
+  orderId: string,
+  details: { customerEmail?: string; customerName?: string },
+): Promise<boolean> => {
+  const email = details.customerEmail?.trim();
+  if (!email) {
+    return false;
+  }
+
+  const payload = {
+    orderId,
+    customerEmail: email,
+    customerName: details.customerName?.trim() || "Customer",
+    type: "verified",
+  };
+
+  const endpoints = [
+    `/pharmacist/requested-orders/${orderId}/notify`,
+    `/pharmacist/requested-orders/${orderId}/send-email`,
+    "/pharmacist/notifications/order-verified",
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      await api.post(endpoint, payload);
+      return true;
+    } catch (error: any) {
+      const status = error?.response?.status;
+      if (status === 404 || status === 400 || status === 405) {
+        continue;
+      }
+      console.warn("Order verification notification failed:", error);
+      return false;
+    }
+  }
+
+  return false;
+};
 
 const createFulfilledFromPrescription = (prescriptionOrder: PrescriptionOrder): FulfilledOrder => {
   const totalAmount = prescriptionOrder.suggestedMedicines.reduce(
@@ -221,12 +269,24 @@ export const verifyPrescriptionOrder = async (
   data: {
     verifiedMedicines: Medicine[];
     pharmacistNotes?: string;
+    customerEmail?: string;
+    customerName?: string;
   },
 ): Promise<PrescriptionOrder> => {
   try {
-    const res = await api.put(`/pharmacist/requested-orders/${orderId}/verify`, data);
+    const payload = {
+      ...data,
+      verifiedMedicines: normalizeVerifiedMedicines(data.verifiedMedicines),
+    };
+
+    const res = await api.put(`/pharmacist/requested-orders/${orderId}/verify`, payload);
     const verified = unwrapResponseData<PrescriptionOrder>(res);
     if (verified) {
+      void notifyVerifiedOrder(orderId, {
+        customerEmail: data.customerEmail,
+        customerName: data.customerName,
+      });
+
       // Create fulfilled order from verified prescription
       const fulfilled = createFulfilledFromPrescription(verified);
       saveLocalFulfilledOrder(fulfilled);
@@ -237,10 +297,16 @@ export const verifyPrescriptionOrder = async (
   }
 
   // Fallback: update local storage
+  const verifiedMedicines = normalizeVerifiedMedicines(data.verifiedMedicines);
   const updated = updateLocalPharmacistOrder(orderId, {
     status: "verified",
     pharmacistNotes: data.pharmacistNotes || "",
-    suggestedMedicines: data.verifiedMedicines,
+    suggestedMedicines: verifiedMedicines,
+  });
+
+  void notifyVerifiedOrder(orderId, {
+    customerEmail: data.customerEmail,
+    customerName: data.customerName,
   });
 
   if (updated) {
@@ -256,7 +322,7 @@ export const verifyPrescriptionOrder = async (
     const verified = updateLocalPharmacistOrder(orderId, {
       status: "verified",
       pharmacistNotes: data.pharmacistNotes || "",
-      suggestedMedicines: data.verifiedMedicines,
+      suggestedMedicines: verifiedMedicines,
     })!;
     // Create fulfilled order
     const fulfilled = createFulfilledFromPrescription(verified);
@@ -269,7 +335,7 @@ export const verifyPrescriptionOrder = async (
     _id: orderId,
     prescriptionImageUrl: "",
     extractedText: "",
-    suggestedMedicines: data.verifiedMedicines,
+    suggestedMedicines: verifiedMedicines,
     customerName: "Unknown",
     customerPhone: "",
     customerEmail: "",

@@ -1,4 +1,6 @@
+import axios from "axios";
 import api from "../../../utilities/api";
+import { getFrontendConfig } from "../../../config/frontend";
 
 export type AdminUser = {
   _id: string;
@@ -253,19 +255,53 @@ export const getAdminOrders = async (params?: {
   status?: string;
   paymentStatus?: string;
 }): Promise<AdminPaged<AdminOrder>> => {
-  const res = await api.get("/admin/orders", { params });
-  const raw = res.data as unknown;
-  const payload = (raw as { data?: unknown })?.data ?? raw;
+  const tryApiGet = async <T>(paths: string[]): Promise<T> => {
+    let lastError: unknown;
+    const apiBaseUrl = getFrontendConfig().apiBaseUrl.replace(/\/+$/, "");
+    const usesApiV1 = apiBaseUrl.endsWith("/api/v1");
+
+    const resolvedPaths = paths.flatMap((path) => {
+      if (usesApiV1 && path.startsWith("/api/v1/")) {
+        return path.replace(/^\/api\/v1/, "");
+      }
+      return path;
+    });
+
+    for (const path of resolvedPaths) {
+      try {
+        const res = await api.get(path, { params });
+        return (res.data as any).data ?? (res.data as any);
+      } catch (error) {
+        lastError = error;
+        if (
+          axios.isAxiosError(error) &&
+          [401, 403, 404, 500].includes(error.response?.status ?? 0)
+        ) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw lastError;
+  };
+
+  const paths = ["/admin/orders", "/api/v1/admin/orders", "/orders", "/api/v1/orders"];
+
+  const payload = await tryApiGet<{ items?: AdminOrder[]; meta?: AdminListMeta } | AdminOrder[]>(paths);
+
+  const raw = payload as unknown;
+  const data = (raw as { data?: unknown })?.data ?? raw;
   const pagination =
-    (payload as { pagination?: AdminPagination })?.pagination ??
-    (payload as { meta?: AdminPagination })?.meta ??
+    (data as { pagination?: AdminPagination })?.pagination ??
+    (data as { meta?: AdminPagination })?.meta ??
     (raw as { pagination?: AdminPagination })?.pagination ??
     (raw as { meta?: AdminPagination })?.meta;
 
-  const items = Array.isArray(payload)
-    ? (payload as AdminOrder[])
-    : Array.isArray((payload as { items?: unknown })?.items)
-    ? ((payload as { items?: AdminOrder[] }).items as AdminOrder[])
+  const items = Array.isArray(data)
+    ? (data as AdminOrder[])
+    : Array.isArray((data as { items?: unknown })?.items)
+    ? ((data as { items?: AdminOrder[] }).items as AdminOrder[])
     : [];
 
   return {

@@ -139,7 +139,11 @@ export const router = createBrowserRouter([
       },
       {
         path: "/order-history",
-        element: <OrderHistoryPage />,
+        element: (
+          <ProtectedRoute>
+            <OrderHistoryPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "/order",

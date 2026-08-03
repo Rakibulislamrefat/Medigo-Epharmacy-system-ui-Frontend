@@ -220,25 +220,6 @@ function OrderDetails({
   const hasNoMedicines = medicines.length === 0;
   const canVerify = order.status === "pending_verification" && !hasUnavailableMedicine && !hasNoMedicines;
 
-  const handleReplaceMedicine = (index: number) => {
-    const existing = medicines[index];
-    const replacementName = window.prompt("Replace medicine with:", existing.name);
-    if (!replacementName?.trim()) {
-      return;
-    }
-
-    const replacementDosage = window.prompt("Dosage / instructions:", existing.dosage || "As requested");
-    const updatedMedicines = [...medicines];
-    updatedMedicines[index] = {
-      ...existing,
-      name: replacementName.trim(),
-      dosage: replacementDosage?.trim() || existing.dosage,
-      available: true,
-      matchConfidence: undefined,
-    };
-    setMedicines(updatedMedicines);
-  };
-
   const handleRemoveMedicine = (index: number) => {
     const updatedMedicines = medicines.filter((_, idx) => idx !== index);
     setMedicines(updatedMedicines);
@@ -259,6 +240,8 @@ function OrderDetails({
       const updated = await verifyPrescriptionOrder(order._id, {
         verifiedMedicines: medicines,
         pharmacistNotes: notes,
+        customerEmail: order.customerEmail,
+        customerName: order.customerName,
       });
       onOrderUpdated(updated);
       toast.success(`✅ Order verified! Fulfillment order created for ${order.customerName}.`);
@@ -396,6 +379,9 @@ function OrderDetails({
                       <div className="flex items-center justify-between gap-4">
                         <div>
                           <p className="font-medium text-slate-900">{med.name}</p>
+                          {med?.ocrName && med?.ocrName !== med.name && (
+                            <p className="text-xs text-slate-500 mt-1">OCR: {med.ocrName}</p>
+                          )}
                           <p className="text-xs text-slate-500 mt-1">{med.dosage}</p>
                         </div>
                         <div className="text-right">
@@ -482,13 +468,6 @@ function OrderDetails({
                         Line total: <span className="font-semibold">৳{lineTotal.toFixed(2)}</span>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleReplaceMedicine(idx)}
-                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                        >
-                          Replace
-                        </button>
                         <button
                           type="button"
                           onClick={() => handleRemoveMedicine(idx)}

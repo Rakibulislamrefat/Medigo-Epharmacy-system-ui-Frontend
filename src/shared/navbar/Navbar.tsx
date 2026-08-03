@@ -211,15 +211,27 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
               My Profile
             </NavLink>
 
-            <NavLink
-              to="/order-history"
-              onClick={() => setDropdownOpen(false)}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-dark
-                hover:bg-gray-50 hover:text-primary transition-colors"
-            >
-              <Icons.Cart className="!w-4 !h-4" />
-              My Orders
-            </NavLink>
+            {user?.role === "pharmacist" ? (
+              <NavLink
+                to="/pharmacist/prescribed-orders"
+                onClick={() => setDropdownOpen(false)}
+                className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-dark
+                  hover:bg-gray-50 hover:text-primary transition-colors"
+              >
+                <Icons.Prescription className="!w-4 !h-4" />
+                Prescribed Orders
+              </NavLink>
+            ) : (
+              <NavLink
+                to="/order-history"
+                onClick={() => setDropdownOpen(false)}
+                className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-dark
+                  hover:bg-gray-50 hover:text-primary transition-colors"
+              >
+                <Icons.Cart className="!w-4 !h-4" />
+                My Orders
+              </NavLink>
+            )}
 
             {isDonor && (
               <NavLink
@@ -267,6 +279,10 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
       )}
     </div>
   );
+
+  const orderLink = user?.role === "pharmacist"
+    ? { to: "/pharmacist/prescribed-orders", label: "Prescribed Orders" }
+    : { to: "/order-history", label: "My Orders" };
 
   return (
     <>
@@ -352,6 +368,11 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
             <div className="hidden lg:flex items-center gap-3 min-w-[220px] justify-end">
               {isAuthenticated && user ? (
                 <>
+                  <NavLink to={orderLink.to}>
+                    <Button variant="outline" size="sm" radius="xs">
+                      {orderLink.label}
+                    </Button>
+                  </NavLink>
                   {!isMobile && <UserAvatar />}
                   <NavLink to="/cart" className="relative">
                     <Button variant="outline" size="sm" radius="xs" className="relative">
@@ -529,12 +550,35 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
                 </NavLink>
               ))}
 
+              {isAuthenticated && user && (
+                <NavLink
+                  to={user.role === "pharmacist" ? "/pharmacist/prescribed-orders" : "/order-history"}
+                  onClick={closeMenu}
+                  style={{
+                    transitionDelay: visible ? `${visibleNavLinks.length * 40}ms` : "0ms",
+                  }}
+                  className={({ isActive }) =>
+                    `flex items-center justify-between px-3 py-3 rounded-xs mb-1
+                    text-sm font-medium transition-all duration-300
+                    ${visible ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4"}
+                    ${
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-dark hover:bg-gray-50 hover:text-primary"
+                    }`
+                  }
+                >
+                  <span>{user.role === "pharmacist" ? "Prescribed Orders" : "My Orders"}</span>
+                  <Icons.ArrowForward className="!w-3.5 !h-3.5 text-primary/60" />
+                </NavLink>
+              )}
+
               {isAuthenticated && user?.role === "admin" && (
                 <NavLink
                   to="/admin"
                   onClick={closeMenu}
                   style={{
-                    transitionDelay: visible ? `${visibleNavLinks.length * 40}ms` : "0ms",
+                    transitionDelay: visible ? `${(visibleNavLinks.length + 1) * 40}ms` : "0ms",
                   }}
                   className={({ isActive }) =>
                     `flex items-center justify-between px-3 py-3 rounded-xs mb-1
