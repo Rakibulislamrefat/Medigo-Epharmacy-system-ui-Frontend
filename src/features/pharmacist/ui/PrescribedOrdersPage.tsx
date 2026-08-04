@@ -175,7 +175,7 @@ function OrderListItem({
               {order.status.replace("_", " ")}
             </span>
             <span className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">
-              ${order.totalAmount.toFixed(2)}
+              ৳{order.totalAmount.toFixed(2)}
             </span>
           </div>
         </div>
@@ -334,7 +334,7 @@ function OrderDetails({
           </div>
           <div className="flex justify-between">
             <span className="text-slate-600">Total Amount</span>
-            <span className="font-semibold text-lg">${Number(order?.totalAmount ?? 0).toFixed(2)}</span>
+            <span className="font-semibold text-lg">৳{Number(order?.totalAmount ?? 0).toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-slate-600">Created</span>
@@ -374,7 +374,7 @@ function OrderDetails({
               </div>
               <div className="text-right">
                 <p className="text-sm font-medium">{med.quantity ?? 0}x</p>
-                {typeof med.price === "number" && <p className="text-xs text-slate-500">${((med.price ?? 0) * (med.quantity ?? 0)).toFixed(2)}</p>}
+                {typeof med.price === "number" && <p className="text-xs text-slate-500">৳{((med.price ?? 0) * (med.quantity ?? 0)).toFixed(2)}</p>}
               </div>
             </div>
           ))}

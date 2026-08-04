@@ -51,6 +51,7 @@ export interface FulfilledOrder {
   status: "pending_pickup" | "picked" | "packed" | "ready_for_delivery" | "delivered";
   customerName: string;
   customerPhone: string;
+  customerEmail?: string;
   deliveryAddress: string;
   createdAt: string;
   updatedAt: string;
@@ -113,6 +114,49 @@ const notifyVerifiedOrder = async (
   return false;
 };
 
+const notifyPrescribedOrderStatusChange = async (
+  orderId: string,
+  details: { customerEmail?: string; customerName?: string; status?: string },
+): Promise<boolean> => {
+  const email = details.customerEmail?.trim();
+  if (!email) {
+    return false;
+  }
+
+  const payload = {
+    orderId,
+    customerEmail: email,
+    customerName: details.customerName?.trim() || "Customer",
+    status: details.status,
+    type: "prescribed_order_status",
+  };
+
+  const endpoints = [
+    `/pharmacist/prescribed-orders/${orderId}/notify`,
+    `/pharmacist/prescribed-orders/${orderId}/send-email`,
+    `/pharmacist/notifications/order-status`,
+    `/pharmacist/notifications/order-status-update`,
+    `/pharmacist/requested-orders/${orderId}/notify`,
+    `/pharmacist/requested-orders/${orderId}/send-email`,
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      await api.post(endpoint, payload);
+      return true;
+    } catch (error: any) {
+      const status = error?.response?.status;
+      if (status === 404 || status === 400 || status === 405) {
+        continue;
+      }
+      console.warn("Order status notification failed:", error);
+      return false;
+    }
+  }
+
+  return false;
+};
+
 const createFulfilledFromPrescription = (prescriptionOrder: PrescriptionOrder): FulfilledOrder => {
   const totalAmount = prescriptionOrder.suggestedMedicines.reduce(
     (sum, med) => sum + ((med.price ?? 0) * med.quantity),
@@ -127,6 +171,7 @@ const createFulfilledFromPrescription = (prescriptionOrder: PrescriptionOrder): 
     status: "pending_pickup",
     customerName: prescriptionOrder.customerName,
     customerPhone: prescriptionOrder.customerPhone,
+    customerEmail: prescriptionOrder.customerEmail,
     deliveryAddress: prescriptionOrder.deliveryAddress,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -338,7 +383,7 @@ export const verifyPrescriptionOrder = async (
     suggestedMedicines: verifiedMedicines,
     customerName: "Unknown",
     customerPhone: "",
-    customerEmail: "",
+    customerEmail: data.customerEmail ?? "",
     deliveryAddress: "",
     city: "",
     country: "",
@@ -463,6 +508,11 @@ export const updateOrderStatus = async (
     const updated = unwrapResponseData<FulfilledOrder>(res);
     if (updated) {
       saveLocalFulfilledOrder(updated);
+      void notifyPrescribedOrderStatusChange(orderId, {
+        customerEmail: updated.customerEmail,
+        customerName: updated.customerName,
+        status,
+      });
       return updated;
     }
   } catch (error) {
@@ -471,7 +521,14 @@ export const updateOrderStatus = async (
 
   // Fallback: update local storage
   const updated = updateLocalFulfilledOrder(orderId, { status });
-  if (updated) return updated;
+  if (updated) {
+    void notifyPrescribedOrderStatusChange(orderId, {
+      customerEmail: updated.customerEmail,
+      customerName: updated.customerName,
+      status,
+    });
+    return updated;
+  }
 
   throw new Error("Failed to update order status");
 };
