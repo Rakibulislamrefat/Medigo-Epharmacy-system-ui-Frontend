@@ -168,6 +168,23 @@ const getTrackingTitle = (orderType: "FUL" | "MDG_REQUESTED" | "MDG_PRESCRIPTION
   }
 };
 
+const buildStaticStatusTimeline = (
+  currentStatus: string | undefined,
+  statusFlow: readonly string[],
+  timestamp?: string | null,
+) => {
+  const current = currentStatus?.toLowerCase() ?? statusFlow[0];
+  const activeIndex = statusFlow.indexOf(current);
+  const fallbackIndex = activeIndex === -1 ? 0 : activeIndex;
+
+  return statusFlow.map((status, idx) => ({
+    status,
+    completed: idx <= fallbackIndex,
+    current: idx === fallbackIndex,
+    timestamp: idx === 0 ? timestamp : null,
+  }));
+};
+
 const TrackingTimelineCard = ({ 
   title, 
   timelineSteps, 
@@ -827,15 +844,7 @@ export default function OrderHistoryPage() {
                       <div className="mt-4 pt-4 border-t border-gray-200">
                         <TrackingTimelineCard 
                           title="Order Progress"
-                          timelineSteps={[
-                            { status: order.status ?? "requested", completed: order.status !== "requested", current: order.status === "requested", timestamp: order.createdAt },
-                            ...Array.from({ length: 4 }, (_, i) => ({
-                              status: MDG_REQUESTED_ORDER_FLOW[i + 1] || "unknown",
-                              completed: false,
-                              current: false,
-                              timestamp: null,
-                            }))
-                          ]}
+                          timelineSteps={buildStaticStatusTimeline(order.status, MDG_REQUESTED_ORDER_FLOW, order.createdAt)}
                           statusFlow={MDG_REQUESTED_ORDER_FLOW}
                         />
                       </div>
@@ -888,15 +897,7 @@ export default function OrderHistoryPage() {
                       <div className="mt-4 pt-4 border-t border-gray-200">
                         <TrackingTimelineCard 
                           title="Prescription Processing"
-                          timelineSteps={[
-                            { status: order.status ?? "pending_ocr", completed: order.status !== "pending_ocr", current: order.status === "pending_ocr", timestamp: order.createdAt },
-                            ...Array.from({ length: 6 }, (_, i) => ({
-                              status: MDG_PRESCRIPTION_ORDER_FLOW[i + 1] || "unknown",
-                              completed: false,
-                              current: false,
-                              timestamp: null,
-                            }))
-                          ]}
+                          timelineSteps={buildStaticStatusTimeline(order.status, MDG_PRESCRIPTION_ORDER_FLOW, order.createdAt)}
                           statusFlow={MDG_PRESCRIPTION_ORDER_FLOW}
                         />
                       </div>

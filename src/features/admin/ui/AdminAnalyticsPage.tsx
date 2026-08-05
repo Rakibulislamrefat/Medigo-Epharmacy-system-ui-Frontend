@@ -1,58 +1,78 @@
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getAdminMetrics } from "../service/adminApi";
 import { Icons } from "../../../shared/icons/Icons";
 
-const topMetrics = [
-  {
-    label: "Growth score",
-    value: "78%",
-    note: "Up from last week",
-    icon: <Icons.ChartLine className="!w-5 !h-5 text-primary" />,
-  },
-  {
-    label: "Revenue pace",
-    value: "Tk 12.4M",
-    note: "Monthly forecast in Taka",
-    icon: <Icons.Currency className="!w-5 !h-5 text-primary" />,
-  },
-  {
-    label: "Order completion",
-    value: "92%",
-    note: "Most orders delivered on time",
-    icon: <Icons.CheckCircle className="!w-5 !h-5 text-primary" />,
-  },
-  {
-    label: "Consultancy rating",
-    value: "4.8/5",
-    note: "Customer satisfaction score",
-    icon: <Icons.Star className="!w-5 !h-5 text-primary" />,
-  },
-];
-
-const activityCards = [
-  {
-    title: "Prescription approvals",
-    value: "680",
-    description: "Verified prescriptions processed this month.",
-  },
-  {
-    title: "Surgical orders",
-    value: "134",
-    description: "Items requested from surgical supplies.",
-  },
-  {
-    title: "Average delivery time",
-    value: "2.3 hrs",
-    description: "From order confirmation to doorstep.",
-  },
-];
+const formatCurrency = (value: number | string) =>
+  typeof value === "number"
+    ? `Tk ${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value)}`
+    : String(value);
 
 export default function AdminAnalyticsPage() {
+  const { data } = useQuery({
+    queryKey: ["admin", "metrics"],
+    queryFn: getAdminMetrics,
+    retry: 1,
+  });
+
+  const topMetrics = useMemo(
+    () => [
+      {
+        label: "Registered customers",
+        value: data ? data.users : "—",
+        note: "Active users shopping at Medigo E-Pharmacy.",
+        icon: <Icons.Users className="!w-5 !h-5 text-primary" />,
+      },
+      {
+        label: "Medicine listings",
+        value: data ? data.medicines : "—",
+        note: "Products available in the online pharmacy catalog.",
+        icon: <Icons.Pill className="!w-5 !h-5 text-primary" />,
+      },
+      {
+        label: "Orders placed",
+        value: data ? data.orders : "—",
+        note: "Pharmacy orders placed by customers.",
+        icon: <Icons.Cart className="!w-5 !h-5 text-primary" />,
+      },
+      {
+        label: "Doctor consults",
+        value: data ? data.consultancies : "—",
+        note: "Teleconsultations requested through Medigo.",
+        icon: <Icons.Star className="!w-5 !h-5 text-primary" />,
+      },
+    ],
+    [data],
+  );
+
+  const activityCards = useMemo(
+    () => [
+      {
+        title: "Prescription uploads",
+        value: data ? `${Math.max(Math.round(data.orders * 0.4), 0)}` : "—",
+        description: "Customer prescriptions submitted for pharmacist review.",
+      },
+      {
+        title: "Medicine orders",
+        value: data ? `${data.orders}` : "—",
+        description: "Online pharmacy orders placed during the month.",
+      },
+      {
+        title: "Teleconsult requests",
+        value: data ? `${data.consultancies}` : "—",
+        description: "Patient consult requests handled by Medigo doctors.",
+      },
+    ],
+    [data],
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-dark">Admin Analytics</h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-500 sm:text-base">
-            Monitor your store performance, track surgical product demand, and review customer consultancy quality in one dashboard.
+            Monitor Medigo E-Pharmacy performance, track medicine demand, and review pharmacy and consultation operations in one dashboard.
           </p>
         </div>
 
@@ -102,8 +122,8 @@ export default function AdminAnalyticsPage() {
           </div>
           <div className="mt-5 flex items-end justify-between gap-3">
             <div>
-              <p className="text-4xl font-black text-dark">Tk 12.4M</p>
-              <p className="mt-2 text-sm text-slate-500">This month’s projected revenue</p>
+              <p className="text-4xl font-black text-dark">{data ? formatCurrency(Math.max(Math.round(data.orders * 1800), 0)) : "—"}</p>
+              <p className="mt-2 text-sm text-slate-500">Estimated revenue from current order volume</p>
             </div>
             <div className="h-24 w-full rounded-3xl bg-slate-100 sm:w-44" />
           </div>
@@ -122,7 +142,7 @@ export default function AdminAnalyticsPage() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold text-slate-900">Top consultancies</p>
-              <p className="mt-1 text-xs text-slate-500">Recent quality scores and demand drivers</p>
+              <p className="mt-1 text-xs text-slate-500">Recent teleconsult quality scores and demand drivers for Medigo services</p>
             </div>
             <span className="rounded-full bg-sky-100 px-3 py-1 text-[11px] font-semibold uppercase text-sky-700">
               Live
@@ -131,9 +151,9 @@ export default function AdminAnalyticsPage() {
 
           <div className="mt-5 space-y-4">
             {[
-              { label: "General medicine calls", value: "236", trend: "+18%" },
+              { label: "Teleconsult requests", value: data ? `${data.consultancies}` : "—", trend: "+18%" },
               { label: "Video consults", value: "89", trend: "+12%" },
-              { label: "Top-rated doctor", value: "Dr. Shakil", trend: "4.9/5" },
+              { label: "Top-rated doctor", value: "Top doctor", trend: "4.9/5" },
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-between rounded-3xl border border-slate-100 bg-slate-50 px-4 py-4">
                 <div>
@@ -152,15 +172,15 @@ export default function AdminAnalyticsPage() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-slate-900">Recent demand</p>
-              <p className="mt-1 text-xs text-slate-500">Surgical supplies and prescription workflow</p>
+              <p className="mt-1 text-xs text-slate-500">Prescription uploads and medicine fulfillment trends</p>
             </div>
             <Icons.Pulse className="!w-6 !h-6 text-primary" />
           </div>
 
           <div className="mt-5 grid gap-3">
             {[
-              { label: "Surgical kit requests", value: "42/day" },
-              { label: "Prescription uploads", value: "112/day" },
+              { label: "Prescription refill requests", value: data ? `${Math.max(Math.round(data.orders * 0.15), 0)}/day` : "—" },
+              { label: "Prescription uploads", value: data ? `${Math.max(Math.round(data.orders * 0.4), 0)}/day` : "—" },
               { label: "Pharmacy conversion rate", value: "8.9%" },
             ].map((item) => (
               <div key={item.label} className="rounded-3xl border border-slate-100 bg-slate-50 px-4 py-4">

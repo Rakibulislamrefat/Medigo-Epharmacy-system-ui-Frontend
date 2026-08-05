@@ -67,11 +67,6 @@ export default function AdminDashboardPage() {
     retry: 1,
   });
 
-  const totalCount = useMemo(
-    () => (data ? data.users + data.medicines + data.orders + data.doctors + data.consultancies : 1),
-    [data],
-  );
-
   const barMetrics = useMemo(() => {
     if (!data) return [];
     const max = Math.max(data.users, data.medicines, data.orders, data.doctors, data.consultancies, 1);
@@ -188,17 +183,20 @@ export default function AdminDashboardPage() {
               </Link>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <div className="rounded-3xl bg-white/10 border border-white/10 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-300">Total count</p>
-                <p className="mt-3 text-3xl font-black text-white">{totalCount}</p>
+                <div className="rounded-3xl bg-white/10 border border-white/10 p-4 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.4)] backdrop-blur-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-300">Orders received</p>
+                <p className="mt-3 text-3xl font-black text-white">{data.orders}</p>
+                <p className="mt-2 text-xs text-slate-400">Total pharmacy orders processed this period.</p>
               </div>
-              <div className="rounded-3xl bg-white/10 border border-white/10 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-300">Consults share</p>
-                <p className="mt-3 text-3xl font-black text-white">{Math.round((data.consultancies / Math.max(totalCount, 1)) * 100)}%</p>
+              <div className="rounded-3xl bg-gradient-to-br from-cyan-500/10 via-sky-500/10 to-emerald-500/10 border border-white/10 p-4 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.4)] backdrop-blur-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-300">Consults per doctor</p>
+                <p className="mt-3 text-3xl font-black text-white">{Math.round(data.consultancies / Math.max(data.doctors, 1))}</p>
+                <p className="mt-2 text-xs text-slate-400">Average handled consults per active doctor.</p>
               </div>
-              <div className="rounded-3xl bg-white/10 border border-white/10 p-4">
+              <div className="rounded-3xl bg-white/10 border border-white/10 p-4 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.4)] backdrop-blur-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-300">Doctor network</p>
                 <p className="mt-3 text-3xl font-black text-white">{data.doctors}</p>
+                <p className="mt-2 text-xs text-slate-400">Verified doctors available for teleconsultation.</p>
               </div>
             </div>
           </div>
