@@ -43,13 +43,13 @@ export default function App() {
             weight: null,
             location: { city: "", country: "", country_code: "", county: "", postcode: "", state: "", state_district: "", coordinates: { lat: null, lng: null } },
             socialLinks: { facebook: null, instagram: null, twitter: null },
-            role: "admin",
+            role: "admin" as const,
             isVerified: true,
             isActive: true,
             communityFlags: 0,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-          };
+          } as const;
 
           dispatch(setAuthUser(fakeAdmin));
           dispatch(setLoading(false));

@@ -120,7 +120,7 @@ export default function AdminOrdersPage() {
             <div>
               <p className="text-sm font-semibold text-red-700">Failed to load orders</p>
               <p className="text-xs text-red-600 mt-1">Try refreshing the page or check your connection.</p>
-              {process.env.NODE_ENV !== "production" && error && (
+              {import.meta.env.DEV && error && (
                 <pre className="text-xs text-red-600 mt-2 whitespace-pre-wrap">{JSON.stringify(
                   {
                     message: (error as any)?.message,

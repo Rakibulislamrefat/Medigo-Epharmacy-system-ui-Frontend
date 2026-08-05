@@ -1,3 +1,5 @@
+import { getSpecialOffers } from "../../specialOffers/service/specialOffersData";
+
 // room categroy Data
 export const rooms = [
   {
@@ -20,9 +22,9 @@ export const rooms = [
     "title": "Executive Room",
     "url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b"
   }
-] 
+];
 
-export { offers } from "../../specialOffers/service/specialOffersData";
+export const offers = getSpecialOffers();
 
 // Why Choose Us Features
 export const features = [

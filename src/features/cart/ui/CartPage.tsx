@@ -14,6 +14,7 @@ import {
   buildOrderPayloadFromCart,
   createOrder,
   initiateSslcommerzPayment,
+  DEFAULT_DELIVERY_FEE,
 } from "../../payment/service/paymentApi";
 import {
   createAddress,
@@ -130,6 +131,12 @@ export default function CartPage() {
         0,
       ),
     [cartItems],
+  );
+
+  const deliveryFee = useMemo(() => DEFAULT_DELIVERY_FEE, []);
+  const totalAmountWithDelivery = useMemo(
+    () => totalAmount + (cartItems.length > 0 ? deliveryFee : 0),
+    [totalAmount, deliveryFee, cartItems.length],
   );
 
   const handleQuantityChange = async (productId: string, qty: number) => {
@@ -302,7 +309,12 @@ export default function CartPage() {
     setIsStartingPayment(true);
 
     try {
-      const orderPayload = buildOrderPayloadFromCart(cartItems, selectedAddress, "cod");
+      const orderPayload = buildOrderPayloadFromCart(
+        cartItems,
+        selectedAddress,
+        "cod",
+        deliveryFee,
+      );
       const order = await createOrder(orderPayload);
       await qc.invalidateQueries({ queryKey: ["cart"] });
       toast.success("Order placed with cash on delivery.", { id: toastId });
@@ -333,7 +345,12 @@ export default function CartPage() {
     setIsStartingPayment(true);
 
     try {
-      const orderPayload = buildOrderPayloadFromCart(cartItems, selectedAddress, "sslcommerz");
+      const orderPayload = buildOrderPayloadFromCart(
+        cartItems,
+        selectedAddress,
+        "sslcommerz",
+        deliveryFee,
+      );
       const order = await createOrder(orderPayload);
 
       toast.loading("Opening secure payment page...", { id: toastId });
@@ -514,6 +531,14 @@ export default function CartPage() {
                 <div className="flex items-center justify-between text-sm text-slate-600">
                   <span>Estimated subtotal</span>
                   <span>৳{totalAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm text-slate-600">
+                  <span>Delivery fee</span>
+                  <span>৳{deliveryFee.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm font-semibold text-slate-900">
+                  <span>Total with delivery</span>
+                  <span>৳{totalAmountWithDelivery.toFixed(2)}</span>
                 </div>
               </div>
               <div className="mt-6 space-y-3">

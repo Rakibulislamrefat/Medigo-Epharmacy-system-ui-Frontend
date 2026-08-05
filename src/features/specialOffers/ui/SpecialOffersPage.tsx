@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -7,7 +8,7 @@ import { Icons } from "../../../shared/icons/Icons";
 import MainContainer from "../../../shared/main-container/MainContainer";
 import SectionContainer from "../../../shared/section-container/SectionContainer";
 import SectionHeading from "../../../shared/section-heading/SectionHeading";
-import { offers, type SpecialOffer } from "../service/specialOffersData";
+import { getSpecialOffers, type SpecialOffer } from "../service/specialOffersData";
 
 const SpecialOfferCard = ({
   offer,
@@ -69,6 +70,8 @@ const SpecialOfferCard = ({
 };
 
 export const SpecialOffersSection = () => {
+  const [offers] = useState<SpecialOffer[]>(() => getSpecialOffers());
+
   const handleCopy = async (code: string) => {
     try {
       await navigator.clipboard.writeText(code);
@@ -138,6 +141,8 @@ export const SpecialOffersSection = () => {
 };
 
 const SpecialOffersPage = () => {
+  const [offers] = useState<SpecialOffer[]>(() => getSpecialOffers());
+
   const handleCopy = async (code: string) => {
     try {
       await navigator.clipboard.writeText(code);

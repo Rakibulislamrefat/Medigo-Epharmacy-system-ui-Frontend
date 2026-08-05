@@ -8,7 +8,9 @@ export type SpecialOffer = {
   expiry: string;
 };
 
-export const offers: SpecialOffer[] = [
+const STORAGE_KEY = "medigo_special_offers";
+
+const defaultOffers: SpecialOffer[] = [
   {
     id: 1,
     image:
@@ -43,3 +45,53 @@ export const offers: SpecialOffer[] = [
     expiry: "Valid today",
   },
 ];
+
+const parseStoredOffers = (value: string | null): SpecialOffer[] => {
+  if (!value) {
+    return defaultOffers;
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch {
+    // Ignore parser errors and fall back to defaults.
+  }
+
+  return defaultOffers;
+};
+
+export const getSpecialOffers = (): SpecialOffer[] => {
+  if (typeof window === "undefined") {
+    return defaultOffers;
+  }
+
+  const stored = window.localStorage.getItem(STORAGE_KEY);
+  return parseStoredOffers(stored);
+};
+
+export const saveSpecialOffers = (offers: SpecialOffer[]) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(offers));
+};
+
+export const addSpecialOffer = (offer: Omit<SpecialOffer, "id">): SpecialOffer[] => {
+  const current = getSpecialOffers();
+  const nextId = current.reduce((max, item) => Math.max(max, item.id), 0) + 1;
+  const updated = [...current, { id: nextId, ...offer }];
+  saveSpecialOffers(updated);
+  return updated;
+};
+
+export const deleteSpecialOffer = (id: number): SpecialOffer[] => {
+  const updated = getSpecialOffers().filter((offer) => offer.id !== id);
+  saveSpecialOffers(updated);
+  return updated;
+};
+
+export const offers = getSpecialOffers();

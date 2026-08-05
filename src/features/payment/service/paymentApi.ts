@@ -16,6 +16,7 @@ export type OrderPayload = {
   contactName: string;
   contactPhone: string;
   paymentMethod?: "cod" | "sslcommerz";
+  deliveryFee?: number;
   deliveryAddress: {
     line1: string;
     line2?: string;
@@ -26,6 +27,8 @@ export type OrderPayload = {
   };
   addressId?: string;
 };
+
+export const DEFAULT_DELIVERY_FEE = 50;
 
 export type PaymentOrder = {
   _id: string;
@@ -143,6 +146,7 @@ export const buildOrderPayloadFromCart = (
   items: CartItem[],
   address: CartAddress,
   paymentMethod?: OrderPayload["paymentMethod"],
+  deliveryFee = DEFAULT_DELIVERY_FEE,
 ): OrderPayload => ({
   items: items.map((item) => ({
     product: item.product._id,
@@ -151,6 +155,7 @@ export const buildOrderPayloadFromCart = (
   contactName: address.name,
   contactPhone: address.phone,
   paymentMethod,
+  deliveryFee,
   addressId: address._id,
   deliveryAddress: {
     line1: address.line1,

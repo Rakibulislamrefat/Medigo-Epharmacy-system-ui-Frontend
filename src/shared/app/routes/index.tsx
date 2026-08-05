@@ -35,6 +35,7 @@ import AdminOrdersPage from "../../../features/admin/ui/AdminOrdersPage";
 import AdminDoctorsPage from "../../../features/admin/ui/AdminDoctorsPage";
 import AdminReadyDoctorsPage from "../../../features/admin/ui/AdminReadyDoctorsPage";
 import AdminConsultanciesPage from "../../../features/admin/ui/AdminConsultanciesPage";
+import AdminSpecialOffersPage from "../../../features/admin/ui/AdminSpecialOffersPage";
 import AdminAnalyticsPage from "../../../features/admin/ui/AdminAnalyticsPage";
 import AdminLoginPage from "../../../features/admin/ui/AdminLoginPage";
 import AdminPharmacistsPage from "../../../features/admin/ui/AdminPharmacistsPage";
@@ -286,6 +287,7 @@ export const router = createBrowserRouter([
       { path: "doctors", element: <AdminDoctorsPage /> },
       { path: "doctors/ready", element: <AdminReadyDoctorsPage /> },
       { path: "consultancies", element: <AdminConsultanciesPage /> },
+      { path: "special-offers", element: <AdminSpecialOffersPage /> },
       { path: "analytics", element: <AdminAnalyticsPage /> },
       { path: "pharmacists", element: <AdminPharmacistsPage /> },
     ],

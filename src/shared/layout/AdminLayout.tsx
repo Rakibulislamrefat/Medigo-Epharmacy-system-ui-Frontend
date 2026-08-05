@@ -15,6 +15,7 @@ const navItems = [
   { label: "Orders", to: "/admin/orders", Icon: Icons.Cart },
   { label: "Doctors", to: "/admin/doctors", Icon: Icons.Hospital },
   { label: "Consultancy", to: "/admin/consultancies", Icon: Icons.Check },
+  { label: "Special Offers", to: "/admin/special-offers", Icon: Icons.Star },
   { label: "Analytics", to: "/admin/analytics", Icon: Icons.Star },
 ];
 
