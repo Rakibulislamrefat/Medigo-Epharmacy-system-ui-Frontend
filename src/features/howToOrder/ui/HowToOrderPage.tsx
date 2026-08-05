@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import CustomButton from "../../../shared/button/CustomButton";
 import { Icons } from "../../../shared/icons/Icons";
 import MainContainer from "../../../shared/main-container/MainContainer";
@@ -179,7 +180,7 @@ export default function HowToOrderPage() {
                         prescription. We’ll verify and confirm before delivery.
                       </p>
                       <div className="mt-4">
-                        <a href="/special/offer">
+                        <Link to="/special-offers">
                           <CustomButton
                             variant="outline"
                             size="sm"
@@ -188,7 +189,7 @@ export default function HowToOrderPage() {
                           >
                             View Special Offers
                           </CustomButton>
-                        </a>
+                        </Link>
                       </div>
                     </div>
                   </div>

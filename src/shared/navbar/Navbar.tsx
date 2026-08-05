@@ -401,11 +401,6 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
                 </NavLink>
               )}
 
-              <NavLink to="/request-order">
-                <Button variant="primary" size="sm" radius="xs">
-                  Request Order
-                </Button>
-              </NavLink>
             </div>
 
             <div className="flex lg:hidden items-center gap-2">
@@ -617,11 +612,6 @@ const Navbar = ({ scrolled, navbarHidden }: NavbarProps) => {
                   </Button>
                 </NavLink>
               )}
-              <NavLink to="/request-order" onClick={closeMenu}>
-                <Button variant="primary" size="md" radius="xs" fullWidth>
-                  Request Order
-                </Button>
-              </NavLink>
             </div>
           </div>
         </>

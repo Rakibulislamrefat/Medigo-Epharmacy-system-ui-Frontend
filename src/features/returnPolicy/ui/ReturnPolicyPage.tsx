@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import CustomButton from "../../../shared/button/CustomButton";
 import { Icons } from "../../../shared/icons/Icons";
 import MainContainer from "../../../shared/main-container/MainContainer";
@@ -136,7 +137,7 @@ export default function ReturnPolicyPage() {
                         preferred resolution (replacement/refund).
                       </p>
                       <div className="mt-4 flex flex-col sm:flex-row gap-2.5">
-                        <a href="/request-order" className="sm:flex-1">
+                        <Link to="/request-order" className="sm:flex-1">
                           <CustomButton
                             variant="outline"
                             size="sm"
@@ -146,8 +147,8 @@ export default function ReturnPolicyPage() {
                           >
                             Request Order
                           </CustomButton>
-                        </a>
-                        <a href="/special/offer" className="sm:flex-1">
+                        </Link>
+                        <Link to="/special-offers" className="sm:flex-1">
                           <CustomButton
                             variant="outline"
                             size="sm"
@@ -157,7 +158,7 @@ export default function ReturnPolicyPage() {
                           >
                             Special Offers
                           </CustomButton>
-                        </a>
+                        </Link>
                       </div>
                     </div>
                   </div>

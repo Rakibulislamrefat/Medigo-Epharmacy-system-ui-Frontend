@@ -152,7 +152,7 @@ const SpecialOffersPage = () => {
       <MainContainer>
         <SectionHeading
           title="Special Offers"
-          description="Choose an offer, copy the code, and enjoy instant savings."
+          description="Choose a pharmacy offer, copy the code, and enjoy instant savings on your order."
           align="left"
           className="mb-10"
         />

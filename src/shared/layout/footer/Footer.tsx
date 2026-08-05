@@ -87,7 +87,7 @@ const customerLinks: FooterLink[] = [
   { label: "Request Order", href: "/order" },
   { label: "Upload Prescription", href: "/prescription/history" },
   { label: "Site Review", href: "/review" },
-  { label: "Special Offers", href: "/special/offer" },
+  { label: "Special Offers", href: "/special-offers" },
   { label: "How to Order", href: "/howToOrder" },
 ];
 

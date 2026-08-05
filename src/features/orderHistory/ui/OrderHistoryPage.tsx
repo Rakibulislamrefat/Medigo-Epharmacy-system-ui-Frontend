@@ -19,6 +19,35 @@ import type { PaymentOrder } from "../../payment/service/paymentApi";
 
 const CANCEL_WINDOW_HOURS = 2;
 
+// FUL: Order status progression timeline based on pharmacist portal
+const FUL_ORDER_STATUS_FLOW = [
+  "pending_pickup",
+  "picked",
+  "packed",
+  "ready_for_delivery",
+  "delivered",
+] as const;
+
+// MDG: Requested Order status flow
+const MDG_REQUESTED_ORDER_FLOW = [
+  "requested",
+  "acknowledged",
+  "processing",
+  "ready",
+  "delivered",
+] as const;
+
+// MDG: Prescription Order status flow
+const MDG_PRESCRIPTION_ORDER_FLOW = [
+  "pending_ocr",
+  "pending_verification",
+  "verified",
+  "picked",
+  "packed",
+  "ready_for_delivery",
+  "delivered",
+] as const;
+
 const getStatusColor = (status?: string) => {
   switch (status?.toLowerCase()) {
     case "delivered":
@@ -35,6 +64,45 @@ const getStatusColor = (status?: string) => {
     default:
       return "bg-gray-50 text-slate-700 border-gray-200";
   }
+};
+
+const buildCompleteTimeline = (timelineSteps: any[], statusFlow: readonly string[] = FUL_ORDER_STATUS_FLOW) => {
+  // Create a map of existing timeline steps for quick lookup
+  const stepMap = new Map(timelineSteps.map((step) => [step.status, step]));
+
+  // Build complete timeline with all expected statuses
+  const completeTimeline = statusFlow.map((status) => {
+    const existingStep = stepMap.get(status);
+    if (existingStep) {
+      return existingStep;
+    }
+
+    // Create placeholder steps for statuses not yet reached
+    return {
+      status,
+      completed: false,
+      current: false,
+      timestamp: null,
+    };
+  });
+
+  // Mark current status based on last completed step
+  let lastCompletedIndex = -1;
+  completeTimeline.forEach((step, idx) => {
+    if (step.completed) {
+      lastCompletedIndex = idx;
+    }
+  });
+
+  // Set current to the next incomplete step after the last completed
+  if (lastCompletedIndex < completeTimeline.length - 1) {
+    completeTimeline[lastCompletedIndex + 1].current = true;
+  } else if (lastCompletedIndex === completeTimeline.length - 1) {
+    // All completed, mark the last one as current
+    completeTimeline[lastCompletedIndex].current = true;
+  }
+
+  return completeTimeline;
 };
 
 const formatDateTime = (value?: string | null) => {
@@ -57,6 +125,116 @@ const getApiErrorMessage = (error: unknown, fallback: string) => {
 
   return error instanceof Error ? error.message : fallback;
 };
+
+const detectOrderType = (status?: string): "FUL" | "MDG_REQUESTED" | "MDG_PRESCRIPTION" => {
+  if (!status) return "FUL";
+  const statusLower = status.toLowerCase();
+  
+  // Check for MDG Prescription statuses
+  if (MDG_PRESCRIPTION_ORDER_FLOW.some(s => s === statusLower)) {
+    return "MDG_PRESCRIPTION";
+  }
+  
+  // Check for MDG Requested statuses
+  if (MDG_REQUESTED_ORDER_FLOW.some(s => s === statusLower)) {
+    return "MDG_REQUESTED";
+  }
+  
+  // Default to FUL
+  return "FUL";
+};
+
+const getStatusFlowByType = (orderType: "FUL" | "MDG_REQUESTED" | "MDG_PRESCRIPTION") => {
+  switch (orderType) {
+    case "MDG_REQUESTED":
+      return MDG_REQUESTED_ORDER_FLOW;
+    case "MDG_PRESCRIPTION":
+      return MDG_PRESCRIPTION_ORDER_FLOW;
+    case "FUL":
+    default:
+      return FUL_ORDER_STATUS_FLOW;
+  }
+};
+
+const getTrackingTitle = (orderType: "FUL" | "MDG_REQUESTED" | "MDG_PRESCRIPTION") => {
+  switch (orderType) {
+    case "MDG_REQUESTED":
+      return "Request Processing Timeline";
+    case "MDG_PRESCRIPTION":
+      return "Prescription Processing Timeline";
+    case "FUL":
+    default:
+      return "Tracking Timeline";
+  }
+};
+
+const TrackingTimelineCard = ({ 
+  title, 
+  timelineSteps, 
+  statusFlow 
+}: { 
+  title: string; 
+  timelineSteps: any[]; 
+  statusFlow: readonly string[] 
+}) => (
+  <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
+    <h3 className="text-lg font-black text-dark">{title}</h3>
+    <div className="mt-5 space-y-4">
+      {buildCompleteTimeline(timelineSteps, statusFlow).map((step, index) => (
+        <div key={`${step.status}-${index}`} className="flex gap-4">
+          <div className="flex flex-col items-center">
+            <span
+              className={[
+                "flex h-9 w-9 items-center justify-center rounded-full border text-white font-bold transition-all",
+                step.completed ? "border-emerald-500 bg-emerald-500" : step.current ? "border-primary bg-primary" : "border-gray-300 bg-gray-100 text-gray-400",
+                step.current ? "ring-4 ring-primary/20 shadow-md" : step.completed ? "ring-2 ring-emerald-200" : "",
+              ].join(" ")}
+            >
+              {step.completed ? <Icons.Check className="!h-4 !w-4" /> : index + 1}
+            </span>
+            {index < statusFlow.length - 1 && (
+              <span
+                className={`mt-2 h-full min-h-8 w-0.5 transition-colors ${
+                  step.completed ? "bg-emerald-500" : step.current ? "bg-primary/30" : "bg-gray-200"
+                }`}
+              />
+            )}
+          </div>
+
+          <div className="min-w-0 flex-1 pb-3">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <p className={`text-base font-black capitalize transition-colors ${
+                step.completed ? "text-emerald-700" : step.current ? "text-primary" : "text-slate-500"
+              }`}>
+                {step.status.replace(/_/g, " ")}
+              </p>
+              {step.current && !step.completed && (
+                <span className="w-fit rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary animate-pulse">
+                  In Progress
+                </span>
+              )}
+              {step.completed && (
+                <span className="w-fit rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                  Completed
+                </span>
+              )}
+            </div>
+            {step.timestamp && (
+              <p className="mt-1 text-sm text-slate-600">
+                {formatDateTime(step.timestamp)}
+              </p>
+            )}
+            {!step.timestamp && !step.completed && (
+              <p className="mt-1 text-sm text-slate-400 italic">
+                Awaiting update
+              </p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
 const getOrderPlacedAt = (order: PaymentOrder) => order.createdAt ?? order.updatedAt;
 
@@ -242,6 +420,14 @@ export default function OrderHistoryPage() {
                     <p className="mt-2 text-sm text-slate-600">
                       Placed {formatDateTime(tracking.placedAt)}
                     </p>
+                    {(() => {
+                      const orderType = detectOrderType(tracking.status);
+                      return (
+                        <p className="mt-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold capitalize bg-slate-100 text-slate-700 border border-slate-200">
+                          {orderType === "MDG_REQUESTED" ? "Request Order (MDG)" : orderType === "MDG_PRESCRIPTION" ? "Prescription Order (MDG)" : "Online Order (FUL)"}
+                        </p>
+                      );
+                    })()}
                   </div>
 
                   <div className="flex flex-wrap gap-3">
@@ -252,13 +438,15 @@ export default function OrderHistoryPage() {
                     >
                       {tracking.status || "Unknown"}
                     </span>
-                    <span
-                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${getStatusColor(
-                        tracking.paymentStatus,
-                      )}`}
-                    >
-                      {tracking.paymentStatus || "Payment unknown"}
-                    </span>
+                    {tracking.paymentStatus && (
+                      <span
+                        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${getStatusColor(
+                          tracking.paymentStatus,
+                        )}`}
+                      >
+                        {tracking.paymentStatus || "Payment unknown"}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -298,49 +486,71 @@ export default function OrderHistoryPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-                <h2 className="text-lg font-black text-dark">Tracking Timeline</h2>
-                <div className="mt-5 space-y-4">
-                  {tracking.timeline.map((step, index) => (
-                    <div key={`${step.status}-${index}`} className="flex gap-4">
-                      <div className="flex flex-col items-center">
-                        <span
-                          className={[
-                            "flex h-9 w-9 items-center justify-center rounded-full border text-white",
-                            step.completed ? "border-primary bg-primary" : "border-gray-200 bg-gray-200",
-                            step.current ? "ring-4 ring-primary/15" : "",
-                          ].join(" ")}
-                        >
-                          {step.completed ? <Icons.Check className="!h-4 !w-4" /> : index + 1}
-                        </span>
-                        {index < tracking.timeline.length - 1 && (
-                          <span
-                            className={`mt-2 h-full min-h-8 w-0.5 ${
-                              step.completed ? "bg-primary/50" : "bg-gray-200"
-                            }`}
-                          />
-                        )}
-                      </div>
+              {(() => {
+                const orderType = detectOrderType(tracking.status);
+                const statusFlow = getStatusFlowByType(orderType);
+                const timelineTitle = getTrackingTitle(orderType);
 
-                      <div className="min-w-0 flex-1 pb-3">
-                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                          <p className="text-base font-black capitalize text-dark">
-                            {step.status.replace(/_/g, " ")}
-                          </p>
-                          {step.current && (
-                            <span className="w-fit rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
-                              Current
+                return (
+                  <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
+                    <h2 className="text-lg font-black text-dark">{timelineTitle}</h2>
+                    <div className="mt-5 space-y-4">
+                      {buildCompleteTimeline(tracking.timeline, statusFlow).map((step, index) => (
+                        <div key={`${step.status}-${index}`} className="flex gap-4">
+                          <div className="flex flex-col items-center">
+                            <span
+                              className={[
+                                "flex h-9 w-9 items-center justify-center rounded-full border text-white font-bold transition-all",
+                                step.completed ? "border-emerald-500 bg-emerald-500" : step.current ? "border-primary bg-primary" : "border-gray-300 bg-gray-100 text-gray-400",
+                                step.current ? "ring-4 ring-primary/20 shadow-md" : step.completed ? "ring-2 ring-emerald-200" : "",
+                              ].join(" ")}
+                            >
+                              {step.completed ? <Icons.Check className="!h-4 !w-4" /> : index + 1}
                             </span>
-                          )}
+                            {index < statusFlow.length - 1 && (
+                              <span
+                                className={`mt-2 h-full min-h-8 w-0.5 transition-colors ${
+                                  step.completed ? "bg-emerald-500" : step.current ? "bg-primary/30" : "bg-gray-200"
+                                }`}
+                              />
+                            )}
+                          </div>
+
+                          <div className="min-w-0 flex-1 pb-3">
+                            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                              <p className={`text-base font-black capitalize transition-colors ${
+                                step.completed ? "text-emerald-700" : step.current ? "text-primary" : "text-slate-500"
+                              }`}>
+                                {step.status.replace(/_/g, " ")}
+                              </p>
+                              {step.current && !step.completed && (
+                                <span className="w-fit rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary animate-pulse">
+                                  In Progress
+                                </span>
+                              )}
+                              {step.completed && (
+                                <span className="w-fit rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                                  Completed
+                                </span>
+                              )}
+                            </div>
+                            {step.timestamp && (
+                              <p className="mt-1 text-sm text-slate-600">
+                                {formatDateTime(step.timestamp)}
+                              </p>
+                            )}
+                            {!step.timestamp && !step.completed && (
+                              <p className="mt-1 text-sm text-slate-400 italic">
+                                Awaiting update
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <p className="mt-1 text-sm text-slate-500">
-                          {formatDateTime(step.timestamp)}
-                        </p>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </div>
+                );
+              })()}
 
               <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
                 <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
@@ -463,9 +673,9 @@ export default function OrderHistoryPage() {
             <div className="space-y-6">
             {orders.length > 0 && (
               <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-                <h2 className="text-2xl font-black text-dark">My Online Orders</h2>
+                <h2 className="text-2xl font-black text-dark">My Online Orders (FUL)</h2>
                 <p className="mt-2 text-sm text-slate-500">
-                  Orders placed through the website checkout.
+                  Orders placed through the website checkout with full tracking integration.
                 </p>
                 <div className="mt-6 space-y-4">
                   {orders.map((order) => {
@@ -582,9 +792,9 @@ export default function OrderHistoryPage() {
 
             {requestedOrders.length > 0 && (
               <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-                <h2 className="text-2xl font-black text-dark">Requested Orders</h2>
+                <h2 className="text-2xl font-black text-dark">Requested Orders (MDG)</h2>
                 <p className="mt-2 text-sm text-slate-500">
-                  Orders submitted through the request order form.
+                  Orders submitted through the request order form with full tracking.
                 </p>
                 <div className="mt-6 space-y-4">
                   {requestedOrders.map((order) => (
@@ -593,7 +803,9 @@ export default function OrderHistoryPage() {
                         <div>
                           <p className="text-sm font-semibold text-slate-500">Request ID</p>
                           <p className="mt-1 break-all font-mono text-sm font-black text-dark">{order._id}</p>
-                          <p className="mt-2 text-sm text-slate-600">{order.status ?? "Pending"}</p>
+                          <p className="mt-2 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold capitalize bg-blue-50 text-blue-700 border-blue-200">
+                            {order.status ?? "Pending"}
+                          </p>
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-semibold text-slate-500">Requested At</p>
@@ -610,6 +822,23 @@ export default function OrderHistoryPage() {
                           <p className="mt-1 text-sm font-medium text-dark">{order.phone ?? "-"}</p>
                         </div>
                       </div>
+                      
+                      {/* MDG Requested Order Tracking Timeline */}
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <TrackingTimelineCard 
+                          title="Order Progress"
+                          timelineSteps={[
+                            { status: order.status ?? "requested", completed: order.status !== "requested", current: order.status === "requested", timestamp: order.createdAt },
+                            ...Array.from({ length: 4 }, (_, i) => ({
+                              status: MDG_REQUESTED_ORDER_FLOW[i + 1] || "unknown",
+                              completed: false,
+                              current: false,
+                              timestamp: null,
+                            }))
+                          ]}
+                          statusFlow={MDG_REQUESTED_ORDER_FLOW}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -618,9 +847,9 @@ export default function OrderHistoryPage() {
 
             {prescriptionOrders.length > 0 && (
               <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-                <h2 className="text-2xl font-black text-dark">Prescription Orders</h2>
+                <h2 className="text-2xl font-black text-dark">Prescription Orders (MDG)</h2>
                 <p className="mt-2 text-sm text-slate-500">
-                  Prescription-based orders processed by pharmacy staff.
+                  Prescription-based orders processed by pharmacy staff with full tracking.
                 </p>
                 <div className="mt-6 space-y-4">
                   {prescriptionOrders.map((order) => (
@@ -629,7 +858,9 @@ export default function OrderHistoryPage() {
                         <div>
                           <p className="text-sm font-semibold text-slate-500">Prescription ID</p>
                           <p className="mt-1 break-all font-mono text-sm font-black text-dark">{order._id}</p>
-                          <p className="mt-2 text-sm text-slate-600">{order.status ?? "Pending"}</p>
+                          <p className="mt-2 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold capitalize bg-purple-50 text-purple-700 border-purple-200">
+                            {order.status ?? "Pending"}
+                          </p>
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-semibold text-slate-500">Submitted At</p>
@@ -645,6 +876,29 @@ export default function OrderHistoryPage() {
                           <p className="text-sm font-semibold text-slate-500">Phone</p>
                           <p className="mt-1 text-sm font-medium text-dark">{order.customerPhone ?? "-"}</p>
                         </div>
+                      </div>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-500">Amount</p>
+                          <p className="mt-1 text-sm font-black text-dark">{formatMoney(order.totalAmount)}</p>
+                        </div>
+                      </div>
+                      
+                      {/* MDG Prescription Order Tracking Timeline */}
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <TrackingTimelineCard 
+                          title="Prescription Processing"
+                          timelineSteps={[
+                            { status: order.status ?? "pending_ocr", completed: order.status !== "pending_ocr", current: order.status === "pending_ocr", timestamp: order.createdAt },
+                            ...Array.from({ length: 6 }, (_, i) => ({
+                              status: MDG_PRESCRIPTION_ORDER_FLOW[i + 1] || "unknown",
+                              completed: false,
+                              current: false,
+                              timestamp: null,
+                            }))
+                          ]}
+                          statusFlow={MDG_PRESCRIPTION_ORDER_FLOW}
+                        />
                       </div>
                     </div>
                   ))}

@@ -12,32 +12,34 @@ export const offers: SpecialOffer[] = [
   {
     id: 1,
     image:
-      "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=600",
-    title: "Early Bird Special",
-    discount: "25% OFF",
-    description: "Book 30 days in advance and save up to 25% on your stay",
-    code: "EARLY25",
-    expiry: "Limited Time",
+      "https://images.unsplash.com/photo-1580281657521-ff71aa1b933d?w=600",
+    title: "Wellness Essentials",
+    discount: "15% OFF",
+    description:
+      "Save on vitamins, supplements, and daily wellness items for every family member.",
+    code: "WELLNESS15",
+    expiry: "This week only",
   },
   {
     id: 2,
     image:
-      "https://images.unsplash.com/photo-1445019980597-93fa8acb246c?w=600",
-    title: "Couple Package",
-    discount: "Free Dinner",
+      "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=600",
+    title: "Prescription Advantage",
+    discount: "Free Delivery",
     description:
-      "Complimentary romantic dinner for two with every weekend booking",
-    code: "ROMANCE",
-    expiry: "Weekends Only",
+      "Enjoy free home delivery on prescription refills over $50.",
+    code: "HOMEDELIVERY",
+    expiry: "Ends month-end",
   },
   {
     id: 3,
     image:
-      "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=600",
-    title: "Family Getaway",
-    discount: "Kids Stay Free",
-    description: "Children under 12 stay free in existing beds",
-    code: "FAMILY",
-    expiry: "Year Round",
+      "https://images.unsplash.com/photo-1549068109-0ec05d9d59ec?w=600",
+    title: "Family Care Pack",
+    discount: "10% OFF",
+    description:
+      "Get 10% off family health packs including first aid and OTC essentials.",
+    code: "FAMILYCARE",
+    expiry: "Valid today",
   },
 ];
